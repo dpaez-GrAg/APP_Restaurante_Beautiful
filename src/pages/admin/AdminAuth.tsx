@@ -21,11 +21,11 @@ const AdminAuth = () => {
 
     try {
       // Verificar credenciales predeterminadas
-      if (email === "admin@admin.es" && password === "1234") {
+      if (email === "admin@admin.es" && password === "123456") {
         // Crear o actualizar perfil de admin
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: "admin@admin.es",
-          password: "1234"
+          password: "123456"
         });
 
         if (authError) {
@@ -33,7 +33,7 @@ const AdminAuth = () => {
           if (authError.message.includes("Invalid login credentials")) {
             const { error: signUpError } = await supabase.auth.signUp({
               email: "admin@admin.es",
-              password: "1234",
+              password: "123456",
               options: {
                 data: {
                   role: 'admin'
@@ -105,7 +105,7 @@ const AdminAuth = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@admin.es"
+                  placeholder="Introduce tu email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -144,7 +144,7 @@ const AdminAuth = () => {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>Credenciales por defecto:</p>
             <p>Email: admin@admin.es</p>
-            <p>Contraseña: 1234</p>
+            <p>Contraseña: 123456</p>
           </div>
         </CardContent>
       </Card>
