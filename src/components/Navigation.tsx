@@ -6,6 +6,12 @@ const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const scrollToSection = (sectionId: string) => {
+    if (sectionId.startsWith('/')) {
+      // Si es una ruta (como /admin), navegar directamente
+      window.location.href = sectionId;
+      return;
+    }
+    
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -17,7 +23,8 @@ const Navigation = () => {
     { label: "Inicio", href: "#hero" },
     { label: "Reservar", href: "#reservation" },
     { label: "Sobre Nosotros", href: "#about" },
-    { label: "Contacto", href: "#contact" }
+    { label: "Contacto", href: "#contact" },
+    { label: "Admin", href: "/admin" }  // Enlace al panel de administración
   ];
 
   return (
@@ -37,7 +44,7 @@ const Navigation = () => {
             {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => scrollToSection(item.href.slice(1))}
+                onClick={() => scrollToSection(item.href.startsWith('#') ? item.href.slice(1) : item.href)}
                 className="text-muted-foreground hover:text-restaurant-brown transition-colors duration-200 font-medium"
               >
                 {item.label}
@@ -72,7 +79,7 @@ const Navigation = () => {
               {navItems.map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => scrollToSection(item.href.slice(1))}
+                  onClick={() => scrollToSection(item.href.startsWith('#') ? item.href.slice(1) : item.href)}
                   className="text-left text-muted-foreground hover:text-restaurant-brown transition-colors duration-200 font-medium py-2"
                 >
                   {item.label}
