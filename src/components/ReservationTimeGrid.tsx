@@ -26,12 +26,12 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
   const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Generar slots de tiempo cada 30 minutos desde 12:00 hasta 23:30
+  // Generar slots de tiempo cada 15 minutos desde 12:00 hasta 23:45
   const generateTimeSlots = () => {
     const slots = [];
     for (let hour = 12; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        if (hour === 23 && minute === 30) break; // Terminar en 23:00
+      for (let minute = 0; minute < 60; minute += 15) {
+        if (hour === 23 && minute === 45) break; // Terminar en 23:30
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         slots.push(timeString);
       }
@@ -39,7 +39,19 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
     return slots;
   };
 
+  // Generar headers de horas (solo horas en punto)
+  const generateHourHeaders = () => {
+    const hours = [];
+    for (let hour = 12; hour <= 23; hour++) {
+      hours.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return hours;
+  };
+
   const timeSlots = generateTimeSlots();
+  const hourHeaders = generateHourHeaders();
+
+  const [schedules, setSchedules] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -47,7 +59,7 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
 
   const loadData = async () => {
     try {
-      const [reservationsResult, tablesResult] = await Promise.all([
+      const [reservationsResult, tablesResult, schedulesResult] = await Promise.all([
         supabase
           .from('reservations')
           .select(`
@@ -60,11 +72,16 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
           .from('tables')
           .select('*')
           .eq('is_active', true)
-          .order('name')
+          .order('name'),
+        supabase
+          .from('restaurant_schedules')
+          .select('*')
+          .eq('is_active', true)
       ]);
 
       if (reservationsResult.error) throw reservationsResult.error;
       if (tablesResult.error) throw tablesResult.error;
+      if (schedulesResult.error) throw schedulesResult.error;
 
       // Mapear reservaciones con nombre del cliente
       const mappedReservations = (reservationsResult.data || []).map(reservation => ({
@@ -79,11 +96,24 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
 
       setReservations(mappedReservations);
       setTables(tablesResult.data || []);
+      setSchedules(schedulesResult.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Verificar si el restaurante está abierto en un día y hora específicos
+  const isRestaurantOpen = (timeSlot: string) => {
+    const currentDay = new Date(selectedDate).getDay(); // 0 = domingo, 1 = lunes, etc.
+    const daySchedules = schedules.filter(s => s.day_of_week === currentDay && s.is_active);
+    
+    return daySchedules.some(schedule => {
+      const openTime = schedule.opening_time.substring(0, 5);
+      const closeTime = schedule.closing_time.substring(0, 5);
+      return timeSlot >= openTime && timeSlot <= closeTime;
+    });
   };
 
   const getReservationForTableAndTime = (tableId: string, timeSlot: string) => {
@@ -133,35 +163,35 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
       </CardHeader>
       <CardContent className="p-4">
         <div className="w-full">
-          <div className="grid gap-1 mb-2" style={{ 
-            gridTemplateColumns: `120px repeat(${timeSlots.length}, 1fr)`,
+          <div className="grid gap-0 mb-2" style={{ 
+            gridTemplateColumns: `100px repeat(${hourHeaders.length}, minmax(40px, 1fr))`,
             maxWidth: '100%'
           }}>
-            <div className="p-2 text-sm font-medium text-center bg-muted border rounded">Mesa / Hora</div>
-            {timeSlots.map(time => (
-              <div key={time} className="p-1 text-xs font-medium text-center bg-muted border rounded transform -rotate-45 origin-center">
-                {time}
+            <div className="p-2 text-sm font-medium text-center bg-muted border">Mesa</div>
+            {hourHeaders.map(time => (
+              <div key={time} className="p-1 text-xs font-medium text-center bg-muted border-l border-t border-b">
+                {time.substring(0, 2)}h
               </div>
             ))}
           </div>
 
           {/* Filas de mesas */}
-          <div className="space-y-1">
+          <div>
             {tables.map(table => (
               <div 
                 key={table.id} 
-                className="grid gap-1 items-stretch" 
+                className="grid gap-0 border-b" 
                 style={{ 
-                  gridTemplateColumns: `120px repeat(${timeSlots.length}, 1fr)`,
+                  gridTemplateColumns: `100px repeat(${timeSlots.length}, minmax(10px, 1fr))`,
                   maxWidth: '100%'
                 }}
               >
                 {/* Nombre de la mesa */}
-                <div className="p-2 bg-muted rounded text-sm font-medium flex items-center">
+                <div className="p-2 bg-muted text-sm font-medium flex items-center border-r border-b">
                   <div>
-                    <div className="font-semibold">{table.name}</div>
+                    <div className="font-semibold text-xs">{table.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      Cap: {table.capacity}
+                      {table.capacity}p
                     </div>
                   </div>
                 </div>
@@ -170,34 +200,40 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
                 {timeSlots.map(timeSlot => {
                   const reservation = getReservationForTableAndTime(table.id, timeSlot);
                   const isDoubleService = needsDoubleService(table.id, timeSlot);
+                  const isOpen = isRestaurantOpen(timeSlot);
                   
                   return (
                     <div 
                       key={`${table.id}-${timeSlot}`}
-                      className={`p-1 border rounded min-h-[60px] flex items-center justify-center text-xs transition-colors ${
-                        reservation 
-                          ? isDoubleService 
-                            ? 'bg-orange-100 border-orange-300 shadow-sm' 
-                            : reservation.status === 'confirmed' 
-                              ? 'bg-green-100 border-green-300 shadow-sm' 
-                              : 'bg-yellow-100 border-yellow-300 shadow-sm'
-                          : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                      className={`border-b border-r min-h-[50px] flex items-center justify-center text-xs transition-colors ${
+                        !isOpen 
+                          ? 'bg-gray-200 border-gray-300' // Cerrado
+                          : reservation 
+                            ? isDoubleService 
+                              ? 'bg-orange-100 border-orange-300' 
+                              : reservation.status === 'confirmed' 
+                                ? 'bg-green-100 border-green-300' 
+                                : 'bg-yellow-100 border-yellow-300'
+                            : 'bg-gray-50 hover:bg-gray-100 border-gray-200' // Abierto pero libre
                       }`}
                     >
                       {reservation && (
-                        <div className="text-center w-full px-1">
+                        <div className="text-center w-full px-0.5">
                           <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
-                            {reservation.customer_name}
+                            {reservation.customer_name.split(' ')[0]}
                           </div>
-                          <div className="inline-flex items-center justify-center bg-background/80 rounded-full px-1 py-0.5 text-xs font-medium">
+                          <div className="text-xs font-medium">
                             {reservation.guests}p
                           </div>
                           {isDoubleService && (
-                            <div className="mt-1 text-xs text-orange-700 font-bold bg-orange-200 rounded px-1 py-0.5">
-                              DOBLAR
+                            <div className="text-xs text-orange-700 font-bold">
+                              ↻
                             </div>
                           )}
                         </div>
+                      )}
+                      {!reservation && !isOpen && (
+                        <div className="text-xs text-gray-500">✕</div>
                       )}
                     </div>
                   );
@@ -220,6 +256,10 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-orange-100 border border-orange-300 rounded"></div>
             <span>Doblar Mesa</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded"></div>
+            <span>Cerrado</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
