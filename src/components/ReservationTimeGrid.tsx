@@ -122,7 +122,7 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Vista de Ocupación por Horarios
@@ -131,15 +131,15 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="w-full max-w-full">
-          <div className="overflow-x-auto max-w-full">
-            <div style={{ width: `${120 + (timeSlots.length * 80)}px` }}>
+      <CardContent className="p-0">
+        <div className="w-full">
+          <div className="overflow-x-auto border rounded-lg mx-4 mb-4">
+            <div className="min-w-max">
               {/* Header con horarios */}
-              <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}>
-                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-10 border-r">Mesa / Hora</div>
+              <div className="grid gap-1 mb-2 bg-background sticky top-0 z-20" style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))` }}>
+                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-30 border-r border-b">Mesa / Hora</div>
                 {timeSlots.map(time => (
-                  <div key={time} className="p-2 text-xs font-medium text-center border-l">
+                  <div key={time} className="p-2 text-xs font-medium text-center border-l border-b">
                     {time}
                   </div>
                 ))}
@@ -148,20 +148,20 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
               {/* Filas de mesas */}
               <div className="space-y-1">
                 {tables.map(table => (
-                  <div 
-                    key={table.id} 
-                    className="grid gap-1 items-stretch" 
-                    style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}
-                  >
-                    {/* Nombre de la mesa */}
-                    <div className="p-3 bg-muted rounded text-sm font-medium flex items-center sticky left-0 z-10 border-r">
-                      <div>
-                        <div>{table.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Cap: {table.capacity}
-                        </div>
+                <div 
+                  key={table.id} 
+                  className="grid gap-1 items-stretch border-b" 
+                  style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))` }}
+                >
+                  {/* Nombre de la mesa */}
+                  <div className="p-3 bg-muted text-sm font-medium flex items-center sticky left-0 z-20 border-r">
+                    <div>
+                      <div className="font-semibold">{table.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Cap: {table.capacity}
                       </div>
                     </div>
+                  </div>
                     
                     {/* Slots de tiempo para esta mesa */}
                     {timeSlots.map(timeSlot => {
@@ -207,7 +207,7 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
         </div>
         
         {/* Leyenda */}
-        <div className="mt-4 flex flex-wrap gap-4 text-xs">
+        <div className="mt-4 mx-4 flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
             <span>Confirmada</span>
