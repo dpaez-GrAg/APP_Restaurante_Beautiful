@@ -1,4 +1,4 @@
-import { Calendar, Clock, Layout, Settings, Users, BarChart3, TableProperties } from "lucide-react";
+import { Calendar, Clock, Layout, Settings, Users, BarChart3, TableProperties, Link } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -17,8 +17,8 @@ const adminItems = [
   { title: "Dashboard", url: "/admin", icon: BarChart3 },
   { title: "Reservas", url: "/admin/reservations", icon: Calendar },
   { title: "Mesas", url: "/admin/tables", icon: TableProperties },
-  { title: "Horarios", url: "/admin/hours", icon: Clock },
-  { title: "Layout", url: "/admin/layout", icon: Layout },
+  { title: "Combinaciones", url: "/admin/combinations", icon: Link },
+  { title: "Horarios", url: "/admin/schedules", icon: Clock },
   { title: "Configuración", url: "/admin/settings", icon: Settings },
 ];
 

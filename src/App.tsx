@@ -9,6 +9,9 @@ import NotFound from "./pages/NotFound";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ReservationsManager from "./pages/admin/ReservationsManager";
+import TablesManager from "./pages/admin/TablesManager";
+import CombinationsManager from "./pages/admin/CombinationsManager";
+import ScheduleManager from "./pages/admin/ScheduleManager";
 import RestaurantSettings from "./pages/admin/RestaurantSettings";
 
 const queryClient = new QueryClient();
@@ -27,6 +30,9 @@ const App = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="reservations" element={<ReservationsManager />} />
+              <Route path="tables" element={<TablesManager />} />
+              <Route path="combinations" element={<CombinationsManager />} />
+              <Route path="schedules" element={<ScheduleManager />} />
               <Route path="settings" element={<RestaurantSettings />} />
             </Route>
             

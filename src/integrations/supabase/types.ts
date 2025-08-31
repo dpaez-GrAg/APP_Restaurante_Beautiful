@@ -112,6 +112,162 @@ export type Database = {
           },
         ]
       }
+      restaurant_config: {
+        Row: {
+          city: string | null
+          contact_address: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          description: string | null
+          hero_image_url: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          id: string
+          is_active: boolean
+          latitude: number | null
+          logo_url: string | null
+          longitude: number | null
+          postcode: string | null
+          restaurant_name: string
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          contact_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          description?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          postcode?: string | null
+          restaurant_name: string
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          contact_address?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          description?: string | null
+          hero_image_url?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          logo_url?: string | null
+          longitude?: number | null
+          postcode?: string | null
+          restaurant_name?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      restaurant_schedules: {
+        Row: {
+          closing_time: string
+          created_at: string
+          day_of_week: number
+          id: string
+          is_active: boolean
+          opening_time: string
+          updated_at: string
+        }
+        Insert: {
+          closing_time: string
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_active?: boolean
+          opening_time: string
+          updated_at?: string
+        }
+        Update: {
+          closing_time?: string
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_active?: boolean
+          opening_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      table_combinations: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          table_ids: string[]
+          total_capacity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          table_ids: string[]
+          total_capacity: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          table_ids?: string[]
+          total_capacity?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tables: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          position_x: number | null
+          position_y: number | null
+          updated_at: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          position_x?: number | null
+          position_y?: number | null
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          position_x?: number | null
+          position_y?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       time_slots: {
         Row: {
           created_at: string
