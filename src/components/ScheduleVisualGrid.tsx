@@ -189,19 +189,20 @@ const ScheduleVisualGrid = () => {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <div className="min-w-full">
-            {/* Header con horarios */}
-            <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}>
-              <div className="p-2 text-sm font-medium text-center">Día / Hora</div>
-              {timeSlots.map(time => (
-                <div key={time} className="p-1 text-xs font-medium text-center border-l transform -rotate-45">
-                  {time}
-                </div>
-              ))}
-            </div>
+        <div className="w-full max-w-full">
+          <div className="overflow-x-auto max-w-full">
+            <div style={{ width: `${100 + (timeSlots.length * 50)}px` }}>
+              {/* Header con horarios */}
+              <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}>
+                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-10 border-r">Día / Hora</div>
+                {timeSlots.map(time => (
+                  <div key={time} className="p-1 text-xs font-medium text-center border-l transform -rotate-45">
+                    {time}
+                  </div>
+                ))}
+              </div>
 
-            {/* Filas de días */}
+              {/* Filas de días */}
             <div className="space-y-1">
               {DAYS_OF_WEEK.map(day => {
                 const schedule = getScheduleForDay(day.value);
@@ -212,7 +213,7 @@ const ScheduleVisualGrid = () => {
                     style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}
                   >
                     {/* Nombre del día */}
-                    <div className="p-2 bg-muted rounded text-sm font-medium flex items-center justify-between">
+                    <div className="p-2 bg-muted rounded text-sm font-medium flex items-center justify-between sticky left-0 z-10 border-r">
                       <span>{day.label}</span>
                       {schedule && (
                         <Badge variant="secondary" className="text-xs">
@@ -248,15 +249,16 @@ const ScheduleVisualGrid = () => {
               })}
             </div>
 
-            {/* Leyenda */}
-            <div className="mt-4 flex flex-wrap gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
-                <span>Horario de apertura</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
-                <span>Cerrado</span>
+              {/* Leyenda */}
+              <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
+                  <span>Horario de apertura</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
+                  <span>Cerrado</span>
+                </div>
               </div>
             </div>
           </div>

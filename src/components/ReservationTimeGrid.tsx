@@ -132,95 +132,97 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <div className="min-w-full">
-            {/* Header con horarios */}
-            <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}>
-              <div className="p-2 text-sm font-medium text-center">Mesa / Hora</div>
-              {timeSlots.map(time => (
-                <div key={time} className="p-2 text-xs font-medium text-center border-l">
-                  {time}
-                </div>
-              ))}
-            </div>
+        <div className="w-full max-w-full">
+          <div className="overflow-x-auto max-w-full">
+            <div style={{ width: `${120 + (timeSlots.length * 80)}px` }}>
+              {/* Header con horarios */}
+              <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}>
+                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-10 border-r">Mesa / Hora</div>
+                {timeSlots.map(time => (
+                  <div key={time} className="p-2 text-xs font-medium text-center border-l">
+                    {time}
+                  </div>
+                ))}
+              </div>
 
-            {/* Filas de mesas */}
-            <div className="space-y-1">
-              {tables.map(table => (
-                <div 
-                  key={table.id} 
-                  className="grid gap-1 items-stretch" 
-                  style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}
-                >
-                  {/* Nombre de la mesa */}
-                  <div className="p-3 bg-muted rounded text-sm font-medium flex items-center">
-                    <div>
-                      <div>{table.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Cap: {table.capacity}
+              {/* Filas de mesas */}
+              <div className="space-y-1">
+                {tables.map(table => (
+                  <div 
+                    key={table.id} 
+                    className="grid gap-1 items-stretch" 
+                    style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, 80px)` }}
+                  >
+                    {/* Nombre de la mesa */}
+                    <div className="p-3 bg-muted rounded text-sm font-medium flex items-center sticky left-0 z-10 border-r">
+                      <div>
+                        <div>{table.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Cap: {table.capacity}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Slots de tiempo para esta mesa */}
-                  {timeSlots.map(timeSlot => {
-                    const reservation = getReservationForTableAndTime(table.id, timeSlot);
-                    const isDoubleService = needsDoubleService(table.id, timeSlot);
                     
-                    return (
-                      <div 
-                        key={`${table.id}-${timeSlot}`}
-                        className={`p-1 border-l border-b min-h-[60px] flex items-center justify-center text-xs ${
-                          reservation 
-                            ? isDoubleService 
-                              ? 'bg-orange-100 border-orange-300' 
-                              : reservation.status === 'confirmed' 
-                                ? 'bg-green-100 border-green-300' 
-                                : 'bg-yellow-100 border-yellow-300'
-                            : 'bg-gray-50 hover:bg-gray-100'
-                        }`}
-                      >
-                        {reservation && (
-                          <div className="text-center">
-                            <div className="font-medium truncate">
-                              {reservation.customer_name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {reservation.guests}p
-                            </div>
-                            {isDoubleService && (
-                              <div className="text-xs text-orange-600 font-medium">
-                                Doblar
+                    {/* Slots de tiempo para esta mesa */}
+                    {timeSlots.map(timeSlot => {
+                      const reservation = getReservationForTableAndTime(table.id, timeSlot);
+                      const isDoubleService = needsDoubleService(table.id, timeSlot);
+                      
+                      return (
+                        <div 
+                          key={`${table.id}-${timeSlot}`}
+                          className={`p-2 border-l border-b min-h-[80px] flex items-center justify-center text-xs transition-colors ${
+                            reservation 
+                              ? isDoubleService 
+                                ? 'bg-orange-100 border-orange-300 shadow-sm' 
+                                : reservation.status === 'confirmed' 
+                                  ? 'bg-green-100 border-green-300 shadow-sm' 
+                                  : 'bg-yellow-100 border-yellow-300 shadow-sm'
+                              : 'bg-gray-50 hover:bg-gray-100'
+                          }`}
+                        >
+                          {reservation && (
+                            <div className="text-center w-full">
+                              <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
+                                {reservation.customer_name}
                               </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-
-            {/* Leyenda */}
-            <div className="mt-4 flex flex-wrap gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-                <span>Confirmada</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
-                <span>Pendiente</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-orange-100 border border-orange-300 rounded"></div>
-                <span>Doblar Mesa</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
-                <span>Libre</span>
+                              <div className="inline-flex items-center justify-center bg-background/80 rounded-full px-2 py-1 text-xs font-medium">
+                                {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
+                              </div>
+                              {isDoubleService && (
+                                <div className="mt-1 text-xs text-orange-700 font-bold bg-orange-200 rounded px-1 py-0.5">
+                                  DOBLAR
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
+          </div>
+        </div>
+        
+        {/* Leyenda */}
+        <div className="mt-4 flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
+            <span>Confirmada</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
+            <span>Pendiente</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-orange-100 border border-orange-300 rounded"></div>
+            <span>Doblar Mesa</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
+            <span>Libre</span>
           </div>
         </div>
       </CardContent>

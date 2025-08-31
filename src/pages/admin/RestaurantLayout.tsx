@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface TableData {
   id: string;
@@ -22,6 +24,9 @@ const RestaurantLayout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [draggedTable, setDraggedTable] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const GRID_SIZE = 60; // Size of each grid cell in pixels
 
   useEffect(() => {
     loadTables();
@@ -58,19 +63,29 @@ const RestaurantLayout = () => {
     e.dataTransfer.dropEffect = 'move';
   };
 
+  const snapToGrid = (value: number, containerSize: number) => {
+    const pixelValue = (value / 100) * containerSize;
+    const gridSnappedValue = Math.round(pixelValue / GRID_SIZE) * GRID_SIZE;
+    return Math.max(GRID_SIZE/2, Math.min(containerSize - GRID_SIZE/2, gridSnappedValue)) / containerSize * 100;
+  };
+
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (!draggedTable) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const rawX = ((e.clientX - rect.left) / rect.width) * 100;
+    const rawY = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Snap to grid
+    const x = snapToGrid(rawX, rect.width);
+    const y = snapToGrid(rawY, rect.height);
 
     try {
       const { error } = await supabase
         .from('tables')
         .update({
-          position_x: Math.max(0, Math.min(95, x)), // Límites del área
+          position_x: Math.max(0, Math.min(95, x)),
           position_y: Math.max(0, Math.min(95, y))
         })
         .eq('id', draggedTable);
@@ -135,9 +150,15 @@ const RestaurantLayout = () => {
           <h1 className="text-3xl font-bold">Distribución en Planta</h1>
           <p className="text-muted-foreground">Arrastra las mesas para reorganizar el layout</p>
         </div>
-        <Button onClick={loadTables} variant="outline">
-          Actualizar Layout
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate('/admin/tables')} variant="outline">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Mesas
+          </Button>
+          <Button onClick={loadTables} variant="outline">
+            Actualizar Layout
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -147,6 +168,10 @@ const RestaurantLayout = () => {
         <CardContent>
           <div
             className="relative w-full h-96 bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg overflow-hidden"
+            style={{
+              backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+              backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`
+            }}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
           >
