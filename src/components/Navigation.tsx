@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Utensils } from "lucide-react";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { config } = useRestaurantConfig();
 
   const scrollToSection = (sectionId: string) => {
     if (sectionId.startsWith('/')) {
@@ -34,7 +36,7 @@ const Navigation = () => {
           <div className="flex items-center space-x-2">
             <Utensils className="w-8 h-8 text-restaurant-gold" />
             <span className="text-xl font-bold text-restaurant-brown">
-              Restaurante Élite
+              {config?.restaurant_name || "Restaurante Élite"}
             </span>
           </div>
 

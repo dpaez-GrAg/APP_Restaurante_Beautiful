@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 import heroImage from "@/assets/restaurant-hero.jpg";
 
 const HeroSection = () => {
+  const { config } = useRestaurantConfig();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src={heroImage} 
+          src={config?.hero_image_url || heroImage} 
           alt="Elegant restaurant interior with warm lighting and sophisticated dining atmosphere"
           className="w-full h-full object-cover"
         />
@@ -17,12 +19,11 @@ const HeroSection = () => {
       {/* Hero Content */}
       <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto animate-fade-in">
         <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-          Reserva tu Mesa
+          {config?.hero_title || "Reserva tu Mesa"}
           <span className="block text-restaurant-gold">Perfecta</span>
         </h1>
         <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto leading-relaxed">
-          Vive una experiencia gastronómica única en nuestro restaurante. 
-          Reserva ahora y disfruta de sabores excepcionales.
+          {config?.hero_subtitle || "Vive una experiencia gastronómica única en nuestro restaurante. Reserva ahora y disfruta de sabores excepcionales."}
         </p>
         <Button 
           variant="reserve" 
