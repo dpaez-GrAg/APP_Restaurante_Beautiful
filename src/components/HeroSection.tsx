@@ -29,6 +29,10 @@ const HeroSection = () => {
           variant="reserve" 
           size="lg"
           className="animate-slide-up"
+          onClick={() => {
+            const reservationSection = document.getElementById('reservation');
+            reservationSection?.scrollIntoView({ behavior: 'smooth' });
+          }}
         >
           Hacer Reserva
         </Button>

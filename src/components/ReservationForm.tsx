@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, Clock, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ReservationForm = () => {
   const [formData, setFormData] = useState({
@@ -20,7 +21,7 @@ const ReservationForm = () => {
 
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
@@ -33,22 +34,80 @@ const ReservationForm = () => {
       return;
     }
 
-    // Simulate reservation
-    toast({
-      title: "¡Reserva realizada!",
-      description: `Reserva confirmada para ${formData.guests} personas el ${formData.date} a las ${formData.time}.`,
-    });
+    try {
+      // First create or get customer
+      let customerId;
+      const { data: existingCustomer, error: customerCheckError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', formData.email)
+        .maybeSingle();
 
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      date: "",
-      time: "",
-      guests: "",
-      message: ""
-    });
+      if (customerCheckError) {
+        throw customerCheckError;
+      }
+
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        // Create new customer
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone || null
+          })
+          .select('id')
+          .single();
+
+        if (customerError) {
+          throw customerError;
+        }
+        
+        customerId = newCustomer.id;
+      }
+
+      // Create reservation
+      const { error: reservationError } = await supabase
+        .from('reservations')
+        .insert({
+          customer_id: customerId,
+          date: formData.date,
+          time: formData.time,
+          guests: parseInt(formData.guests),
+          special_requests: formData.message || null,
+          status: 'pending'
+        });
+
+      if (reservationError) {
+        throw reservationError;
+      }
+
+      toast({
+        title: "¡Reserva realizada!",
+        description: `Reserva confirmada para ${formData.guests} personas el ${formData.date} a las ${formData.time}.`,
+      });
+
+      // Reset form
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        date: "",
+        time: "",
+        guests: "",
+        message: ""
+      });
+
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+      toast({
+        title: "Error al crear reserva",
+        description: "Ha ocurrido un error. Por favor intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   const timeSlots = [
