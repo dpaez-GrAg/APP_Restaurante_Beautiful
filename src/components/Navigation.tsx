@@ -23,8 +23,7 @@ const Navigation = () => {
     { label: "Inicio", href: "#hero" },
     { label: "Reservar", href: "#reservation" },
     { label: "Sobre Nosotros", href: "#about" },
-    { label: "Contacto", href: "#contact" },
-    { label: "Admin", href: "/admin" }  // Enlace al panel de administración
+    { label: "Contacto", href: "#contact" }
   ];
 
   return (
