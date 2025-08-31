@@ -34,7 +34,7 @@ const App = () => (
               <Route index element={<AdminDashboard />} />
               <Route path="reservations" element={<ReservationsManager />} />
               <Route path="tables" element={<TablesManager />} />
-              <Route path="tables/layout" element={<RestaurantLayout />} />
+              <Route path="layout" element={<RestaurantLayout />} />
               <Route path="combinations" element={<CombinationsManager />} />
               <Route path="schedules" element={<ScheduleManager />} />
               <Route path="settings" element={<RestaurantSettings />} />

@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Edit, Trash2, Clock, Grid3X3, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import ScheduleVisualGrid from "@/components/ScheduleVisualGrid";
 
 interface ScheduleData {
   id: string;
@@ -285,76 +287,96 @@ const ScheduleManager = () => {
         </Dialog>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Horarios del Restaurante</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {schedules.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No hay horarios configurados. Crea el primer horario.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Día</TableHead>
-                  <TableHead>Apertura</TableHead>
-                  <TableHead>Cierre</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {schedules.map((schedule) => (
-                  <TableRow key={schedule.id}>
-                    <TableCell className="font-medium">{getDayName(schedule.day_of_week)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                        {formatTime(schedule.opening_time)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                        {formatTime(schedule.closing_time)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={schedule.is_active ? "default" : "secondary"}
-                        className="cursor-pointer"
-                        onClick={() => toggleActive(schedule.id, schedule.is_active)}
-                      >
-                        {schedule.is_active ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditDialog(schedule)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(schedule.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Tabs para diferentes vistas */}
+      <Tabs defaultValue="visual" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 lg:w-400">
+          <TabsTrigger value="visual" className="flex items-center gap-2">
+            <Grid3X3 className="w-4 h-4" />
+            Vista Visual
+          </TabsTrigger>
+          <TabsTrigger value="list" className="flex items-center gap-2">
+            <List className="w-4 h-4" />
+            Lista de Horarios
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visual">
+          <ScheduleVisualGrid />
+        </TabsContent>
+
+        <TabsContent value="list">
+          <Card>
+            <CardHeader>
+              <CardTitle>Horarios del Restaurante</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {schedules.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No hay horarios configurados. Crea el primer horario.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Día</TableHead>
+                      <TableHead>Apertura</TableHead>
+                      <TableHead>Cierre</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {schedules.map((schedule) => (
+                      <TableRow key={schedule.id}>
+                        <TableCell className="font-medium">{getDayName(schedule.day_of_week)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                            {formatTime(schedule.opening_time)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                            {formatTime(schedule.closing_time)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={schedule.is_active ? "default" : "secondary"}
+                            className="cursor-pointer"
+                            onClick={() => toggleActive(schedule.id, schedule.is_active)}
+                          >
+                            {schedule.is_active ? 'Activo' : 'Inactivo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditDialog(schedule)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(schedule.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
