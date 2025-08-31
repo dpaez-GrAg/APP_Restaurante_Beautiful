@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Move } from "lucide-react";
+import { Plus, Edit, Trash2, Move, Layout } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,6 +40,7 @@ const TablesManager = () => {
     position_y: 0
   });
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadTables();
@@ -188,136 +190,124 @@ const TablesManager = () => {
           <p className="text-muted-foreground">Administra las mesas del restaurante</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Mesa
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingTable ? 'Editar Mesa' : 'Nueva Mesa'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nombre de la mesa</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Mesa 1"
-                />
-              </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/admin/layout')}
+          >
+            <Layout className="w-4 h-4 mr-2" />
+            Ver Layout
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={resetForm}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Mesa
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editingTable ? 'Editar Mesa' : 'Nueva Mesa'}
+                </DialogTitle>
+              </DialogHeader>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <Label htmlFor="capacity">Capacidad Base</Label>
+                  <Label htmlFor="name">Nombre de la mesa</Label>
                   <Input
-                    id="capacity"
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={formData.capacity}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      setFormData({ 
-                        ...formData, 
-                        capacity: val,
-                        max_capacity: Math.max(val, formData.max_capacity)
-                      });
-                    }}
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Mesa 1"
                   />
                 </div>
                 
-                <div>
-                  <Label htmlFor="shape">Forma</Label>
-                  <select
-                    id="shape"
-                    value={formData.shape}
-                    onChange={(e) => setFormData({ ...formData, shape: e.target.value as 'square' | 'round' })}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="square">Cuadrada</option>
-                    <option value="round">Redonda</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="min_capacity">Mín. Ocupación</Label>
-                  <Input
-                    id="min_capacity"
-                    type="number"
-                    min="1"
-                    max={formData.capacity}
-                    value={formData.min_capacity}
-                    onChange={(e) => setFormData({ ...formData, min_capacity: parseInt(e.target.value) })}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="max_capacity">Máx. Ocupación</Label>
-                  <Input
-                    id="max_capacity"
-                    type="number"
-                    min={formData.capacity}
-                    max="20"
-                    value={formData.max_capacity}
-                    onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="capacity">Capacidad Base</Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={formData.capacity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setFormData({ 
+                          ...formData, 
+                          capacity: val,
+                          max_capacity: Math.max(val, formData.max_capacity)
+                        });
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="shape">Forma</Label>
+                    <select
+                      id="shape"
+                      value={formData.shape}
+                      onChange={(e) => setFormData({ ...formData, shape: e.target.value as 'square' | 'round' })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="square">Cuadrada</option>
+                      <option value="round">Redonda</option>
+                    </select>
+                  </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor="extra_capacity">Capacidad Extra</Label>
-                  <Input
-                    id="extra_capacity"
-                    type="number"
-                    min="0"
-                    max="5"
-                    value={formData.extra_capacity}
-                    onChange={(e) => setFormData({ ...formData, extra_capacity: parseInt(e.target.value) })}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="position_x">Posición X</Label>
-                  <Input
-                    id="position_x"
-                    type="number"
-                    value={formData.position_x}
-                    onChange={(e) => setFormData({ ...formData, position_x: parseFloat(e.target.value) })}
-                  />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="min_capacity">Mín. Ocupación</Label>
+                    <Input
+                      id="min_capacity"
+                      type="number"
+                      min="1"
+                      max={formData.capacity}
+                      value={formData.min_capacity}
+                      onChange={(e) => setFormData({ ...formData, min_capacity: parseInt(e.target.value) })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="max_capacity">Máx. Ocupación</Label>
+                    <Input
+                      id="max_capacity"
+                      type="number"
+                      min={formData.capacity}
+                      max="20"
+                      value={formData.max_capacity}
+                      onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="extra_capacity">Capacidad Extra</Label>
+                    <Input
+                      id="extra_capacity"
+                      type="number"
+                      min="0"
+                      max="5"
+                      value={formData.extra_capacity}
+                      onChange={(e) => setFormData({ ...formData, extra_capacity: parseInt(e.target.value) })}
+                    />
+                  </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor="position_y">Posición Y</Label>
-                  <Input
-                    id="position_y"
-                    type="number"
-                    value={formData.position_y}
-                    onChange={(e) => setFormData({ ...formData, position_y: parseFloat(e.target.value) })}
-                  />
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave}>
+                    {editingTable ? 'Actualizar' : 'Crear'}
+                  </Button>
                 </div>
               </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleSave}>
-                  {editingTable ? 'Actualizar' : 'Crear'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -335,7 +325,6 @@ const TablesManager = () => {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Capacidad</TableHead>
-                  <TableHead>Posición</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -357,12 +346,6 @@ const TablesManager = () => {
                           <div className="text-muted-foreground">Extra: +{table.extra_capacity}</div>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {table.position_x !== null && table.position_y !== null 
-                        ? `X: ${table.position_x?.toFixed(1)}, Y: ${table.position_y?.toFixed(1)}`
-                        : 'Sin posición'
-                      }
                     </TableCell>
                     <TableCell>
                       <Badge variant={table.is_active ? "default" : "secondary"}>

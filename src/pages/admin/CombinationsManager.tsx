@@ -22,6 +22,9 @@ interface CombinationData {
   name: string;
   table_ids: string[];
   total_capacity: number;
+  min_capacity: number;
+  max_capacity: number;
+  extra_capacity: number;
   is_active: boolean;
 }
 
@@ -33,7 +36,10 @@ const CombinationsManager = () => {
   const [editingCombination, setEditingCombination] = useState<CombinationData | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    table_ids: [] as string[]
+    table_ids: [] as string[],
+    min_capacity: 1,
+    max_capacity: 0,
+    extra_capacity: 0
   });
   const { toast } = useToast();
 
@@ -90,7 +96,10 @@ const CombinationsManager = () => {
           .update({
             name: formData.name,
             table_ids: formData.table_ids,
-            total_capacity: totalCapacity
+            total_capacity: totalCapacity,
+            min_capacity: formData.min_capacity,
+            max_capacity: formData.max_capacity,
+            extra_capacity: formData.extra_capacity
           })
           .eq('id', editingCombination.id);
         
@@ -105,7 +114,10 @@ const CombinationsManager = () => {
           .insert([{
             name: formData.name,
             table_ids: formData.table_ids,
-            total_capacity: totalCapacity
+            total_capacity: totalCapacity,
+            min_capacity: formData.min_capacity,
+            max_capacity: formData.max_capacity,
+            extra_capacity: formData.extra_capacity
           }]);
         
         if (error) throw error;
@@ -158,7 +170,10 @@ const CombinationsManager = () => {
     setEditingCombination(combination);
     setFormData({
       name: combination.name,
-      table_ids: combination.table_ids
+      table_ids: combination.table_ids,
+      min_capacity: combination.min_capacity || 1,
+      max_capacity: combination.max_capacity || 0,
+      extra_capacity: combination.extra_capacity || 0
     });
     setIsDialogOpen(true);
   };
@@ -167,7 +182,10 @@ const CombinationsManager = () => {
     setEditingCombination(null);
     setFormData({
       name: "",
-      table_ids: []
+      table_ids: [],
+      min_capacity: 1,
+      max_capacity: 0,
+      extra_capacity: 0
     });
   };
 
@@ -219,7 +237,7 @@ const CombinationsManager = () => {
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Combinación VIP"
+                  placeholder="Combinación 1"
                 />
               </div>
               
@@ -238,6 +256,41 @@ const CombinationsManager = () => {
                       </Label>
                     </div>
                   ))}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="min_capacity">Mín. Personas</Label>
+                  <Input
+                    id="min_capacity"
+                    type="number"
+                    min="1"
+                    value={formData.min_capacity}
+                    onChange={(e) => setFormData({ ...formData, min_capacity: parseInt(e.target.value) })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="max_capacity">Máx. Personas</Label>
+                  <Input
+                    id="max_capacity"
+                    type="number"
+                    min={formData.min_capacity}
+                    value={formData.max_capacity}
+                    onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="extra_capacity">Capacidad Extra</Label>
+                  <Input
+                    id="extra_capacity"
+                    type="number"
+                    min="0"
+                    value={formData.extra_capacity}
+                    onChange={(e) => setFormData({ ...formData, extra_capacity: parseInt(e.target.value) })}
+                  />
                 </div>
               </div>
               

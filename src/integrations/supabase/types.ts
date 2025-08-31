@@ -208,8 +208,11 @@ export type Database = {
       table_combinations: {
         Row: {
           created_at: string
+          extra_capacity: number | null
           id: string
           is_active: boolean
+          max_capacity: number | null
+          min_capacity: number | null
           name: string
           table_ids: string[]
           total_capacity: number
@@ -217,8 +220,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          extra_capacity?: number | null
           id?: string
           is_active?: boolean
+          max_capacity?: number | null
+          min_capacity?: number | null
           name: string
           table_ids: string[]
           total_capacity: number
@@ -226,8 +232,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          extra_capacity?: number | null
           id?: string
           is_active?: boolean
+          max_capacity?: number | null
+          min_capacity?: number | null
           name?: string
           table_ids?: string[]
           total_capacity?: number
