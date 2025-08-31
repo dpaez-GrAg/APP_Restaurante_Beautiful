@@ -131,83 +131,84 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-4">
         <div className="w-full">
-          <div className="overflow-x-auto border rounded-lg mx-4 mb-4">
-            <div className="min-w-max">
-              {/* Header con horarios */}
-              <div className="grid gap-1 mb-2 bg-background sticky top-0 z-20" style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))` }}>
-                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-30 border-r border-b">Mesa / Hora</div>
-                {timeSlots.map(time => (
-                  <div key={time} className="p-2 text-xs font-medium text-center border-l border-b">
-                    {time}
-                  </div>
-                ))}
+          <div className="grid gap-1 mb-2" style={{ 
+            gridTemplateColumns: `120px repeat(${timeSlots.length}, 1fr)`,
+            maxWidth: '100%'
+          }}>
+            <div className="p-2 text-sm font-medium text-center bg-muted border rounded">Mesa / Hora</div>
+            {timeSlots.map(time => (
+              <div key={time} className="p-1 text-xs font-medium text-center bg-muted border rounded transform -rotate-45 origin-center">
+                {time}
               </div>
+            ))}
+          </div>
 
-              {/* Filas de mesas */}
-              <div className="space-y-1">
-                {tables.map(table => (
-                <div 
-                  key={table.id} 
-                  className="grid gap-1 items-stretch border-b" 
-                  style={{ gridTemplateColumns: `120px repeat(${timeSlots.length}, minmax(70px, 1fr))` }}
-                >
-                  {/* Nombre de la mesa */}
-                  <div className="p-3 bg-muted text-sm font-medium flex items-center sticky left-0 z-20 border-r">
-                    <div>
-                      <div className="font-semibold">{table.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Cap: {table.capacity}
-                      </div>
+          {/* Filas de mesas */}
+          <div className="space-y-1">
+            {tables.map(table => (
+              <div 
+                key={table.id} 
+                className="grid gap-1 items-stretch" 
+                style={{ 
+                  gridTemplateColumns: `120px repeat(${timeSlots.length}, 1fr)`,
+                  maxWidth: '100%'
+                }}
+              >
+                {/* Nombre de la mesa */}
+                <div className="p-2 bg-muted rounded text-sm font-medium flex items-center">
+                  <div>
+                    <div className="font-semibold">{table.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Cap: {table.capacity}
                     </div>
                   </div>
-                    
-                    {/* Slots de tiempo para esta mesa */}
-                    {timeSlots.map(timeSlot => {
-                      const reservation = getReservationForTableAndTime(table.id, timeSlot);
-                      const isDoubleService = needsDoubleService(table.id, timeSlot);
-                      
-                      return (
-                        <div 
-                          key={`${table.id}-${timeSlot}`}
-                          className={`p-2 border-l border-b min-h-[80px] flex items-center justify-center text-xs transition-colors ${
-                            reservation 
-                              ? isDoubleService 
-                                ? 'bg-orange-100 border-orange-300 shadow-sm' 
-                                : reservation.status === 'confirmed' 
-                                  ? 'bg-green-100 border-green-300 shadow-sm' 
-                                  : 'bg-yellow-100 border-yellow-300 shadow-sm'
-                              : 'bg-gray-50 hover:bg-gray-100'
-                          }`}
-                        >
-                          {reservation && (
-                            <div className="text-center w-full">
-                              <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
-                                {reservation.customer_name}
-                              </div>
-                              <div className="inline-flex items-center justify-center bg-background/80 rounded-full px-2 py-1 text-xs font-medium">
-                                {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
-                              </div>
-                              {isDoubleService && (
-                                <div className="mt-1 text-xs text-orange-700 font-bold bg-orange-200 rounded px-1 py-0.5">
-                                  DOBLAR
-                                </div>
-                              )}
+                </div>
+                
+                {/* Slots de tiempo para esta mesa */}
+                {timeSlots.map(timeSlot => {
+                  const reservation = getReservationForTableAndTime(table.id, timeSlot);
+                  const isDoubleService = needsDoubleService(table.id, timeSlot);
+                  
+                  return (
+                    <div 
+                      key={`${table.id}-${timeSlot}`}
+                      className={`p-1 border rounded min-h-[60px] flex items-center justify-center text-xs transition-colors ${
+                        reservation 
+                          ? isDoubleService 
+                            ? 'bg-orange-100 border-orange-300 shadow-sm' 
+                            : reservation.status === 'confirmed' 
+                              ? 'bg-green-100 border-green-300 shadow-sm' 
+                              : 'bg-yellow-100 border-yellow-300 shadow-sm'
+                          : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                      }`}
+                    >
+                      {reservation && (
+                        <div className="text-center w-full px-1">
+                          <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
+                            {reservation.customer_name}
+                          </div>
+                          <div className="inline-flex items-center justify-center bg-background/80 rounded-full px-1 py-0.5 text-xs font-medium">
+                            {reservation.guests}p
+                          </div>
+                          {isDoubleService && (
+                            <div className="mt-1 text-xs text-orange-700 font-bold bg-orange-200 rounded px-1 py-0.5">
+                              DOBLAR
                             </div>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            ))}
           </div>
         </div>
         
         {/* Leyenda */}
-        <div className="mt-4 mx-4 flex flex-wrap gap-4 text-xs">
+        <div className="mt-4 flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
             <span>Confirmada</span>
