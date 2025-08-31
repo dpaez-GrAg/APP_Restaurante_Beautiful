@@ -69,21 +69,9 @@ const ScheduleManager = () => {
   };
 
   const handleSave = async () => {
-    // Verificar que no existe ya un horario para ese día
-    const existingSchedule = schedules.find(s => 
-      s.day_of_week === formData.day_of_week && 
-      (!editingSchedule || s.id !== editingSchedule.id)
-    );
+    // Para horarios múltiples, no verificar duplicados por día
+    // Permitir múltiples horarios por día (comida y cena)
     
-    if (existingSchedule) {
-      toast({
-        title: "Error",
-        description: "Ya existe un horario para ese día de la semana",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       if (editingSchedule) {
         const { error } = await supabase
@@ -183,8 +171,8 @@ const ScheduleManager = () => {
     setEditingSchedule(schedule);
     setFormData({
       day_of_week: schedule.day_of_week,
-      opening_time: schedule.opening_time,
-      closing_time: schedule.closing_time
+      opening_time: schedule.opening_time.substring(0, 5),
+      closing_time: schedule.closing_time.substring(0, 5)
     });
     setIsDialogOpen(true);
   };
@@ -328,7 +316,15 @@ const ScheduleManager = () => {
                   <TableBody>
                     {schedules.map((schedule) => (
                       <TableRow key={schedule.id}>
-                        <TableCell className="font-medium">{getDayName(schedule.day_of_week)}</TableCell>
+                        <TableCell className="font-medium">
+                          {getDayName(schedule.day_of_week)}
+                          <div className="text-xs text-muted-foreground">
+                            {schedules.filter(s => s.day_of_week === schedule.day_of_week).length > 1 
+                              ? `Horario ${schedules.filter(s => s.day_of_week === schedule.day_of_week).indexOf(schedule) + 1}`
+                              : ''
+                            }
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center">
                             <Clock className="w-4 h-4 mr-2 text-muted-foreground" />

@@ -68,24 +68,32 @@ const ScheduleVisualGrid = () => {
     }
   };
 
-  const getScheduleForDay = (dayOfWeek: number) => {
-    return schedules.find(s => s.day_of_week === dayOfWeek && s.is_active);
+  const getSchedulesForDay = (dayOfWeek: number) => {
+    return schedules.filter(s => s.day_of_week === dayOfWeek && s.is_active);
   };
 
   const isTimeInSchedule = (dayOfWeek: number, timeSlot: string) => {
-    const schedule = getScheduleForDay(dayOfWeek);
-    if (!schedule) return false;
+    const daySchedules = getSchedulesForDay(dayOfWeek);
+    if (daySchedules.length === 0) return false;
 
-    const openTime = schedule.opening_time.substring(0, 5);
-    const closeTime = schedule.closing_time.substring(0, 5);
-    
-    return timeSlot >= openTime && timeSlot <= closeTime;
+    return daySchedules.some(schedule => {
+      const openTime = schedule.opening_time.substring(0, 5);
+      const closeTime = schedule.closing_time.substring(0, 5);
+      return timeSlot >= openTime && timeSlot <= closeTime;
+    });
   };
 
   const toggleTimeSlot = async (dayOfWeek: number, timeSlot: string) => {
-    const schedule = getScheduleForDay(dayOfWeek);
+    const daySchedules = getSchedulesForDay(dayOfWeek);
     
-    if (!schedule) {
+    // Verificar si el timeSlot está en algún horario existente
+    const affectedSchedule = daySchedules.find(schedule => {
+      const openTime = schedule.opening_time.substring(0, 5);
+      const closeTime = schedule.closing_time.substring(0, 5);
+      return timeSlot >= openTime && timeSlot <= closeTime;
+    });
+    
+    if (!affectedSchedule) {
       // Crear nuevo horario
       try {
         const { error } = await supabase
@@ -112,30 +120,78 @@ const ScheduleVisualGrid = () => {
         });
       }
     } else {
-      // Actualizar horario existente
+      // Modificar horario existente
       const isInRange = isTimeInSchedule(dayOfWeek, timeSlot);
-      let newOpenTime = schedule.opening_time;
-      let newCloseTime = schedule.closing_time;
+      let newOpenTime = affectedSchedule.opening_time;
+      let newCloseTime = affectedSchedule.closing_time;
 
       if (isInRange) {
         // Si está en el rango, ajustar el rango
-        if (timeSlot === schedule.opening_time.substring(0, 5)) {
+        if (timeSlot === affectedSchedule.opening_time.substring(0, 5)) {
           // Mover apertura hacia adelante
           const currentIndex = timeSlots.indexOf(timeSlot);
           if (currentIndex < timeSlots.length - 1) {
             newOpenTime = timeSlots[currentIndex + 1];
+          } else {
+            // Si es el último slot, eliminar el horario
+            try {
+              const { error } = await supabase
+                .from('restaurant_schedules')
+                .delete()
+                .eq('id', affectedSchedule.id);
+              
+              if (error) throw error;
+              await loadSchedules();
+              toast({
+                title: "Horario eliminado",
+                description: "Horario eliminado correctamente"
+              });
+              return;
+            } catch (error) {
+              console.error('Error deleting schedule:', error);
+              toast({
+                title: "Error",
+                description: "No se pudo eliminar el horario",
+                variant: "destructive"
+              });
+              return;
+            }
           }
-        } else if (timeSlot === schedule.closing_time.substring(0, 5)) {
+        } else if (timeSlot === affectedSchedule.closing_time.substring(0, 5)) {
           // Mover cierre hacia atrás
           const currentIndex = timeSlots.indexOf(timeSlot);
           if (currentIndex > 0) {
             newCloseTime = timeSlots[currentIndex - 1];
+          } else {
+            // Si es el primer slot, eliminar el horario
+            try {
+              const { error } = await supabase
+                .from('restaurant_schedules')
+                .delete()
+                .eq('id', affectedSchedule.id);
+              
+              if (error) throw error;
+              await loadSchedules();
+              toast({
+                title: "Horario eliminado",
+                description: "Horario eliminado correctamente"
+              });
+              return;
+            } catch (error) {
+              console.error('Error deleting schedule:', error);
+              toast({
+                title: "Error",
+                description: "No se pudo eliminar el horario",
+                variant: "destructive"
+              });
+              return;
+            }
           }
         }
       } else {
         // Si no está en el rango, expandir el rango
-        const openTime = schedule.opening_time.substring(0, 5);
-        const closeTime = schedule.closing_time.substring(0, 5);
+        const openTime = affectedSchedule.opening_time.substring(0, 5);
+        const closeTime = affectedSchedule.closing_time.substring(0, 5);
         
         if (timeSlot < openTime) {
           newOpenTime = timeSlot;
@@ -151,7 +207,7 @@ const ScheduleVisualGrid = () => {
             opening_time: newOpenTime,
             closing_time: newCloseTime
           })
-          .eq('id', schedule.id);
+          .eq('id', affectedSchedule.id);
         
         if (error) throw error;
         await loadSchedules();
@@ -203,24 +259,24 @@ const ScheduleVisualGrid = () => {
               </div>
 
               {/* Filas de días */}
-            <div className="space-y-1">
-              {DAYS_OF_WEEK.map(day => {
-                const schedule = getScheduleForDay(day.value);
-                return (
-                  <div 
-                    key={day.value} 
-                    className="grid gap-1 items-stretch" 
-                    style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}
-                  >
-                    {/* Nombre del día */}
-                    <div className="p-2 bg-muted rounded text-sm font-medium flex items-center justify-between sticky left-0 z-10 border-r">
-                      <span>{day.label}</span>
-                      {schedule && (
-                        <Badge variant="secondary" className="text-xs">
-                          {schedule.opening_time.substring(0, 5)} - {schedule.closing_time.substring(0, 5)}
-                        </Badge>
-                      )}
-                    </div>
+              <div className="space-y-1">
+                {DAYS_OF_WEEK.map(day => {
+                  const daySchedules = getSchedulesForDay(day.value);
+                  return (
+                    <div 
+                      key={day.value} 
+                      className="grid gap-1 items-stretch" 
+                      style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}
+                    >
+                      {/* Nombre del día */}
+                      <div className="p-2 bg-muted rounded text-sm font-medium flex flex-col justify-center sticky left-0 z-10 border-r">
+                        <span className="font-semibold">{day.label}</span>
+                        {daySchedules.map((schedule, index) => (
+                          <Badge key={schedule.id} variant="secondary" className="text-xs mt-1">
+                            {schedule.opening_time.substring(0, 5)} - {schedule.closing_time.substring(0, 5)}
+                          </Badge>
+                        ))}
+                      </div>
                     
                     {/* Slots de tiempo para este día */}
                     {timeSlots.map(timeSlot => {
