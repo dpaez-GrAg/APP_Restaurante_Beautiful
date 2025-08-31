@@ -2,72 +2,93 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Users, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStats {
   todayReservations: number;
-  pendingReservations: number;
+  cancelledReservations: number;
   confirmedReservations: number;
   totalTables: number;
   occupancyRate: number;
+  totalGuests: number;
 }
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [stats, setStats] = useState<DashboardStats>({
     todayReservations: 0,
-    pendingReservations: 0,
+    cancelledReservations: 0,
     confirmedReservations: 0,
     totalTables: 0,
     occupancyRate: 0,
+    totalGuests: 0,
   });
 
-  const [recentReservations, setRecentReservations] = useState([
-    {
-      id: "1",
-      name: "María García",
-      email: "maria@email.com",
-      date: "2024-01-15",
-      time: "20:00",
-      guests: 4,
-      status: "pending"
-    },
-    {
-      id: "2",
-      name: "Carlos López",
-      email: "carlos@email.com",
-      date: "2024-01-15",
-      time: "19:30",
-      guests: 2,
-      status: "confirmed"
-    },
-    {
-      id: "3",
-      name: "Ana Martín",
-      email: "ana@email.com",
-      date: "2024-01-16",
-      time: "21:00",
-      guests: 6,
-      status: "pending"
+  const [recentReservations, setRecentReservations] = useState<any[]>([]);
+
+  const loadDashboardData = async () => {
+    try {
+      // Cargar reservas del día seleccionado
+      const { data: reservations, error: reservationsError } = await supabase
+        .from('reservations')
+        .select(`
+          *,
+          customers (name, email)
+        `)
+        .eq('date', selectedDate);
+
+      if (reservationsError) throw reservationsError;
+
+      const confirmedReservations = reservations?.filter(r => r.status === 'confirmed') || [];
+      const cancelledReservations = reservations?.filter(r => r.status === 'cancelled') || [];
+      const totalGuests = confirmedReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
+
+      // Cargar total de mesas
+      const { data: tables, error: tablesError } = await supabase
+        .from('tables')
+        .select('*')
+        .eq('is_active', true);
+
+      if (tablesError) throw tablesError;
+
+      const totalTables = tables?.length || 0;
+      const occupancyRate = totalTables > 0 ? Math.round((confirmedReservations.length / totalTables) * 100) : 0;
+
+      setStats({
+        todayReservations: reservations?.length || 0,
+        confirmedReservations: confirmedReservations.length,
+        cancelledReservations: cancelledReservations.length,
+        totalTables,
+        occupancyRate,
+        totalGuests,
+      });
+
+      // Mostrar las últimas 5 reservas
+      const recentReservationsWithCustomers = reservations?.slice(0, 5).map(reservation => ({
+        ...reservation,
+        name: reservation.customers?.name || 'Sin nombre',
+        email: reservation.customers?.email || 'Sin email'
+      })) || [];
+
+      setRecentReservations(recentReservationsWithCustomers);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
     }
-  ]);
+  };
 
   useEffect(() => {
-    // Aquí cargarás los datos reales desde Supabase
-    // Simulamos datos de ejemplo por ahora
-    setStats({
-      todayReservations: 12,
-      pendingReservations: 5,
-      confirmedReservations: 7,
-      totalTables: 6,
-      occupancyRate: 75,
-    });
-  }, []);
+    loadDashboardData();
+  }, [selectedDate]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
         return <Badge className="bg-green-100 text-green-800">Confirmada</Badge>;
-      case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800">Pendiente</Badge>;
       case "cancelled":
         return <Badge className="bg-red-100 text-red-800">Cancelada</Badge>;
       default:
@@ -85,17 +106,31 @@ const AdminDashboard = () => {
             Resumen general de tu restaurante
           </p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          Última actualización: {new Date().toLocaleString()}
+        <div className="flex items-center space-x-4">
+          <div className="space-y-1">
+            <Label htmlFor="date" className="text-sm text-muted-foreground">
+              Seleccionar fecha
+            </Label>
+            <Input
+              id="date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <Card 
+          className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
+          onClick={() => navigate('/admin/reservations')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reservas Hoy
+              Reservas del Día
             </CardTitle>
             <Calendar className="h-4 w-4 text-restaurant-gold" />
           </CardHeader>
@@ -104,29 +139,15 @@ const AdminDashboard = () => {
               {stats.todayReservations}
             </div>
             <p className="text-xs text-muted-foreground">
-              +2 desde ayer
+              Total reservas
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pendientes
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {stats.pendingReservations}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Requieren confirmación
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+        <Card 
+          className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
+          onClick={() => navigate('/admin/reservations?status=confirmed')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Confirmadas
@@ -138,12 +159,52 @@ const AdminDashboard = () => {
               {stats.confirmedReservations}
             </div>
             <p className="text-xs text-muted-foreground">
-              Listas para hoy
+              Activas
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
+          onClick={() => navigate('/admin/reservations?status=cancelled')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Canceladas
+            </CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              {stats.cancelledReservations}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Hoy
             </p>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Comensales
+            </CardTitle>
+            <Users className="h-4 w-4 text-restaurant-gold" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-restaurant-brown">
+              {stats.totalGuests}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Confirmados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
+          onClick={() => navigate('/admin/tables/layout')}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ocupación
@@ -211,31 +272,43 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <Card className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer">
+              <Card 
+                className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer"
+                onClick={() => navigate('/admin/reservations')}
+              >
                 <div className="text-center space-y-2">
                   <Calendar className="w-8 h-8 text-restaurant-gold mx-auto" />
                   <p className="text-sm font-medium">Ver Reservas</p>
                 </div>
               </Card>
               
-              <Card className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer">
+              <Card 
+                className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer"
+                onClick={() => navigate('/admin/schedules')}
+              >
                 <div className="text-center space-y-2">
                   <Clock className="w-8 h-8 text-restaurant-gold mx-auto" />
                   <p className="text-sm font-medium">Configurar Horarios</p>
                 </div>
               </Card>
               
-              <Card className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer">
+              <Card 
+                className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer"
+                onClick={() => navigate('/admin/tables')}
+              >
                 <div className="text-center space-y-2">
                   <Users className="w-8 h-8 text-restaurant-gold mx-auto" />
                   <p className="text-sm font-medium">Gestionar Mesas</p>
                 </div>
               </Card>
               
-              <Card className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer">
+              <Card 
+                className="p-4 border border-restaurant-gold/30 hover:border-restaurant-gold transition-colors cursor-pointer"
+                onClick={() => navigate('/admin/settings')}
+              >
                 <div className="text-center space-y-2">
                   <TrendingUp className="w-8 h-8 text-restaurant-gold mx-auto" />
-                  <p className="text-sm font-medium">Ver Reportes</p>
+                  <p className="text-sm font-medium">Configuración</p>
                 </div>
               </Card>
             </div>

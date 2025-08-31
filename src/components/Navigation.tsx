@@ -26,7 +26,7 @@ const Navigation = () => {
     { label: "Reservar", href: "#reservation" },
     { label: "Sobre Nosotros", href: "#about" },
     { label: "Contacto", href: "#contact" },
-    { label: "Admin", href: "/admin" }
+    { label: "Admin", href: "/admin/auth" }
   ];
 
   return (

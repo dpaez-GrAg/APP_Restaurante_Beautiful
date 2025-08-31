@@ -14,6 +14,10 @@ interface TableData {
   id: string;
   name: string;
   capacity: number;
+  min_capacity: number;
+  max_capacity: number;
+  extra_capacity: number;
+  shape: 'square' | 'round';
   position_x?: number;
   position_y?: number;
   is_active: boolean;
@@ -27,6 +31,10 @@ const TablesManager = () => {
   const [formData, setFormData] = useState({
     name: "",
     capacity: 2,
+    min_capacity: 1,
+    max_capacity: 2,
+    extra_capacity: 0,
+    shape: 'square' as 'square' | 'round',
     position_x: 0,
     position_y: 0
   });
@@ -44,7 +52,7 @@ const TablesManager = () => {
         .order('name');
       
       if (error) throw error;
-      setTables(data || []);
+      setTables((data as TableData[]) || []);
     } catch (error) {
       console.error('Error loading tables:', error);
       toast({
@@ -65,6 +73,10 @@ const TablesManager = () => {
           .update({
             name: formData.name,
             capacity: formData.capacity,
+            min_capacity: formData.min_capacity,
+            max_capacity: formData.max_capacity,
+            extra_capacity: formData.extra_capacity,
+            shape: formData.shape,
             position_x: formData.position_x,
             position_y: formData.position_y
           })
@@ -81,6 +93,10 @@ const TablesManager = () => {
           .insert([{
             name: formData.name,
             capacity: formData.capacity,
+            min_capacity: formData.min_capacity,
+            max_capacity: formData.max_capacity,
+            extra_capacity: formData.extra_capacity,
+            shape: formData.shape,
             position_x: formData.position_x,
             position_y: formData.position_y
           }]);
@@ -136,6 +152,10 @@ const TablesManager = () => {
     setFormData({
       name: table.name,
       capacity: table.capacity,
+      min_capacity: table.min_capacity,
+      max_capacity: table.max_capacity,
+      extra_capacity: table.extra_capacity,
+      shape: table.shape,
       position_x: table.position_x || 0,
       position_y: table.position_y || 0
     });
@@ -147,6 +167,10 @@ const TablesManager = () => {
     setFormData({
       name: "",
       capacity: 2,
+      min_capacity: 1,
+      max_capacity: 2,
+      extra_capacity: 0,
+      shape: 'square' as 'square' | 'round',
       position_x: 0,
       position_y: 0
     });
@@ -189,16 +213,76 @@ const TablesManager = () => {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="capacity">Capacidad</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) })}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="capacity">Capacidad Base</Label>
+                  <Input
+                    id="capacity"
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={formData.capacity}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setFormData({ 
+                        ...formData, 
+                        capacity: val,
+                        max_capacity: Math.max(val, formData.max_capacity)
+                      });
+                    }}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="shape">Forma</Label>
+                  <select
+                    id="shape"
+                    value={formData.shape}
+                    onChange={(e) => setFormData({ ...formData, shape: e.target.value as 'square' | 'round' })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="square">Cuadrada</option>
+                    <option value="round">Redonda</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="min_capacity">Mín. Ocupación</Label>
+                  <Input
+                    id="min_capacity"
+                    type="number"
+                    min="1"
+                    max={formData.capacity}
+                    value={formData.min_capacity}
+                    onChange={(e) => setFormData({ ...formData, min_capacity: parseInt(e.target.value) })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="max_capacity">Máx. Ocupación</Label>
+                  <Input
+                    id="max_capacity"
+                    type="number"
+                    min={formData.capacity}
+                    max="20"
+                    value={formData.max_capacity}
+                    onChange={(e) => setFormData({ ...formData, max_capacity: parseInt(e.target.value) })}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="extra_capacity">Capacidad Extra</Label>
+                  <Input
+                    id="extra_capacity"
+                    type="number"
+                    min="0"
+                    max="5"
+                    value={formData.extra_capacity}
+                    onChange={(e) => setFormData({ ...formData, extra_capacity: parseInt(e.target.value) })}
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -259,11 +343,24 @@ const TablesManager = () => {
               <TableBody>
                 {tables.map((table) => (
                   <TableRow key={table.id}>
-                    <TableCell className="font-medium">{table.name}</TableCell>
-                    <TableCell>{table.capacity} personas</TableCell>
+                    <TableCell className="font-medium">
+                      {table.name} 
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({table.shape === 'square' ? '⬜' : '⭕'})
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>Base: {table.capacity}</div>
+                        <div>Rango: {table.min_capacity}-{table.max_capacity}</div>
+                        {table.extra_capacity > 0 && (
+                          <div className="text-muted-foreground">Extra: +{table.extra_capacity}</div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {table.position_x !== null && table.position_y !== null 
-                        ? `X: ${table.position_x}, Y: ${table.position_y}`
+                        ? `X: ${table.position_x?.toFixed(1)}, Y: ${table.position_y?.toFixed(1)}`
                         : 'Sin posición'
                       }
                     </TableCell>

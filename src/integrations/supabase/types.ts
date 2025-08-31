@@ -239,31 +239,43 @@ export type Database = {
         Row: {
           capacity: number
           created_at: string
+          extra_capacity: number | null
           id: string
           is_active: boolean
+          max_capacity: number | null
+          min_capacity: number | null
           name: string
           position_x: number | null
           position_y: number | null
+          shape: string | null
           updated_at: string
         }
         Insert: {
           capacity: number
           created_at?: string
+          extra_capacity?: number | null
           id?: string
           is_active?: boolean
+          max_capacity?: number | null
+          min_capacity?: number | null
           name: string
           position_x?: number | null
           position_y?: number | null
+          shape?: string | null
           updated_at?: string
         }
         Update: {
           capacity?: number
           created_at?: string
+          extra_capacity?: number | null
           id?: string
           is_active?: boolean
+          max_capacity?: number | null
+          min_capacity?: number | null
           name?: string
           position_x?: number | null
           position_y?: number | null
+          shape?: string | null
           updated_at?: string
         }
         Relationships: []
