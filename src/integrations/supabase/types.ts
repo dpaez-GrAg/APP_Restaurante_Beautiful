@@ -112,6 +112,27 @@ export type Database = {
           },
         ]
       }
+      time_slots: {
+        Row: {
+          created_at: string
+          id: string
+          max_capacity: number
+          time: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_capacity?: number
+          time: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_capacity?: number
+          time?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
