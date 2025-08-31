@@ -41,7 +41,17 @@ const ScheduleVisualGrid = () => {
     return slots;
   };
 
+  // Generar headers de horas (solo horas en punto)
+  const generateHourHeaders = () => {
+    const hours = [];
+    for (let hour = 6; hour <= 23; hour++) {
+      hours.push(`${hour.toString().padStart(2, '0')}:00`);
+    }
+    return hours;
+  };
+
   const timeSlots = generateTimeSlots();
+  const hourHeaders = generateHourHeaders();
 
   useEffect(() => {
     loadSchedules();
@@ -245,78 +255,77 @@ const ScheduleVisualGrid = () => {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="w-full max-w-full">
-          <div className="overflow-x-auto max-w-full">
-            <div style={{ width: `${100 + (timeSlots.length * 50)}px` }}>
-              {/* Header con horarios */}
-              <div className="grid gap-1 mb-2" style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}>
-                <div className="p-2 text-sm font-medium text-center bg-background sticky left-0 z-10 border-r">Día / Hora</div>
-                {timeSlots.map(time => (
-                  <div key={time} className="p-1 text-xs font-medium text-center border-l transform -rotate-45">
-                    {time}
-                  </div>
-                ))}
+        <div className="w-full">
+          <div className="grid gap-0 mb-2" style={{ 
+            gridTemplateColumns: `80px repeat(${hourHeaders.length}, minmax(30px, 1fr))`,
+            maxWidth: '100%'
+          }}>
+            <div className="p-2 text-sm font-medium text-center bg-muted border">Día</div>
+            {hourHeaders.map(time => (
+              <div key={time} className="p-1 text-xs font-medium text-center bg-muted border-l border-t border-b">
+                {time.substring(0, 2)}h
               </div>
+            ))}
+          </div>
 
-              {/* Filas de días */}
-              <div className="space-y-1">
-                {DAYS_OF_WEEK.map(day => {
-                  const daySchedules = getSchedulesForDay(day.value);
-                  return (
-                    <div 
-                      key={day.value} 
-                      className="grid gap-1 items-stretch" 
-                      style={{ gridTemplateColumns: `100px repeat(${timeSlots.length}, 50px)` }}
-                    >
-                      {/* Nombre del día */}
-                      <div className="p-2 bg-muted rounded text-sm font-medium flex flex-col justify-center sticky left-0 z-10 border-r">
-                        <span className="font-semibold">{day.label}</span>
-                        {daySchedules.map((schedule, index) => (
-                          <Badge key={schedule.id} variant="secondary" className="text-xs mt-1">
-                            {schedule.opening_time.substring(0, 5)} - {schedule.closing_time.substring(0, 5)}
-                          </Badge>
-                        ))}
-                      </div>
+          {/* Filas de días */}
+          <div>
+            {DAYS_OF_WEEK.map(day => {
+              const daySchedules = getSchedulesForDay(day.value);
+              return (
+                <div 
+                  key={day.value} 
+                  className="grid gap-0 border-b" 
+                  style={{ gridTemplateColumns: `80px repeat(${timeSlots.length}, minmax(12px, 1fr))` }}
+                >
+                  {/* Nombre del día */}
+                  <div className="p-2 bg-muted text-sm font-medium flex flex-col justify-center border-r border-b">
+                    <span className="font-semibold text-xs">{day.label}</span>
+                    {daySchedules.map((schedule, index) => (
+                      <Badge key={schedule.id} variant="secondary" className="text-xs mt-1">
+                        {schedule.opening_time.substring(0, 5)}-{schedule.closing_time.substring(0, 5)}
+                      </Badge>
+                    ))}
+                  </div>
                     
-                    {/* Slots de tiempo para este día */}
-                    {timeSlots.map(timeSlot => {
-                      const isActive = isTimeInSchedule(day.value, timeSlot);
-                      
-                      return (
-                        <Button
-                          key={`${day.value}-${timeSlot}`}
-                          variant="ghost"
-                          size="sm"
-                          className={`h-8 w-full p-0 ${
-                            isActive 
-                              ? 'bg-green-200 hover:bg-green-300 border-green-400' 
-                              : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
-                          } border`}
-                          onClick={() => toggleTimeSlot(day.value, timeSlot)}
-                        >
-                          {isActive && (
-                            <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                          )}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
+                  {/* Slots de tiempo para este día */}
+                  {timeSlots.map(timeSlot => {
+                    const isActive = isTimeInSchedule(day.value, timeSlot);
+                    
+                    return (
+                      <Button
+                        key={`${day.value}-${timeSlot}`}
+                        variant="ghost"
+                        size="sm"
+                        className={`h-8 w-full p-0 border-r border-b ${
+                          isActive 
+                            ? 'bg-green-200 hover:bg-green-300 border-green-400' 
+                            : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+                        }`}
+                        onClick={() => toggleTimeSlot(day.value, timeSlot)}
+                      >
+                        {isActive && (
+                          <div className="w-2 h-2 bg-green-600 rounded-full"></div>
+                        )}
+                      </Button>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
 
-              {/* Leyenda */}
-              <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
-                  <span>Horario de apertura</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
-                  <span>Cerrado</span>
-                </div>
-              </div>
-            </div>
+        </div>
+        
+        {/* Leyenda */}
+        <div className="mt-4 flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-green-200 border border-green-400 rounded"></div>
+            <span>Horario de apertura</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
+            <span>Cerrado</span>
           </div>
         </div>
       </CardContent>
