@@ -251,13 +251,10 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
                 )}
 
                 {/* Waiting list notice */}
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                  <p className="text-xs text-orange-700">Lista de espera</p>
-                </div>
 
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-xs text-orange-700">
-                    Solicitud de grupo para más de 10 personas
+                    Para grúpos de mas de 8, envíanos un mail a {{mail}}
                   </p>
                 </div>
 
