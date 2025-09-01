@@ -112,7 +112,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
               </p>
             </div>
 
-            <div className="space-y-2 text-center">
+            <div className="flex flex-col items-center space-y-2">
               <button
                 onClick={() => setShowCancelForm(true)}
                 className="text-sm text-gray-600 underline hover:text-gray-800"
