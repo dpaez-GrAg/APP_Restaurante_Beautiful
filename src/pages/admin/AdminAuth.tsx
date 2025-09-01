@@ -15,7 +15,7 @@ const AdminAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loginLocalAdmin } = useAuth();
 
   // Redirect if already logged in as admin
   useEffect(() => {
@@ -29,6 +29,17 @@ const AdminAuth = () => {
     setIsLoading(true);
 
     try {
+      // Local admin fallback without email confirmation
+      if (email === "admin@admin.es" && password === "123456") {
+        loginLocalAdmin();
+        toast({
+          title: "Acceso concedido",
+          description: "Bienvenido al panel de administración"
+        });
+        navigate("/admin");
+        return;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email,
         password: password

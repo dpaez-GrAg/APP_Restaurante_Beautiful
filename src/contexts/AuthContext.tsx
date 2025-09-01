@@ -8,6 +8,8 @@ interface AuthContextType {
   isLoading: boolean;
   isAdmin: boolean;
   signOut: () => Promise<void>;
+  loginLocalAdmin: () => void;
+  logoutLocalAdmin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,7 +17,9 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   isLoading: true,
   isAdmin: false,
-  signOut: async () => {}
+  signOut: async () => {},
+  loginLocalAdmin: () => {},
+  logoutLocalAdmin: () => {}
 });
 
 export const useAuth = () => {
@@ -31,6 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [localAdmin, setLocalAdmin] = useState<boolean>(() => localStorage.getItem('local_admin') === 'true');
 
   useEffect(() => {
     // Set up auth state listener
@@ -73,19 +78,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  const loginLocalAdmin = () => {
+    setLocalAdmin(true);
+    localStorage.setItem('local_admin', 'true');
+    setIsLoading(false);
+  };
+
+  const logoutLocalAdmin = () => {
+    setLocalAdmin(false);
+    localStorage.removeItem('local_admin');
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       console.error('Error signing out:', error);
     }
+    logoutLocalAdmin();
   };
+
+  const computedIsAdmin = localAdmin || isAdmin;
 
   const value = {
     user,
     session,
     isLoading,
-    isAdmin,
-    signOut
+    isAdmin: computedIsAdmin,
+    signOut,
+    loginLocalAdmin,
+    logoutLocalAdmin
   };
 
   return (
