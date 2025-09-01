@@ -99,39 +99,37 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
       <StepHeader currentStep="confirmation" />
       
       <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-        {!showCancelForm ? (
-          <>
-            <div className="mb-8">
-              <p className="text-lg mb-4">
-                <strong>{reservation.customer.name}</strong>, tu reserva para el día <strong>{formatDate(reservation.date)}</strong> para <strong>{reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}</strong> está confirmada.
-              </p>
-            </div>
+        <>
+          <div className="mb-8">
+            <p className="text-lg mb-4">
+              <strong>{reservation.customer.name}</strong>, tu reserva para el día <strong>{formatDate(reservation.date)}</strong> para <strong>{reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}</strong> está confirmada.
+            </p>
+          </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-gray-600 text-sm mb-2">Detalles de la reserva:</p>
-              <p className="font-medium">{reservation.customer.email}</p>
-              <p className="text-sm text-gray-600 mt-2">
-                {formatDate(reservation.date)} a las {formatTime(reservation.time)} para {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
-              </p>
-            </div>
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <p className="text-gray-600 text-sm mb-2">Detalles de la reserva:</p>
+            <p className="font-medium">{reservation.customer.email}</p>
+            <p className="text-sm text-gray-600 mt-2">
+              {formatDate(reservation.date)} a las {formatTime(reservation.time)} para {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
+            </p>
+          </div>
 
-            <div className="flex flex-col items-center space-y-2">
-              <a
-                href={`tel:${config?.contact_phone || ''}`}
-                className="text-sm text-gray-600 underline hover:text-gray-800"
-              >
-                Cancelar reserva
-              </a>
-              
-              <button
-                onClick={onBack}
-                className="text-sm text-primary underline hover:text-primary/80"
-              >
-                Hacer nueva reserva
-              </button>
-            </div>
-          </>
-        )}
+          <div className="flex flex-col items-center space-y-2">
+            <a
+              href={`tel:${config?.contact_phone || ''}`}
+              className="text-sm text-gray-600 underline hover:text-gray-800"
+            >
+              Cancelar reserva
+            </a>
+            
+            <button
+              onClick={onBack}
+              className="text-sm text-primary underline hover:text-primary/80"
+            >
+              Hacer nueva reserva
+            </button>
+          </div>
+        </>
       </div>
     </div>
   );
