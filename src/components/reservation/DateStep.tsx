@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import StepHeader from "./StepHeader";
 
 interface DateStepProps {
@@ -11,6 +14,10 @@ interface DateStepProps {
 const DateStep = ({ onNext, onBack }: DateStepProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelEmail, setCancelEmail] = useState('');
+  const [foundReservations, setFoundReservations] = useState<any[]>([]);
+  const { toast } = useToast();
 
   const daysOfWeek = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   const monthNames = [
@@ -69,7 +76,189 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
     return date < today;
   };
 
+  const handleCancelSearch = async () => {
+    if (!cancelEmail) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Find customer by email
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', cancelEmail)
+        .maybeSingle();
+
+      if (customerError) throw customerError;
+
+      if (!customer) {
+        toast({
+          title: "No encontrado",
+          description: "No se encontraron reservas con ese correo electrónico",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Find future reservations for this customer
+      const today = new Date().toISOString().split('T')[0];
+      const { data: reservations, error: reservationsError } = await supabase
+        .from('reservations')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .eq('status', 'pending')
+        .gte('date', today);
+
+      if (reservationsError) throw reservationsError;
+
+      if (!reservations || reservations.length === 0) {
+        toast({
+          title: "No encontrado",
+          description: "No se encontraron reservas futuras para este correo",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setFoundReservations(reservations);
+    } catch (error) {
+      console.error('Error searching reservations:', error);
+      toast({
+        title: "Error",
+        description: "Error al buscar reservas. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelReservation = async (reservationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('id', reservationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Reserva cancelada",
+        description: "Tu reserva ha sido cancelada exitosamente",
+      });
+
+      // Remove the cancelled reservation from the list
+      setFoundReservations(prev => prev.filter(r => r.id !== reservationId));
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la reserva. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (timeString: string) => {
+    return timeString.slice(0, 5);
+  };
+
   const days = getDaysInMonth(currentDate);
+
+  if (showCancelForm) {
+    return (
+      <div className="max-w-lg mx-auto">
+        <StepHeader currentStep="date" />
+        
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-medium text-primary mb-6">Cancelar Reserva</h2>
+          
+          {foundReservations.length === 0 ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Ingresa tu correo electrónico para buscar tus reservas:
+                </label>
+                <Input
+                  type="email"
+                  value={cancelEmail}
+                  onChange={(e) => setCancelEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <Button
+                  onClick={() => {
+                    setShowCancelForm(false);
+                    setCancelEmail('');
+                  }}
+                  variant="ghost"
+                  className="flex-1"
+                >
+                  Volver
+                </Button>
+                
+                <Button
+                  onClick={handleCancelSearch}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-white"
+                >
+                  Buscar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-medium">Reservas encontradas:</h3>
+              
+              {foundReservations.map((reservation) => (
+                <div key={reservation.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="text-sm">
+                    <p><strong>Fecha:</strong> {formatDate(reservation.date)}</p>
+                    <p><strong>Hora:</strong> {formatTime(reservation.time)}</p>
+                    <p><strong>Personas:</strong> {reservation.guests}</p>
+                  </div>
+                  <Button
+                    onClick={() => handleCancelReservation(reservation.id)}
+                    variant="destructive"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Cancelar esta reserva
+                  </Button>
+                </div>
+              ))}
+              
+              <Button
+                onClick={() => {
+                  setShowCancelForm(false);
+                  setCancelEmail('');
+                  setFoundReservations([]);
+                }}
+                variant="ghost"
+                className="w-full mt-4"
+              >
+                Volver
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto">
@@ -137,7 +326,11 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
         </div>
 
         <div className="mt-6 text-center">
-          <Button variant="ghost" onClick={onBack} className="text-primary">
+          <Button 
+            variant="ghost" 
+            onClick={() => setShowCancelForm(true)} 
+            className="text-primary"
+          >
             Cancelar reserva
           </Button>
         </div>

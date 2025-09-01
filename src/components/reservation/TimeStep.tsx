@@ -69,21 +69,37 @@ const TimeStep = ({ date, guests, onNext, onBack }: TimeStepProps) => {
         );
       }) || [];
 
-      // Calculate availability
-      const slots: TimeSlot[] = validSlots.map(slot => {
-        const reservedGuests = reservations
-          ?.filter(r => r.time === slot.time)
-          ?.reduce((sum, r) => sum + r.guests, 0) || 0;
-        
-        const availableCapacity = slot.max_capacity - reservedGuests;
-        
-        return {
-          id: slot.id,
-          time: slot.time,
-          available: availableCapacity >= guests,
-          capacity: availableCapacity
-        };
-      });
+      // Calculate availability and filter out past times
+      const now = new Date();
+      const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+      const selectedDateStr = date.toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+      const isToday = selectedDateStr === todayStr;
+
+      const slots: TimeSlot[] = validSlots
+        .filter(slot => {
+          // If it's today, filter out past times
+          if (isToday) {
+            const [hours, minutes] = slot.time.split(':').map(Number);
+            const slotTimeInMinutes = hours * 60 + minutes;
+            return slotTimeInMinutes > currentTime;
+          }
+          return true;
+        })
+        .map(slot => {
+          const reservedGuests = reservations
+            ?.filter(r => r.time === slot.time)
+            ?.reduce((sum, r) => sum + r.guests, 0) || 0;
+          
+          const availableCapacity = slot.max_capacity - reservedGuests;
+          
+          return {
+            id: slot.id,
+            time: slot.time,
+            available: availableCapacity >= guests,
+            capacity: availableCapacity
+          };
+        });
 
       setAvailableSlots(slots);
     } catch (error) {
