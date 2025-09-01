@@ -33,6 +33,21 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
   const checkAvailability = async (date: Date, guests: number) => {
     setLoading(true);
     try {
+      // Get restaurant schedules for the selected day
+      const dayOfWeek = date.getDay();
+      const { data: schedules, error: schedulesError } = await supabase
+        .from('restaurant_schedules')
+        .select('*')
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_active', true);
+
+      if (schedulesError) throw schedulesError;
+
+      if (!schedules || schedules.length === 0) {
+        setAvailableSlots([]);
+        return;
+      }
+
       // Get all time slots
       const { data: timeSlots, error: slotsError } = await supabase
         .from('time_slots')
@@ -49,8 +64,16 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
 
       if (reservationsError) throw reservationsError;
 
+      // Filter time slots to only include those within opening hours
+      const validSlots = timeSlots?.filter(slot => {
+        const slotTime = slot.time;
+        return schedules.some(schedule => 
+          slotTime >= schedule.opening_time && slotTime <= schedule.closing_time
+        );
+      }) || [];
+
       // Calculate availability
-      const slots: TimeSlot[] = timeSlots?.map(slot => {
+      const slots: TimeSlot[] = validSlots.map(slot => {
         const reservedGuests = reservations
           ?.filter(r => r.time === slot.time)
           ?.reduce((sum, r) => sum + r.guests, 0) || 0;
@@ -63,7 +86,7 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
           available: availableCapacity >= guests,
           capacity: availableCapacity
         };
-      }) || [];
+      });
 
       setAvailableSlots(slots);
     } catch (error) {
@@ -131,7 +154,7 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
             <span className="sr-only">Volver</span>
           </Button>
           <CardTitle className="text-2xl text-restaurant-brown">
-            NAPOLIT 3
+            {config?.restaurant_name ?? 'RESTAURANTE ÉLITE'}
           </CardTitle>
           <div className="w-10"></div>
         </div>
@@ -182,7 +205,7 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
                   <SelectValue placeholder="Selecciona número de personas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
                     <SelectItem key={num} value={num.toString()}>
                       {num} {num === 1 ? 'persona' : 'personas'}
                     </SelectItem>
@@ -193,15 +216,20 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Selecciona una fecha</label>
-              <div className="border rounded-lg p-4">
+              <div className={`border rounded-lg p-4 ${!selectedGuests ? 'opacity-50 pointer-events-none' : ''}`}>
                 <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={handleDateChange}
-                  disabled={(date) => date < new Date()}
+                  disabled={(date) => date < new Date() || !selectedGuests}
                   className="w-full"
                 />
               </div>
+              {!selectedGuests && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Primero selecciona el número de personas
+                </p>
+              )}
             </div>
 
             {/* Restaurant info */}
