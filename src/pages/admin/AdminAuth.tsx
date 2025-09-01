@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AdminAuth = () => {
   const [email, setEmail] = useState("");
@@ -14,59 +15,84 @@ const AdminAuth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isAdmin } = useAuth();
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (user && isAdmin) {
+      navigate("/admin");
+    }
+  }, [user, isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Verificar credenciales predeterminadas
-      if (email === "admin@admin.es" && password === "123456") {
-        // Crear o actualizar perfil de admin
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: "admin@admin.es",
-          password: "123456"
-        });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
 
-        if (authError) {
-          // Si el usuario no existe, intentar crearlo
-          if (authError.message.includes("Invalid login credentials")) {
-            const { error: signUpError } = await supabase.auth.signUp({
-              email: "admin@admin.es",
-              password: "123456",
-              options: {
-                data: {
-                  role: 'admin'
-                }
+      if (authError) {
+        // If user doesn't exist and trying with default credentials, create it
+        if (authError.message.includes("Invalid login credentials") && 
+            email === "admin@admin.es" && password === "123456") {
+          
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: "admin@admin.es",
+            password: "123456",
+            options: {
+              emailRedirectTo: `${window.location.origin}/admin`,
+              data: {
+                role: 'admin'
               }
-            });
-
-            if (signUpError) {
-              throw signUpError;
             }
+          });
 
-            toast({
-              title: "Cuenta de administrador creada",
-              description: "Se ha creado la cuenta de administrador por defecto"
-            });
-          } else {
-            throw authError;
+          if (signUpError) {
+            throw signUpError;
           }
+
+          toast({
+            title: "Cuenta de administrador creada",
+            description: "Se ha creado la cuenta de administrador. Verificando acceso..."
+          });
+
+          // Try to sign in again
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: "admin@admin.es",
+            password: "123456"
+          });
+
+          if (retryError) {
+            throw retryError;
+          }
+        } else {
+          throw authError;
         }
-
-        toast({
-          title: "Acceso concedido",
-          description: "Bienvenido al panel de administración"
-        });
-
-        navigate("/admin");
-      } else {
-        toast({
-          title: "Credenciales incorrectas",
-          description: "Email o contraseña incorrectos",
-          variant: "destructive"
-        });
       }
+
+      // Check if user is admin
+      if (authData?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (profile?.role !== 'admin') {
+          await supabase.auth.signOut();
+          throw new Error('No tienes permisos de administrador');
+        }
+      }
+
+      toast({
+        title: "Acceso concedido",
+        description: "Bienvenido al panel de administración"
+      });
+
+      navigate("/admin");
     } catch (error: any) {
       console.error("Error en login:", error);
       toast({
