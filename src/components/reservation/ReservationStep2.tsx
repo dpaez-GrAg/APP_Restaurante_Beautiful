@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronLeft, Calendar, Users, MapPin, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ReservationData {
   date: Date;
@@ -30,10 +30,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
     phone: "",
     prefix: "+34",
     comments: "",
-    hasAllergies: "",
-    termsAccepted: false,
-    dataProcessingAccepted: false,
-    marketingAccepted: false
+    privacyAccepted: false
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -43,10 +40,10 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
     e.preventDefault();
     
     if (!formData.firstName || !formData.lastName || !formData.email || 
-        !formData.termsAccepted || !formData.dataProcessingAccepted) {
+        !formData.privacyAccepted) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor completa todos los campos obligatorios y acepta los términos.",
+        description: "Por favor completa todos los campos obligatorios y acepta la política de privacidad.",
         variant: "destructive",
       });
       return;
@@ -135,7 +132,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
             <span className="sr-only">Volver</span>
           </Button>
           <CardTitle className="text-2xl text-restaurant-brown">
-            NAPOLIT 3
+            {config?.restaurant_name?.toUpperCase() ?? 'RESTAURANTE ÉLITE'}
           </CardTitle>
           <div className="w-10"></div>
         </div>
@@ -190,7 +187,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-4 h-4" />
-              Rue de la Tapia 23, A Coruña, 15679, España
+              {config?.contact_address ?? 'Dirección del restaurante'}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -261,72 +258,27 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
           {/* Comments */}
           <div className="space-y-2">
             <Label htmlFor="comments">Introduce un comentario sobre la reserva</Label>
-            <textarea
+            <Textarea
               id="comments"
               value={formData.comments}
               onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
-              placeholder="Comentarios adicionales..."
-              className="w-full px-3 py-2 border border-input rounded-md resize-none h-20 focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="¿Necesidades especiales? ¿Vienes con carrito? Cuéntanos toda la información que sea útil para hacer tu experiencia lo mejor posible."
+              className="resize-none h-20"
             />
           </div>
 
-          {/* Allergies */}
-          <div className="space-y-3">
-            <Label>¿Tiene algún comensal alguna intolerancia/alergia?</Label>
-            <RadioGroup 
-              value={formData.hasAllergies} 
-              onValueChange={(value) => setFormData({ ...formData, hasAllergies: value })}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="allergies-yes" />
-                <Label htmlFor="allergies-yes">Sí</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id="allergies-no" />
-                <Label htmlFor="allergies-no">No</Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          {/* Checkboxes */}
+          {/* Privacy checkbox */}
           <div className="space-y-4">
             <div className="flex items-start space-x-2">
               <Checkbox
-                id="terms"
-                checked={formData.termsAccepted}
+                id="privacy"
+                checked={formData.privacyAccepted}
                 onCheckedChange={(checked) => 
-                  setFormData({ ...formData, termsAccepted: checked as boolean })
+                  setFormData({ ...formData, privacyAccepted: checked as boolean })
                 }
               />
-              <Label htmlFor="terms" className="text-sm leading-5">
-                <span className="text-blue-600 underline">Acepto las condiciones de uso, política de privacidad y aviso legal</span>
-              </Label>
-            </div>
-
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="dataProcessing"
-                checked={formData.dataProcessingAccepted}
-                onCheckedChange={(checked) => 
-                  setFormData({ ...formData, dataProcessingAccepted: checked as boolean })
-                }
-              />
-              <Label htmlFor="dataProcessing" className="text-sm leading-5">
-                <span className="text-blue-600 underline">Acepto el Tratamiento de Datos y Política de Privacidad</span>
-              </Label>
-            </div>
-
-            <div className="flex items-start space-x-2">
-              <Checkbox
-                id="marketing"
-                checked={formData.marketingAccepted}
-                onCheckedChange={(checked) => 
-                  setFormData({ ...formData, marketingAccepted: checked as boolean })
-                }
-              />
-              <Label htmlFor="marketing" className="text-sm leading-5">
-                Quiero recibir información comercial del restaurante por mail y SMS
+              <Label htmlFor="privacy" className="text-sm leading-5">
+                Acepto la <a href="/politica-privacidad" className="text-blue-600 underline">política de privacidad</a>
               </Label>
             </div>
           </div>
