@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import StepHeader from "./StepHeader";
+import { format } from "date-fns";
 
 interface TimeStepProps {
   date: Date;
@@ -60,7 +61,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       const { data: reservations, error: reservationsError } = await supabase
         .from('reservations')
         .select('time, guests')
-        .eq('date', date.toISOString().split('T')[0]);
+        .eq('date', format(date, 'yyyy-MM-dd'));
 
       if (reservationsError) throw reservationsError;
 
@@ -75,8 +76,8 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       // Calculate availability and filter out past times
       const now = new Date();
       const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
-      const selectedDateStr = date.toISOString().split('T')[0];
-      const todayStr = new Date().toISOString().split('T')[0];
+      const selectedDateStr = format(date, 'yyyy-MM-dd');
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
       const isToday = selectedDateStr === todayStr;
 
       const slots: TimeSlot[] = validSlots

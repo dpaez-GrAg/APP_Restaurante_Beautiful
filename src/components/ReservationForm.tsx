@@ -7,6 +7,7 @@ import GuestsStep from "./reservation/GuestsStep";
 import TimeStep from "./reservation/TimeStep";
 import InfoStep from "./reservation/InfoStep";
 import ConfirmationStep from "./reservation/ConfirmationStep";
+import { format } from "date-fns";
 
 interface ReservationData {
   date: Date;
@@ -87,7 +88,7 @@ const ReservationForm = () => {
         .from('reservations')
         .insert({
           customer_id: customerId,
-          date: selectedDate?.toISOString().split('T')[0],
+          date: format(selectedDate!, "yyyy-MM-dd"),
           time: selectedTime,
           guests: selectedGuests,
           special_requests: customer.comments,

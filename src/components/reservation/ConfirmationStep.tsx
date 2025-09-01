@@ -79,7 +79,8 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const [y, m, d] = dateString.split('-');
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
