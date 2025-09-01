@@ -19,10 +19,10 @@ const AdminAuth = () => {
 
   // Redirect if already logged in as admin
   useEffect(() => {
-    if (user && isAdmin) {
+    if (isAdmin) {
       navigate("/admin");
     }
-  }, [user, isAdmin, navigate]);
+  }, [isAdmin, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

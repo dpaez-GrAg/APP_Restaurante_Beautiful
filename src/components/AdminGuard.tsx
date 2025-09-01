@@ -7,16 +7,16 @@ interface AdminGuardProps {
 }
 
 const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading) {
-      if (!user || !isAdmin) {
+      if (!isAdmin) {
         navigate('/admin/auth');
       }
     }
-  }, [user, isAdmin, isLoading, navigate]);
+  }, [isAdmin, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -29,7 +29,7 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!isAdmin) {
     return null;
   }
 
