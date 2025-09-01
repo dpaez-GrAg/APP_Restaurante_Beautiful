@@ -194,27 +194,25 @@ const ScheduleManager = () => {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Cargando horarios...</div>;
+    return <div className="flex justify-center p-4">Cargando...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Configuración del calendario</h1>
-          <p className="text-muted-foreground">Configura los horarios de atención del restaurante</p>
-        </div>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">Configuración del calendario</h1>
+        <p className="text-sm text-muted-foreground">Configura los horarios de atención</p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Horarios por día de la semana</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Horarios por día</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-3">
           {daySchedules.map((daySchedule, index) => (
-            <div key={daySchedule.day} className="space-y-4 p-4 border rounded-lg">
+            <div key={daySchedule.day} className="border rounded-md p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">{getDayName(daySchedule.day)}</h3>
+                <span className="font-medium text-sm">{getDayName(daySchedule.day)}</span>
                 <Checkbox
                   checked={daySchedule.enabled}
                   onCheckedChange={(checked) => 
@@ -224,7 +222,7 @@ const ScheduleManager = () => {
               </div>
 
               {daySchedule.enabled && (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id={`split-${daySchedule.day}`}
@@ -233,48 +231,80 @@ const ScheduleManager = () => {
                         updateDaySchedule(index, { hasSplit: checked as boolean })
                       }
                     />
-                    <Label htmlFor={`split-${daySchedule.day}`}>Dividir horario</Label>
+                    <Label htmlFor={`split-${daySchedule.day}`} className="text-xs">Dividir horario</Label>
                   </div>
 
                   {!daySchedule.hasSplit ? (
-                    // Single schedule
-                    <div className="space-y-3">
-                      <h4 className="font-medium">Horario</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Inicio</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select
+                        value={daySchedule.morningStart}
+                        onValueChange={(value) => 
+                          updateDaySchedule(index, { morningStart: value })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Inicio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {timeOptions.map((time) => (
+                            <SelectItem key={time} value={time} className="text-xs">
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={daySchedule.morningEnd}
+                        onValueChange={(value) => 
+                          updateDaySchedule(index, { morningEnd: value })
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Fin" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {timeOptions.map((time) => (
+                            <SelectItem key={time} value={time} className="text-xs">
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Mañana</Label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
                           <Select
                             value={daySchedule.morningStart}
                             onValueChange={(value) => 
                               updateDaySchedule(index, { morningStart: value })
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {timeOptions.map((time) => (
-                                <SelectItem key={time} value={time}>
+                                <SelectItem key={time} value={time} className="text-xs">
                                   {time}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                        <div>
-                          <Label>Fin</Label>
                           <Select
                             value={daySchedule.morningEnd}
                             onValueChange={(value) => 
                               updateDaySchedule(index, { morningEnd: value })
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className="h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {timeOptions.map((time) => (
-                                <SelectItem key={time} value={time}>
+                                <SelectItem key={time} value={time} className="text-xs">
                                   {time}
                                 </SelectItem>
                               ))}
@@ -282,99 +312,44 @@ const ScheduleManager = () => {
                           </Select>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    // Split schedule
-                    <div className="space-y-4">
-                      <div className="space-y-3">
-                        <h4 className="font-medium">Horario de mañana</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Inicio</Label>
-                            <Select
-                              value={daySchedule.morningStart}
-                              onValueChange={(value) => 
-                                updateDaySchedule(index, { morningStart: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {timeOptions.map((time) => (
-                                  <SelectItem key={time} value={time}>
-                                    {time}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Fin</Label>
-                            <Select
-                              value={daySchedule.morningEnd}
-                              onValueChange={(value) => 
-                                updateDaySchedule(index, { morningEnd: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {timeOptions.map((time) => (
-                                  <SelectItem key={time} value={time}>
-                                    {time}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
 
-                      <div className="space-y-3">
-                        <h4 className="font-medium">Horario de tarde</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Inicio</Label>
-                            <Select
-                              value={daySchedule.afternoonStart}
-                              onValueChange={(value) => 
-                                updateDaySchedule(index, { afternoonStart: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {timeOptions.map((time) => (
-                                  <SelectItem key={time} value={time}>
-                                    {time}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label>Fin</Label>
-                            <Select
-                              value={daySchedule.afternoonEnd}
-                              onValueChange={(value) => 
-                                updateDaySchedule(index, { afternoonEnd: value })
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {timeOptions.map((time) => (
-                                  <SelectItem key={time} value={time}>
-                                    {time}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Tarde</Label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <Select
+                            value={daySchedule.afternoonStart}
+                            onValueChange={(value) => 
+                              updateDaySchedule(index, { afternoonStart: value })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeOptions.map((time) => (
+                                <SelectItem key={time} value={time} className="text-xs">
+                                  {time}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={daySchedule.afternoonEnd}
+                            onValueChange={(value) => 
+                              updateDaySchedule(index, { afternoonEnd: value })
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {timeOptions.map((time) => (
+                                <SelectItem key={time} value={time} className="text-xs">
+                                  {time}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
@@ -384,8 +359,8 @@ const ScheduleManager = () => {
             </div>
           ))}
           
-          <div className="flex justify-end">
-            <UIButton onClick={saveSchedules} className="bg-primary text-primary-foreground">
+          <div className="pt-2">
+            <UIButton onClick={saveSchedules} size="sm" className="w-full">
               Guardar Horarios
             </UIButton>
           </div>
