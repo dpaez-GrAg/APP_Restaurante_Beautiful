@@ -100,7 +100,10 @@ const ReservationForm = () => {
 
       setConfirmedReservation({
         ...reservation,
-        customer: { email: customer.email }
+        customer: { 
+          email: customer.email,
+          name: customer.firstName
+        }
       });
       setCurrentStep('confirmation');
     } catch (error) {
@@ -130,6 +133,16 @@ const ReservationForm = () => {
         break;
       default:
         setCurrentStep('initial');
+    }
+  };
+
+  const handleStepClick = (step: 'date' | 'guests' | 'time') => {
+    if (step === 'date') {
+      setCurrentStep('date');
+    } else if (step === 'guests' && selectedDate) {
+      setCurrentStep('guests');
+    } else if (step === 'time' && selectedDate && selectedGuests > 0) {
+      setCurrentStep('time');
     }
   };
 
@@ -172,14 +185,19 @@ const ReservationForm = () => {
             date={selectedDate!} 
             guests={selectedGuests} 
             onNext={handleTimeSelect} 
-            onBack={handleBack} 
+            onBack={handleBack}
+            onStepClick={handleStepClick}
           />
         )}
 
         {currentStep === 'info' && (
           <InfoStep 
             onNext={handleInfoComplete} 
-            onBack={handleBack} 
+            onBack={handleBack}
+            selectedDate={selectedDate}
+            selectedGuests={selectedGuests}
+            selectedTime={selectedTime}
+            onStepClick={handleStepClick}
           />
         )}
 

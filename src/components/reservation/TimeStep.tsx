@@ -9,6 +9,9 @@ interface TimeStepProps {
   guests: number;
   onNext: (time: string) => void;
   onBack: () => void;
+  selectedDate?: Date;
+  selectedGuests?: number;
+  onStepClick?: (step: 'date' | 'guests' | 'time') => void;
 }
 
 interface TimeSlot {
@@ -18,7 +21,7 @@ interface TimeSlot {
   capacity: number;
 }
 
-const TimeStep = ({ date, guests, onNext, onBack }: TimeStepProps) => {
+const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, onStepClick }: TimeStepProps) => {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -146,7 +149,12 @@ const TimeStep = ({ date, guests, onNext, onBack }: TimeStepProps) => {
   if (loading) {
     return (
       <div className="max-w-lg mx-auto">
-        <StepHeader currentStep="time" selectedDate={date} selectedGuests={guests} />
+        <StepHeader 
+          currentStep="time" 
+          selectedDate={selectedDate || date} 
+          selectedGuests={selectedGuests || guests}
+          onStepClick={onStepClick}
+        />
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="text-center">
             <p className="text-muted-foreground">Verificando disponibilidad...</p>
@@ -158,7 +166,12 @@ const TimeStep = ({ date, guests, onNext, onBack }: TimeStepProps) => {
 
   return (
     <div className="max-w-lg mx-auto">
-      <StepHeader currentStep="time" selectedDate={date} selectedGuests={guests} />
+      <StepHeader 
+        currentStep="time" 
+        selectedDate={selectedDate || date} 
+        selectedGuests={selectedGuests || guests}
+        onStepClick={onStepClick}
+      />
       
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-primary mb-6">Selecciona una hora</h2>

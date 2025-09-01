@@ -15,9 +15,13 @@ interface InfoStepProps {
     comments: string;
   }) => void;
   onBack: () => void;
+  selectedDate?: Date;
+  selectedGuests?: number;
+  selectedTime?: string;
+  onStepClick?: (step: 'date' | 'guests' | 'time') => void;
 }
 
-const InfoStep = ({ onNext, onBack }: InfoStepProps) => {
+const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, onStepClick }: InfoStepProps) => {
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -30,7 +34,7 @@ const InfoStep = ({ onNext, onBack }: InfoStepProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.email || !formData.firstName || !formData.lastName || !formData.privacyAccepted) {
+    if (!formData.email || !formData.firstName || !formData.lastName || !formData.phone || !formData.privacyAccepted) {
       return;
     }
 
@@ -43,11 +47,17 @@ const InfoStep = ({ onNext, onBack }: InfoStepProps) => {
     });
   };
 
-  const isFormValid = formData.email && formData.firstName && formData.lastName && formData.privacyAccepted;
+  const isFormValid = formData.email && formData.firstName && formData.lastName && formData.phone && formData.privacyAccepted;
 
   return (
     <div className="max-w-lg mx-auto">
-      <StepHeader currentStep="info" />
+      <StepHeader 
+        currentStep="info" 
+        selectedDate={selectedDate}
+        selectedGuests={selectedGuests}
+        selectedTime={selectedTime}
+        onStepClick={onStepClick}
+      />
       
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-primary mb-6">Datos de contacto</h2>
@@ -97,6 +107,7 @@ const InfoStep = ({ onNext, onBack }: InfoStepProps) => {
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="rounded-l-none"
+                required
               />
             </div>
           </div>

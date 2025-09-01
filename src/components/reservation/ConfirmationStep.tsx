@@ -13,6 +13,7 @@ interface ConfirmationStepProps {
     guests: number;
     customer: {
       email: string;
+      name: string;
     };
   };
   onBack: () => void;
@@ -97,32 +98,34 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
       <div className="bg-white rounded-lg shadow-sm p-6 text-center">
         {!showCancelForm ? (
           <>
-            <h2 className="text-lg font-medium mb-6">Tu correo:</h2>
-            
+            <div className="mb-8">
+              <p className="text-lg mb-4">
+                <strong>{reservation.customer.name}</strong>, tu reserva para el día <strong>{formatDate(reservation.date)}</strong> para <strong>{reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}</strong> está confirmada.
+              </p>
+            </div>
+
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-gray-600 text-sm mb-2">Reserva confirmada para:</p>
+              <p className="text-gray-600 text-sm mb-2">Detalles de la reserva:</p>
               <p className="font-medium">{reservation.customer.email}</p>
               <p className="text-sm text-gray-600 mt-2">
                 {formatDate(reservation.date)} a las {formatTime(reservation.time)} para {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
               </p>
             </div>
 
-            <div className="space-y-4">
-              <Button
+            <div className="space-y-2">
+              <button
                 onClick={() => setShowCancelForm(true)}
-                variant="outline"
-                className="w-full bg-primary text-white hover:bg-primary/90"
+                className="text-sm text-gray-600 underline hover:text-gray-800"
               >
                 Cancelar reserva
-              </Button>
+              </button>
               
-              <Button
+              <button
                 onClick={onBack}
-                variant="ghost"
-                className="text-primary"
+                className="block text-sm text-primary underline hover:text-primary/80"
               >
                 Hacer nueva reserva
-              </Button>
+              </button>
             </div>
           </>
         ) : (
