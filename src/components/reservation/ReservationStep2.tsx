@@ -345,7 +345,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
         <div className="mt-6 text-xs text-muted-foreground space-y-2">
           <p><strong>Información básica sobre protección de datos de carácter personal</strong></p>
           <p>El cumplimiento del Reglamento General de Protección de Datos de Carácter Personal se informa al cliente que se informa de lo siguiente:</p>
-          <p><strong>Responsable:</strong> NAPOLIT 006 (Ver más)</p>
+          <p><strong>Responsable:</strong> {{nombre_restaurante}}</p>
           <p><strong>Finalidad:</strong> La prestación de servicios y la gestión de la relación comercial. Gestión de la publicidad para terceros restaurantes.</p>
           <p><strong>Legitimación:</strong> Consentimiento del responsable en el que el interesado se presto.</p>
         </div>
