@@ -221,7 +221,13 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
                   mode="single"
                   selected={selectedDate}
                   onSelect={handleDateChange}
-                  disabled={(date) => date < new Date() || !selectedGuests}
+                  disabled={(date) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const compareDate = new Date(date);
+                    compareDate.setHours(0, 0, 0, 0);
+                    return compareDate < today || !selectedGuests;
+                  }}
                   className="w-full"
                 />
               </div>
