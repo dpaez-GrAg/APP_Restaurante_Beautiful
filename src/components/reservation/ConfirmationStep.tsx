@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 import StepHeader from "./StepHeader";
 
 interface ConfirmationStepProps {
@@ -20,6 +21,7 @@ interface ConfirmationStepProps {
 }
 
 const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
+  const { config } = useRestaurantConfig();
   const [cancelEmail, setCancelEmail] = useState('');
   const [showCancelForm, setShowCancelForm] = useState(false);
   const { toast } = useToast();
@@ -114,56 +116,19 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
             </div>
 
             <div className="flex flex-col items-center space-y-2">
-              <button
-                onClick={() => setShowCancelForm(true)}
+              <a
+                href={`tel:${config?.contact_phone || ''}`}
                 className="text-sm text-gray-600 underline hover:text-gray-800"
               >
                 Cancelar reserva
-              </button>
+              </a>
               
               <button
                 onClick={onBack}
-                className="block text-sm text-primary underline hover:text-primary/80"
+                className="text-sm text-primary underline hover:text-primary/80"
               >
                 Hacer nueva reserva
               </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h2 className="text-lg font-medium mb-6">Cancelar Reserva</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Ingresa tu correo electrónico para cancelar la reserva:
-                </label>
-                <Input
-                  type="email"
-                  value={cancelEmail}
-                  onChange={(e) => setCancelEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex space-x-4">
-                <Button
-                  onClick={() => setShowCancelForm(false)}
-                  variant="ghost"
-                  className="flex-1"
-                >
-                  Volver
-                </Button>
-                
-                <Button
-                  onClick={handleCancelReservation}
-                  variant="destructive"
-                  className="flex-1"
-                >
-                  Cancelar Reserva
-                </Button>
-              </div>
             </div>
           </>
         )}
