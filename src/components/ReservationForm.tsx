@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import ReservationStep1 from "./reservation/ReservationStep1";
-import ReservationStep2 from "./reservation/ReservationStep2";
+import { supabase } from "@/integrations/supabase/client";
+import DateStep from "./reservation/DateStep";
+import GuestsStep from "./reservation/GuestsStep";
+import TimeStep from "./reservation/TimeStep";
+import InfoStep from "./reservation/InfoStep";
+import ConfirmationStep from "./reservation/ConfirmationStep";
 
 interface ReservationData {
   date: Date;
@@ -10,31 +14,123 @@ interface ReservationData {
   guests: number;
 }
 
+interface CustomerData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  comments: string;
+}
+
 const ReservationForm = () => {
-  const [currentStep, setCurrentStep] = useState<'initial' | 'step1' | 'step2'>('initial');
-  const [reservationData, setReservationData] = useState<ReservationData | null>(null);
+  const [currentStep, setCurrentStep] = useState<'initial' | 'date' | 'guests' | 'time' | 'info' | 'confirmation'>('initial');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedGuests, setSelectedGuests] = useState<number>(0);
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
+  const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
 
   const handleStartReservation = () => {
-    setCurrentStep('step1');
+    setCurrentStep('date');
   };
 
-  const handleStep1Complete = (data: ReservationData) => {
-    setReservationData(data);
-    setCurrentStep('step2');
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    setCurrentStep('guests');
   };
 
-  const handleStep2Back = () => {
-    setCurrentStep('step1');
+  const handleGuestsSelect = (guests: number) => {
+    setSelectedGuests(guests);
+    setCurrentStep('time');
   };
 
-  const handleComplete = () => {
-    setCurrentStep('initial');
-    setReservationData(null);
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+    setCurrentStep('info');
+  };
+
+  const handleInfoComplete = (data: CustomerData) => {
+    setCustomerData(data);
+    // Here we'd make the reservation
+    createReservation(data);
+  };
+
+  const createReservation = async (customer: CustomerData) => {
+    try {
+      // Create or find customer
+      const { data: existingCustomer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('email', customer.email)
+        .single();
+
+      let customerId;
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+      } else {
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            name: customer.firstName,
+            email: customer.email,
+            phone: customer.phone
+          })
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      }
+
+      // Create reservation
+      const { data: reservation, error: reservationError } = await supabase
+        .from('reservations')
+        .insert({
+          customer_id: customerId,
+          date: selectedDate?.toISOString().split('T')[0],
+          time: selectedTime,
+          guests: selectedGuests,
+          special_requests: customer.comments,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (reservationError) throw reservationError;
+
+      setConfirmedReservation({
+        ...reservation,
+        customer: { email: customer.email }
+      });
+      setCurrentStep('confirmation');
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+    }
   };
 
   const handleBackToInitial = () => {
     setCurrentStep('initial');
-    setReservationData(null);
+    setSelectedDate(null);
+    setSelectedGuests(0);
+    setSelectedTime('');
+    setCustomerData(null);
+    setConfirmedReservation(null);
+  };
+
+  const handleBack = () => {
+    switch (currentStep) {
+      case 'guests':
+        setCurrentStep('date');
+        break;
+      case 'time':
+        setCurrentStep('guests');
+        break;
+      case 'info':
+        setCurrentStep('time');
+        break;
+      default:
+        setCurrentStep('initial');
+    }
   };
 
   return (
@@ -63,18 +159,34 @@ const ReservationForm = () => {
           </>
         )}
 
-        {currentStep === 'step1' && (
-          <ReservationStep1 
-            onNext={handleStep1Complete}
-            onBack={handleBackToInitial}
+        {currentStep === 'date' && (
+          <DateStep onNext={handleDateSelect} onBack={handleBackToInitial} />
+        )}
+
+        {currentStep === 'guests' && (
+          <GuestsStep onNext={handleGuestsSelect} onBack={handleBack} />
+        )}
+
+        {currentStep === 'time' && (
+          <TimeStep 
+            date={selectedDate!} 
+            guests={selectedGuests} 
+            onNext={handleTimeSelect} 
+            onBack={handleBack} 
           />
         )}
 
-        {currentStep === 'step2' && reservationData && (
-          <ReservationStep2 
-            reservationData={reservationData}
-            onBack={handleStep2Back}
-            onComplete={handleComplete}
+        {currentStep === 'info' && (
+          <InfoStep 
+            onNext={handleInfoComplete} 
+            onBack={handleBack} 
+          />
+        )}
+
+        {currentStep === 'confirmation' && confirmedReservation && (
+          <ConfirmationStep 
+            reservation={confirmedReservation}
+            onBack={handleBackToInitial}
           />
         )}
       </div>

@@ -1,0 +1,171 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import StepHeader from "./StepHeader";
+
+interface ConfirmationStepProps {
+  reservation: {
+    id: string;
+    date: string;
+    time: string;
+    guests: number;
+    customer: {
+      email: string;
+    };
+  };
+  onBack: () => void;
+}
+
+const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
+  const [cancelEmail, setCancelEmail] = useState('');
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const { toast } = useToast();
+
+  const handleCancelReservation = async () => {
+    if (!cancelEmail) {
+      toast({
+        title: "Error",
+        description: "Por favor ingresa tu correo electrónico",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Find customer by email
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', cancelEmail)
+        .single();
+
+      if (customerError || !customer) {
+        toast({
+          title: "Error",
+          description: "No se encontró ninguna reserva con ese correo electrónico",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Find and cancel the reservation
+      const { error: updateError } = await supabase
+        .from('reservations')
+        .update({ status: 'cancelled' })
+        .eq('customer_id', customer.id)
+        .eq('status', 'pending');
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Reserva cancelada",
+        description: "Tu reserva ha sido cancelada exitosamente",
+      });
+
+      setCancelEmail('');
+      setShowCancelForm(false);
+      onBack();
+    } catch (error) {
+      console.error('Error canceling reservation:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la reserva. Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (timeString: string) => {
+    return timeString.slice(0, 5);
+  };
+
+  return (
+    <div className="max-w-lg mx-auto">
+      <StepHeader currentStep="confirmation" />
+      
+      <div className="bg-white rounded-lg shadow-sm p-6 text-center">
+        {!showCancelForm ? (
+          <>
+            <h2 className="text-lg font-medium mb-6">Tu correo:</h2>
+            
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <p className="text-gray-600 text-sm mb-2">Reserva confirmada para:</p>
+              <p className="font-medium">{reservation.customer.email}</p>
+              <p className="text-sm text-gray-600 mt-2">
+                {formatDate(reservation.date)} a las {formatTime(reservation.time)} para {reservation.guests} {reservation.guests === 1 ? 'persona' : 'personas'}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <Button
+                onClick={() => setShowCancelForm(true)}
+                variant="outline"
+                className="w-full bg-primary text-white hover:bg-primary/90"
+              >
+                Cancelar reserva
+              </Button>
+              
+              <Button
+                onClick={onBack}
+                variant="ghost"
+                className="text-primary"
+              >
+                Hacer nueva reserva
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-lg font-medium mb-6">Cancelar Reserva</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Ingresa tu correo electrónico para cancelar la reserva:
+                </label>
+                <Input
+                  type="email"
+                  value={cancelEmail}
+                  onChange={(e) => setCancelEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <Button
+                  onClick={() => setShowCancelForm(false)}
+                  variant="ghost"
+                  className="flex-1"
+                >
+                  Volver
+                </Button>
+                
+                <Button
+                  onClick={handleCancelReservation}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  Cancelar Reserva
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmationStep;
