@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ChevronLeft, Calendar, Users, MapPin, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 
 interface ReservationData {
   date: Date;
@@ -36,6 +37,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { config } = useRestaurantConfig();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,7 +347,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
         <div className="mt-6 text-xs text-muted-foreground space-y-2">
           <p><strong>Información básica sobre protección de datos de carácter personal</strong></p>
           <p>El cumplimiento del Reglamento General de Protección de Datos de Carácter Personal se informa al cliente que se informa de lo siguiente:</p>
-          <p><strong>Responsable:</strong> {{nombre_restaurante}}</p>
+          <p><strong>Responsable:</strong> {config?.restaurant_name ?? 'El Restaurante'}</p>
           <p><strong>Finalidad:</strong> La prestación de servicios y la gestión de la relación comercial. Gestión de la publicidad para terceros restaurantes.</p>
           <p><strong>Legitimación:</strong> Consentimiento del responsable en el que el interesado se presto.</p>
         </div>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Clock, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 
 interface TimeSlot {
   id: string;
@@ -27,6 +28,7 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { config } = useRestaurantConfig();
 
   const checkAvailability = async (date: Date, guests: number) => {
     setLoading(true);
@@ -254,7 +256,7 @@ const ReservationStep1 = ({ onNext, onBack }: ReservationStep1Props) => {
 
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <p className="text-xs text-orange-700">
-                    Para grúpos de mas de 8, envíanos un mail a {{mail}}
+                    Para grupos de más de 8, envíanos un mail a <a href={`mailto:${config?.contact_email ?? 'info@restaurante-elite.com'}`} className="underline">{config?.contact_email ?? 'info@restaurante-elite.com'}</a>
                   </p>
                 </div>
 
