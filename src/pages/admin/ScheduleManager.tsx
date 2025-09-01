@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button as UIButton } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -385,9 +385,9 @@ const ScheduleManager = () => {
           ))}
           
           <div className="flex justify-end">
-            <Button onClick={saveSchedules} className="bg-primary text-primary-foreground">
+            <UIButton onClick={saveSchedules} className="bg-primary text-primary-foreground">
               Guardar Horarios
-            </Button>
+            </UIButton>
           </div>
         </CardContent>
       </Card>
