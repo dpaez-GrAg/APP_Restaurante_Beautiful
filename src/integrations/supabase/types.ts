@@ -493,6 +493,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_reservation_guests_with_reassignment: {
+        Args: { p_new_guests: number; p_reservation_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

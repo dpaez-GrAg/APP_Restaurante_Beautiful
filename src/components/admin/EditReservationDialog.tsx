@@ -83,10 +83,22 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         if (!result.success) throw new Error(result.error);
       }
 
-      // Update other details
+      // Update guest count with automatic table reassignment if needed
+      if (formData.guests !== reservation.guests) {
+        const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc('update_reservation_guests_with_reassignment', {
+          p_reservation_id: reservation.id,
+          p_new_guests: formData.guests
+        });
+
+        if (guestUpdateError) throw guestUpdateError;
+        const guestUpdateResult = guestUpdateData as { success: boolean; error?: string };
+        if (!guestUpdateResult.success) throw new Error(guestUpdateResult.error);
+      }
+
+      // Update other details (excluding guests as it's already handled above)
       const { data: updateData, error: updateError } = await supabase.rpc('update_reservation_details', {
         p_reservation_id: reservation.id,
-        p_guests: formData.guests,
+        p_guests: null, // Don't update guests again
         p_special_requests: formData.special_requests,
         p_status: formData.status
       });
