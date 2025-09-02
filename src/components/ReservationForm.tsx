@@ -208,7 +208,12 @@ const ReservationForm = () => {
         )}
 
         {currentStep === 'guests' && (
-          <GuestsStep onNext={handleGuestsSelect} onBack={handleBack} />
+          <GuestsStep 
+            onNext={handleGuestsSelect} 
+            onBack={handleBack}
+            onStepClick={handleStepClick}
+            selectedDate={selectedDate || undefined}
+          />
         )}
 
         {currentStep === 'time' && (

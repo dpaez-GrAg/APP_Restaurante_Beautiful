@@ -4,14 +4,20 @@ import StepHeader from "./StepHeader";
 interface GuestsStepProps {
   onNext: (guests: number) => void;
   onBack: () => void;
+  onStepClick?: (step: 'date' | 'guests' | 'time') => void;
+  selectedDate?: Date;
 }
 
-const GuestsStep = ({ onNext, onBack }: GuestsStepProps) => {
+const GuestsStep = ({ onNext, onBack, onStepClick, selectedDate }: GuestsStepProps) => {
   const guestOptions = [1, 2, 3, 4, 5, 6];
 
   return (
     <div className="max-w-lg mx-auto">
-      <StepHeader currentStep="guests" />
+      <StepHeader 
+        currentStep="guests" 
+        selectedDate={selectedDate}
+        onStepClick={onStepClick}
+      />
       
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-primary mb-6">Selecciona una cantidad</h2>

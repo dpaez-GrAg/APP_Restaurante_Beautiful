@@ -440,6 +440,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_available_time_slots: {
+        Args: { p_date: string; p_duration_minutes?: number; p_guests: number }
+        Returns: {
+          capacity: number
+          id: string
+          slot_time: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

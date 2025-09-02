@@ -63,7 +63,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       // Transform the data to match the expected format
       const slots = Array.isArray(rpcData) ? rpcData.map((slot: any) => ({
         id: slot.id,
-        time: slot.time,
+        time: slot.slot_time, // Use slot_time from the RPC function
         available: true,
         capacity: slot.capacity
       })) : [];
