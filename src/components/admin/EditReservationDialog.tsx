@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDateLocal } from '@/lib/dateUtils';
+import { Trash2 } from 'lucide-react';
 
 interface EditReservation {
   id: string;
@@ -46,6 +48,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     duration_minutes: 90
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (reservation) {
@@ -100,6 +103,38 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
       toast.error(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!reservation) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete table assignments first
+      const { error: assignmentError } = await supabase
+        .from('reservation_table_assignments')
+        .delete()
+        .eq('reservation_id', reservation.id);
+
+      if (assignmentError) throw assignmentError;
+
+      // Delete the reservation
+      const { error: reservationError } = await supabase
+        .from('reservations')
+        .delete()
+        .eq('id', reservation.id);
+
+      if (reservationError) throw reservationError;
+
+      toast.success('Reserva eliminada correctamente');
+      onUpdate();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error deleting reservation:', error);
+      toast.error(`Error al eliminar: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -210,6 +245,31 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. La reserva será eliminada permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? 'Guardando...' : 'Guardar'}
             </Button>
