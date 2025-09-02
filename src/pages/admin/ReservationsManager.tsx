@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3 } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3, CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ReservationTimeGrid from "@/components/ReservationTimeGrid";
 import { formatDateLocal } from "@/lib/dateUtils";
+import { cn } from "@/lib/utils";
 
 interface Reservation {
   id: string;
@@ -209,13 +212,36 @@ const ReservationsManager = () => {
           >
             ←
           </Button>
-          <div className="px-3 py-2 border rounded-md bg-background min-w-[140px] text-center text-sm font-medium">
-            {new Date(dateFilter).toLocaleDateString('es-ES', { 
-              weekday: 'short', 
-              day: 'numeric', 
-              month: 'short' 
-            })}
-          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "min-w-[140px] justify-center text-sm font-medium"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {new Date(dateFilter).toLocaleDateString('es-ES', { 
+                  weekday: 'short', 
+                  day: 'numeric', 
+                  month: 'short' 
+                })}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center">
+              <CalendarComponent
+                mode="single"
+                selected={new Date(dateFilter)}
+                onSelect={(date) => {
+                  if (date) {
+                    setDateFilter(formatDateLocal(date));
+                  }
+                }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <Button
             variant="outline"
             size="sm"
