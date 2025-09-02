@@ -7,7 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import ReservationTimeGrid from "@/components/ReservationTimeGrid";
+import { formatDateLocal } from "@/lib/dateUtils";
 
 interface Reservation {
   id: string;
@@ -19,72 +21,97 @@ interface Reservation {
   guests: number;
   message?: string;
   status: "pending" | "confirmed" | "cancelled";
-  table_id?: string;
+  table_assignments?: Array<{ table_id: string; table_name?: string }>;
   created_at: string;
 }
 
 const ReservationsManager = () => {
-  const [reservations, setReservations] = useState<Reservation[]>([
-    {
-      id: "1",
-      name: "María García",
-      email: "maria@email.com",
-      phone: "+34 123 456 789",
-      date: "2024-01-15",
-      time: "20:00",
-      guests: 4,
-      message: "Celebración de aniversario",
-      status: "pending",
-      created_at: "2024-01-10T10:30:00Z"
-    },
-    {
-      id: "2",
-      name: "Carlos López",
-      email: "carlos@email.com",
-      phone: "+34 987 654 321",
-      date: "2024-01-15",
-      time: "19:30",
-      guests: 2,
-      status: "confirmed",
-      table_id: "mesa-1",
-      created_at: "2024-01-11T15:20:00Z"
-    },
-    {
-      id: "3",
-      name: "Ana Martín",
-      email: "ana@email.com",
-      date: "2024-01-16",
-      time: "21:00",
-      guests: 6,
-      message: "Alergia a frutos secos",
-      status: "pending",
-      created_at: "2024-01-12T09:15:00Z"
-    },
-    {
-      id: "4",
-      name: "Roberto Silva",
-      email: "roberto@email.com",
-      phone: "+34 555 123 456",
-      date: "2024-01-14",
-      time: "13:30",
-      guests: 8,
-      status: "cancelled",
-      created_at: "2024-01-08T18:45:00Z"
-    }
-  ]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>(reservations);
+  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
+  const [dateFilter, setDateFilter] = useState(formatDateLocal(new Date()));
 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Aquí cargarás las reservas desde Supabase
+    loadReservations();
+    
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reservations'
+        },
+        () => {
+          loadReservations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
     filterReservations();
   }, [searchTerm, statusFilter, dateFilter, reservations]);
+
+  const loadReservations = async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: reservationData, error } = await supabase
+        .from('reservations')
+        .select(`
+          *,
+          customers (name, email, phone),
+          reservation_table_assignments (
+            table_id,
+            tables (name)
+          )
+        `)
+        .order('date', { ascending: false })
+        .order('time', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedReservations: Reservation[] = reservationData?.map(reservation => ({
+        id: reservation.id,
+        name: reservation.customers?.name || 'Sin nombre',
+        email: reservation.customers?.email || 'Sin email',
+        phone: reservation.customers?.phone || undefined,
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests,
+        message: reservation.special_requests || undefined,
+        status: reservation.status as "pending" | "confirmed" | "cancelled",
+        table_assignments: reservation.reservation_table_assignments?.map(assignment => ({
+          table_id: assignment.table_id,
+          table_name: assignment.tables?.name
+        })) || [],
+        created_at: reservation.created_at
+      })) || [];
+
+      setReservations(formattedReservations);
+    } catch (error) {
+      console.error('Error loading reservations:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar las reservas.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filterReservations = () => {
     let filtered = [...reservations];
@@ -112,17 +139,33 @@ const ReservationsManager = () => {
     setFilteredReservations(filtered);
   };
 
-  const updateReservationStatus = (id: string, newStatus: "confirmed" | "cancelled") => {
-    setReservations((prev) =>
-      prev.map((reservation) =>
-        reservation.id === id ? { ...reservation, status: newStatus } : reservation
-      )
-    );
+  const updateReservationStatus = async (id: string, newStatus: "confirmed" | "cancelled") => {
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .update({ status: newStatus })
+        .eq('id', id);
 
-    toast({
-      title: "Estado actualizado",
-      description: `Reserva ${newStatus === "confirmed" ? "confirmada" : "cancelada"} correctamente.`,
-    });
+      if (error) throw error;
+
+      setReservations((prev) =>
+        prev.map((reservation) =>
+          reservation.id === id ? { ...reservation, status: newStatus } : reservation
+        )
+      );
+
+      toast({
+        title: "Estado actualizado",
+        description: `Reserva ${newStatus === "confirmed" ? "confirmada" : "cancelada"} correctamente.`,
+      });
+    } catch (error) {
+      console.error('Error updating reservation:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado de la reserva.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -283,17 +326,17 @@ const ReservationsManager = () => {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium invisible">Acción</label>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStatusFilter("all");
-                      setDateFilter(new Date().toISOString().split('T')[0]);
-                    }}
-                    className="w-full"
-                  >
-                    Limpiar Filtros
-                  </Button>
+                   <Button
+                     variant="outline"
+                     onClick={() => {
+                       setSearchTerm("");
+                       setStatusFilter("all");
+                       setDateFilter(formatDateLocal(new Date()));
+                     }}
+                     className="w-full"
+                   >
+                     Limpiar Filtros
+                   </Button>
                 </div>
               </div>
             </CardContent>
@@ -345,11 +388,17 @@ const ReservationsManager = () => {
                           </div>
                         )}
 
-                        {reservation.message && (
-                          <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded">
-                            <strong>Mensaje:</strong> {reservation.message}
-                          </div>
-                        )}
+                         {reservation.table_assignments && reservation.table_assignments.length > 0 && (
+                           <div className="text-sm text-muted-foreground">
+                             <strong>Mesas asignadas:</strong> {reservation.table_assignments.map(ta => ta.table_name).join(', ')}
+                           </div>
+                         )}
+
+                         {reservation.message && (
+                           <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded">
+                             <strong>Mensaje:</strong> {reservation.message}
+                           </div>
+                         )}
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
@@ -380,12 +429,17 @@ const ReservationsManager = () => {
                   </div>
                 ))}
 
-                {filteredReservations.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No se encontraron reservas con los filtros aplicados.</p>
-                  </div>
-                )}
+                 {isLoading ? (
+                   <div className="text-center py-8 text-muted-foreground">
+                     <div className="animate-spin w-8 h-8 border-4 border-restaurant-gold border-t-transparent rounded-full mx-auto mb-4"></div>
+                     <p>Cargando reservas...</p>
+                   </div>
+                 ) : filteredReservations.length === 0 ? (
+                   <div className="text-center py-8 text-muted-foreground">
+                     <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                     <p>No se encontraron reservas con los filtros aplicados.</p>
+                   </div>
+                 ) : null}
               </div>
             </CardContent>
           </Card>

@@ -12,7 +12,12 @@ interface Reservation {
   time: string;
   guests: number;
   status: string;
-  table_id?: string;
+  start_at?: string;
+  end_at?: string;
+  tableAssignments?: Array<{
+    table_id: string;
+    table_name: string;
+  }>;
 }
 
 interface Table {
@@ -64,7 +69,11 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
           .from('reservations')
           .select(`
             *,
-            customers(name)
+            customers(name),
+            reservation_table_assignments(
+              table_id,
+              tables(name)
+            )
           `)
           .eq('date', selectedDate)
           .in('status', ['confirmed', 'pending']),
@@ -83,7 +92,7 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
       if (tablesResult.error) throw tablesResult.error;
       if (schedulesResult.error) throw schedulesResult.error;
 
-      // Mapear reservaciones con nombre del cliente
+      // Mapear reservaciones con nombre del cliente y asignaciones de mesa
       const mappedReservations = (reservationsResult.data || []).map(reservation => ({
         id: reservation.id,
         customer_name: reservation.customers?.name || 'Cliente',
@@ -91,7 +100,12 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
         time: reservation.time,
         guests: reservation.guests,
         status: reservation.status,
-        table_id: null // Por ahora no hay table_id en el esquema actual
+        start_at: reservation.start_at,
+        end_at: reservation.end_at,
+        tableAssignments: reservation.reservation_table_assignments?.map(assignment => ({
+          table_id: assignment.table_id,
+          table_name: assignment.tables?.name || 'Mesa'
+        })) || []
       }));
 
       setReservations(mappedReservations);
@@ -117,27 +131,59 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
   };
 
   const getReservationForTableAndTime = (tableId: string, timeSlot: string) => {
-    return reservations.find(reservation => 
-      reservation.table_id === tableId && 
-      reservation.time.substring(0, 5) === timeSlot
-    );
+    return reservations.find(reservation => {
+      // Check if this reservation has this table assigned
+      const hasTableAssigned = reservation.tableAssignments?.some(
+        assignment => assignment.table_id === tableId
+      );
+      
+      if (!hasTableAssigned) {
+        return false;
+      }
+
+      // Check time overlap using start_at and end_at if available
+      if (reservation.start_at && reservation.end_at) {
+        const slotStartTime = new Date(`${selectedDate}T${timeSlot}:00`);
+        const slotEndTime = new Date(slotStartTime.getTime() + 15 * 60000); // 15 minute slot
+        
+        const reservationStart = new Date(reservation.start_at);
+        const reservationEnd = new Date(reservation.end_at);
+        
+        return (
+          (reservationStart <= slotStartTime && reservationEnd > slotStartTime) ||
+          (reservationStart < slotEndTime && reservationEnd >= slotEndTime) ||
+          (reservationStart >= slotStartTime && reservationEnd <= slotEndTime)
+        );
+      }
+      
+      // Fallback to time comparison
+      return reservation.time.substring(0, 5) === timeSlot;
+    });
   };
 
   const needsDoubleService = (tableId: string, timeSlot: string) => {
-    const hour = parseInt(timeSlot.split(':')[0]);
     const currentReservation = getReservationForTableAndTime(tableId, timeSlot);
+    if (!currentReservation || !currentReservation.start_at || !currentReservation.end_at) return false;
+
+    const reservationStart = new Date(currentReservation.start_at);
+    const reservationEnd = new Date(currentReservation.end_at);
     
-    if (!currentReservation) return false;
-
-    // Buscar si hay otra reserva en las próximas 2-3 horas
-    const nextSlots = timeSlots.filter(slot => {
-      const slotHour = parseInt(slot.split(':')[0]);
-      return slotHour > hour && slotHour <= hour + 3;
-    });
-
-    return nextSlots.some(slot => {
-      const nextReservation = getReservationForTableAndTime(tableId, slot);
-      return nextReservation && nextReservation.id !== currentReservation.id;
+    // Check if there's another reservation for the same table within 3 hours after this one ends
+    const threeHoursAfter = new Date(reservationEnd.getTime() + 3 * 60 * 60000);
+    
+    return reservations.some(reservation => {
+      if (reservation.id === currentReservation.id) {
+        return false;
+      }
+      
+      const hasTableAssigned = reservation.tableAssignments?.some(
+        assignment => assignment.table_id === tableId
+      );
+      
+      if (!hasTableAssigned || !reservation.start_at) return false;
+      
+      const nextReservationStart = new Date(reservation.start_at);
+      return nextReservationStart >= reservationEnd && nextReservationStart <= threeHoursAfter;
     });
   };
 

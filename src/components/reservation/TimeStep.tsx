@@ -34,78 +34,157 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
   const checkAvailability = async () => {
     setLoading(true);
     try {
-      // Get restaurant schedules for the selected day
-      const dayOfWeek = date.getDay();
+      // Helper function to format date as YYYY-MM-DD in local timezone
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const dateStr = formatDateLocal(date);
+      
+      // Get restaurant schedules
       const { data: schedules, error: schedulesError } = await supabase
         .from('restaurant_schedules')
         .select('*')
-        .eq('day_of_week', dayOfWeek)
         .eq('is_active', true);
 
       if (schedulesError) throw schedulesError;
 
-      if (!schedules || schedules.length === 0) {
+      // Get special closed days
+      const { data: specialClosedDays, error: closedDaysError } = await supabase
+        .from('special_closed_days')
+        .select('*');
+
+      if (closedDaysError) throw closedDaysError;
+
+      // Get special schedules
+      const { data: specialSchedules, error: specialSchedulesError } = await supabase
+        .from('special_schedule_days')
+        .select('*')
+        .eq('is_active', true);
+
+      if (specialSchedulesError) throw specialSchedulesError;
+
+      // Check if date is closed
+      const isClosed = specialClosedDays?.some(closedDay => {
+        if (closedDay.is_range) {
+          return closedDay.range_start && closedDay.range_end &&
+                 dateStr >= closedDay.range_start && 
+                 dateStr <= closedDay.range_end;
+        } else {
+          return closedDay.date === dateStr;
+        }
+      });
+
+      if (isClosed) {
         setAvailableSlots([]);
         return;
       }
 
       // Get all time slots
-      const { data: timeSlots, error: slotsError } = await supabase
+      const { data: timeSlots, error: timeSlotsError } = await supabase
         .from('time_slots')
         .select('*')
         .order('time');
 
-      if (slotsError) throw slotsError;
+      if (timeSlotsError) throw timeSlotsError;
 
-      // Get existing reservations for the selected date
-      const { data: reservations, error: reservationsError } = await supabase
+      // Get active tables to calculate total capacity
+      const { data: tables, error: tablesError } = await supabase
+        .from('tables')
+        .select('*')
+        .eq('is_active', true);
+
+      if (tablesError) throw tablesError;
+
+      // Get existing reservations and their table assignments for the selected date
+      const { data: existingReservations, error: reservationsError } = await supabase
         .from('reservations')
-        .select('time, guests')
-        .eq('date', format(date, 'yyyy-MM-dd'));
+        .select(`
+          time, guests, status, start_at, end_at,
+          reservation_table_assignments!inner(table_id)
+        `)
+        .eq('date', dateStr)
+        .neq('status', 'cancelled');
 
       if (reservationsError) throw reservationsError;
 
-      // Filter time slots to only include those within opening hours
-      const validSlots = timeSlots?.filter(slot => {
+      // Check restaurant schedule (regular vs special)
+      const specialSchedule = specialSchedules?.find(s => s.date === dateStr);
+      const dayOfWeek = date.getDay();
+      const restaurantSchedule = schedules?.find(s => s.day_of_week === dayOfWeek);
+      
+      let openingTime: string, closingTime: string;
+      
+      if (specialSchedule) {
+        openingTime = specialSchedule.opening_time;
+        closingTime = specialSchedule.closing_time;
+      } else if (restaurantSchedule) {
+        openingTime = restaurantSchedule.opening_time;
+        closingTime = restaurantSchedule.closing_time;
+      } else {
+        setAvailableSlots([]);
+        return;
+      }
+
+      // Filter slots that are within restaurant hours
+      let filteredSlots = timeSlots?.filter(slot => {
         const slotTime = slot.time;
-        return schedules.some(schedule => 
-          slotTime >= schedule.opening_time && slotTime <= schedule.closing_time
-        );
+        return slotTime >= openingTime && slotTime < closingTime;
       }) || [];
 
-      // Calculate availability and filter out past times
+      // Filter out past times if the selected date is today
       const now = new Date();
-      const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
-      const selectedDateStr = format(date, 'yyyy-MM-dd');
-      const todayStr = format(new Date(), 'yyyy-MM-dd');
-      const isToday = selectedDateStr === todayStr;
+      const isToday = date.toDateString() === now.toDateString();
+      
+      if (isToday) {
+        const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+        filteredSlots = filteredSlots.filter(slot => slot.time > currentTime);
+      }
 
-      const slots: TimeSlot[] = validSlots
-        .filter(slot => {
-          // If it's today, filter out past times
-          if (isToday) {
-            const [hours, minutes] = slot.time.split(':').map(Number);
-            const slotTimeInMinutes = hours * 60 + minutes;
-            return slotTimeInMinutes > currentTime;
-          }
-          return true;
-        })
-        .map(slot => {
-          const reservedGuests = reservations
-            ?.filter(r => r.time === slot.time)
-            ?.reduce((sum, r) => sum + r.guests, 0) || 0;
+      // Calculate availability for each slot based on actual table capacity
+      const slotsWithAvailability = filteredSlots.map(slot => {
+        const slotStartTime = new Date(`${dateStr}T${slot.time}:00`);
+        const slotEndTime = new Date(slotStartTime.getTime() + 120 * 60000); // 2 hours
+        
+        // Find overlapping reservations
+        const overlappingReservations = existingReservations?.filter(reservation => {
+          if (!reservation.start_at || !reservation.end_at) return false;
           
-          const availableCapacity = slot.max_capacity - reservedGuests;
+          const reservationStart = new Date(reservation.start_at);
+          const reservationEnd = new Date(reservation.end_at);
           
-          return {
-            id: slot.id,
-            time: slot.time,
-            available: availableCapacity >= guests,
-            capacity: availableCapacity
-          };
+          // Check for time overlap
+          return (
+            (reservationStart <= slotStartTime && reservationEnd > slotStartTime) ||
+            (reservationStart < slotEndTime && reservationEnd >= slotEndTime) ||
+            (reservationStart >= slotStartTime && reservationEnd <= slotEndTime)
+          );
+        }) || [];
+        
+        // Calculate occupied table capacity
+        const occupiedTableIds = new Set();
+        overlappingReservations.forEach(reservation => {
+          reservation.reservation_table_assignments?.forEach((assignment: any) => {
+            occupiedTableIds.add(assignment.table_id);
+          });
         });
+        
+        // Calculate available capacity from unoccupied tables
+        const availableTables = tables?.filter(table => !occupiedTableIds.has(table.id)) || [];
+        const totalAvailableCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
+        
+        return {
+          id: slot.id,
+          time: slot.time,
+          available: totalAvailableCapacity >= guests,
+          capacity: totalAvailableCapacity
+        };
+      });
 
-      setAvailableSlots(slots);
+      setAvailableSlots(slotsWithAvailability);
     } catch (error) {
       console.error('Error checking availability:', error);
       toast({

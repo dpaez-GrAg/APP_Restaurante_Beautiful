@@ -372,6 +372,7 @@ const ScheduleManager = () => {
         return;
       }
 
+
       // Helper function to format date as YYYY-MM-DD in local timezone
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();

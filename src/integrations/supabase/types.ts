@@ -68,14 +68,56 @@ export type Database = {
         }
         Relationships: []
       }
+      reservation_table_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          reservation_id: string
+          table_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reservation_id: string
+          table_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reservation_id?: string
+          table_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_table_assignments_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_table_assignments_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservations: {
         Row: {
           created_at: string
           customer_id: string
           date: string
+          duration_minutes: number | null
+          end_at: string | null
           guests: number
           id: string
           special_requests: string | null
+          start_at: string | null
           status: string | null
           time: string
           updated_at: string
@@ -84,9 +126,12 @@ export type Database = {
           created_at?: string
           customer_id: string
           date: string
+          duration_minutes?: number | null
+          end_at?: string | null
           guests: number
           id?: string
           special_requests?: string | null
+          start_at?: string | null
           status?: string | null
           time: string
           updated_at?: string
@@ -95,9 +140,12 @@ export type Database = {
           created_at?: string
           customer_id?: string
           date?: string
+          duration_minutes?: number | null
+          end_at?: string | null
           guests?: number
           id?: string
           special_requests?: string | null
+          start_at?: string | null
           status?: string | null
           time?: string
           updated_at?: string
@@ -381,7 +429,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_reservation_with_assignment: {
+        Args: {
+          p_customer_id: string
+          p_date: string
+          p_duration_minutes?: number
+          p_guests: number
+          p_special_requests?: string
+          p_time: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

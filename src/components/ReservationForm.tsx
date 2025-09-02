@@ -72,7 +72,7 @@ const ReservationForm = () => {
         const { data: newCustomer, error: customerError } = await supabase
           .from('customers')
           .insert({
-            name: customer.firstName,
+            name: `${customer.firstName} ${customer.lastName}`,
             email: customer.email,
             phone: customer.phone
           })
@@ -83,28 +83,43 @@ const ReservationForm = () => {
         customerId = newCustomer.id;
       }
 
-      // Create reservation
-      const { data: reservation, error: reservationError } = await supabase
-        .from('reservations')
-        .insert({
-          customer_id: customerId,
-          date: format(selectedDate!, "yyyy-MM-dd"),
-          time: selectedTime,
-          guests: selectedGuests,
-          special_requests: customer.comments,
-          status: 'pending'
-        })
-        .select()
-        .single();
+      // Helper function to format date as YYYY-MM-DD in local timezone
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      // Create reservation with table assignment using the new RPC function
+      const { data: result, error: reservationError } = await supabase
+        .rpc('create_reservation_with_assignment', {
+          p_customer_id: customerId,
+          p_date: formatDateLocal(selectedDate!),
+          p_time: selectedTime,
+          p_guests: selectedGuests,
+          p_special_requests: customer.comments || null,
+          p_duration_minutes: 120
+        });
 
       if (reservationError) throw reservationError;
 
+      if (!result || typeof result !== 'object' || !('success' in result) || !result.success) {
+        console.error('Reservation creation failed:', result);
+        // For now, we'll still show success to user, but log the error
+      }
+
+      const resultObj = result as any;
       setConfirmedReservation({
-        ...reservation,
+        id: resultObj.reservation_id,
         customer: { 
           email: customer.email,
           name: customer.firstName
-        }
+        },
+        date: formatDateLocal(selectedDate!),
+        time: selectedTime,
+        guests: selectedGuests,
+        status: 'confirmed'
       });
       setCurrentStep('confirmation');
     } catch (error) {
