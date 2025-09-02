@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import DateStep from "./reservation/DateStep";
 import GuestsStep from "./reservation/GuestsStep";
 import TimeStep from "./reservation/TimeStep";
@@ -30,6 +31,7 @@ const ReservationForm = () => {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
+  const { toast } = useToast();
 
   const handleStartReservation = () => {
     setCurrentStep('date');
@@ -129,6 +131,11 @@ const ReservationForm = () => {
       setCurrentStep('confirmation');
     } catch (error) {
       console.error('Error creating reservation:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo crear la reserva. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
     }
   };
 

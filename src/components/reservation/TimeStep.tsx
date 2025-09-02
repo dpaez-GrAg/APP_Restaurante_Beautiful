@@ -33,6 +33,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
 
   const checkAvailability = async () => {
     setLoading(true);
+    console.log('🔍 Checking availability for:', { date, guests });
     try {
       // Helper function to format date as YYYY-MM-DD in local timezone
       const formatDateLocal = (date: Date) => {
@@ -108,6 +109,8 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         `)
         .eq('date', dateStr)
         .neq('status', 'cancelled');
+
+      console.log('📋 Existing reservations for', dateStr, ':', existingReservations);
 
       if (reservationsError) throw reservationsError;
 
@@ -196,6 +199,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
 
       // Only show slots that have availability for the requested number of guests
       const availableSlotsOnly = slotsWithAvailability.filter(slot => slot.available);
+      console.log('✅ Available slots only:', availableSlotsOnly.length, 'out of', slotsWithAvailability.length);
       setAvailableSlots(availableSlotsOnly);
     } catch (error) {
       console.error('Error checking availability:', error);
