@@ -505,7 +505,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                                   border: `2px solid ${reservationDetails.reservation.status === 'confirmed' 
                                     ? 'rgb(34, 197, 94)' 
                                     : 'rgb(251, 191, 36)'}`,
-                                  borderRadius: '4px'
+                                  borderRadius: '4px',
+                                  minWidth: `${reservationDetails.durationSlots * 100}%`
                                 }}
                               >
                                 <div className="text-center px-1">
