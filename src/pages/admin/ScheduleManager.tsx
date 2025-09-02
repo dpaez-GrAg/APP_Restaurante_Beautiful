@@ -4,6 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { CalendarIcon, Trash2 } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +21,15 @@ interface DaySchedule {
   morningEnd: string;
   afternoonStart: string;
   afternoonEnd: string;
+}
+
+interface SpecialClosedDay {
+  id: string;
+  date: Date;
+  reason?: string;
+  is_range: boolean;
+  range_start?: Date;
+  range_end?: Date;
 }
 
 const DAYS_OF_WEEK = [
@@ -40,12 +55,19 @@ const generateTimeOptions = () => {
 
 const ScheduleManager = () => {
   const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([]);
+  const [specialDays, setSpecialDays] = useState<SpecialClosedDay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedStartDate, setSelectedStartDate] = useState<Date>();
+  const [selectedEndDate, setSelectedEndDate] = useState<Date>();
+  const [reason, setReason] = useState("");
+  const [isRange, setIsRange] = useState(false);
   const { toast } = useToast();
   const timeOptions = generateTimeOptions();
 
   useEffect(() => {
     loadSchedules();
+    loadSpecialDays();
   }, []);
 
   const initializeDaySchedules = () => {
@@ -176,6 +198,113 @@ const ScheduleManager = () => {
       toast({
         title: "Error",
         description: "No se pudieron guardar los horarios",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadSpecialDays = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('special_closed_days')
+        .select('*')
+        .order('date');
+      
+      if (error) throw error;
+      
+      const formattedDays = data?.map(day => ({
+        ...day,
+        date: new Date(day.date),
+        range_start: day.range_start ? new Date(day.range_start) : undefined,
+        range_end: day.range_end ? new Date(day.range_end) : undefined
+      })) || [];
+      
+      setSpecialDays(formattedDays);
+    } catch (error) {
+      console.error('Error loading special days:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los días especiales",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const addSpecialDay = async () => {
+    try {
+      if (isRange && (!selectedStartDate || !selectedEndDate)) {
+        toast({
+          title: "Error",
+          description: "Selecciona las fechas de inicio y fin para el rango",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (!isRange && !selectedDate) {
+        toast({
+          title: "Error", 
+          description: "Selecciona una fecha",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const newDay = {
+        date: (isRange ? selectedStartDate! : selectedDate!).toISOString().split('T')[0],
+        reason: reason || null,
+        is_range: isRange,
+        range_start: isRange ? selectedStartDate!.toISOString().split('T')[0] : null,
+        range_end: isRange ? selectedEndDate!.toISOString().split('T')[0] : null
+      };
+
+      const { error } = await supabase
+        .from('special_closed_days')
+        .insert(newDay);
+
+      if (error) throw error;
+
+      toast({
+        title: "Día especial añadido",
+        description: "El día de cierre se ha guardado correctamente"
+      });
+
+      setSelectedDate(undefined);
+      setSelectedStartDate(undefined);
+      setSelectedEndDate(undefined);
+      setReason("");
+      setIsRange(false);
+      await loadSpecialDays();
+    } catch (error) {
+      console.error('Error adding special day:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el día especial",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteSpecialDay = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('special_closed_days')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Día especial eliminado",
+        description: "El día de cierre se ha eliminado correctamente"
+      });
+
+      await loadSpecialDays();
+    } catch (error) {
+      console.error('Error deleting special day:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el día especial",
         variant: "destructive"
       });
     }
@@ -364,6 +493,158 @@ const ScheduleManager = () => {
               Guardar Horarios
             </UIButton>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Días festivos o de no apertura</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <UIButton 
+              onClick={() => setIsRange(false)} 
+              variant={!isRange ? "default" : "outline"}
+              size="sm"
+            >
+              + Añadir día
+            </UIButton>
+            <UIButton 
+              onClick={() => setIsRange(true)} 
+              variant={isRange ? "default" : "outline"}
+              size="sm"
+            >
+              + Añadir rango
+            </UIButton>
+          </div>
+
+          <div className="space-y-3 border rounded-md p-3">
+            {!isRange ? (
+              <div className="space-y-2">
+                <Label className="text-xs">Fecha</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <UIButton
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-8 text-xs",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {selectedDate ? format(selectedDate, "PPP") : "Seleccionar fecha"}
+                    </UIButton>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Fecha inicio</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <UIButton
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-8 text-xs",
+                          !selectedStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {selectedStartDate ? format(selectedStartDate, "dd/MM") : "Inicio"}
+                      </UIButton>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedStartDate}
+                        onSelect={setSelectedStartDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fecha fin</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <UIButton
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-8 text-xs",
+                          !selectedEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {selectedEndDate ? format(selectedEndDate, "dd/MM") : "Fin"}
+                      </UIButton>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedEndDate}
+                        onSelect={setSelectedEndDate}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input 
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Ej: Navidad, Vacaciones..."
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <UIButton onClick={addSpecialDay} size="sm" className="w-full">
+              Guardar
+            </UIButton>
+          </div>
+
+          {specialDays.length > 0 && (
+            <div className="space-y-2">
+              {specialDays.map((day) => (
+                <div key={day.id} className="flex items-center justify-between bg-muted/50 rounded p-2">
+                  <div className="text-xs">
+                    <div className="font-medium">
+                      {day.is_range && day.range_start && day.range_end
+                        ? `${format(day.range_start, "dd/MM/yyyy")} - ${format(day.range_end, "dd/MM/yyyy")}`
+                        : format(day.date, "dd/MM/yyyy")
+                      }
+                    </div>
+                    {day.reason && (
+                      <div className="text-muted-foreground">{day.reason}</div>
+                    )}
+                  </div>
+                  <UIButton
+                    onClick={() => deleteSpecialDay(day.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </UIButton>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -205,6 +205,39 @@ export type Database = {
         }
         Relationships: []
       }
+      special_closed_days: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          is_range: boolean
+          range_end: string | null
+          range_start: string | null
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          is_range?: boolean
+          range_end?: string | null
+          range_start?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          is_range?: boolean
+          range_end?: string | null
+          range_start?: string | null
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       table_combinations: {
         Row: {
           created_at: string
