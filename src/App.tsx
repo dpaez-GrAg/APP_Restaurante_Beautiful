@@ -18,39 +18,52 @@ import ScheduleManager from "./pages/admin/ScheduleManager";
 import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: 3,
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <RestaurantConfigProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/admin/auth" element={<AdminAuth />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="reservations" element={<ReservationsManager />} />
-                <Route path="tables" element={<TablesManager />} />
-                <Route path="layout" element={<RestaurantLayout />} />
-                <Route path="combinations" element={<CombinationsManager />} />
-                <Route path="schedules" element={<ScheduleManager />} />
-                <Route path="settings" element={<RestaurantSettings />} />
-              </Route>
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </RestaurantConfigProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+console.log('QueryClient created:', queryClient);
+
+function App() {
+  console.log('App component rendering...');
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RestaurantConfigProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/admin/auth" element={<AdminAuth />} />
+                
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="reservations" element={<ReservationsManager />} />
+                  <Route path="tables" element={<TablesManager />} />
+                  <Route path="layout" element={<RestaurantLayout />} />
+                  <Route path="combinations" element={<CombinationsManager />} />
+                  <Route path="schedules" element={<ScheduleManager />} />
+                  <Route path="settings" element={<RestaurantSettings />} />
+                </Route>
+                
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </RestaurantConfigProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
