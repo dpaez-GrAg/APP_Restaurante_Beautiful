@@ -195,6 +195,39 @@ const ReservationsManager = () => {
             Administra todas las reservas de tu restaurante
           </p>
         </div>
+        
+        {/* Date Navigation */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const currentDate = new Date(dateFilter);
+              currentDate.setDate(currentDate.getDate() - 1);
+              setDateFilter(formatDateLocal(currentDate));
+            }}
+          >
+            ←
+          </Button>
+          <div className="px-3 py-2 border rounded-md bg-background min-w-[140px] text-center text-sm font-medium">
+            {new Date(dateFilter).toLocaleDateString('es-ES', { 
+              weekday: 'short', 
+              day: 'numeric', 
+              month: 'short' 
+            })}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const currentDate = new Date(dateFilter);
+              currentDate.setDate(currentDate.getDate() + 1);
+              setDateFilter(formatDateLocal(currentDate));
+            }}
+          >
+            →
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -262,17 +295,6 @@ const ReservationsManager = () => {
         </TabsList>
 
         <TabsContent value="grid" className="space-y-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha</label>
-              <Input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-48"
-              />
-            </div>
-          </div>
           <ReservationTimeGrid selectedDate={dateFilter} />
         </TabsContent>
 
@@ -286,7 +308,7 @@ const ReservationsManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Buscar</label>
                   <div className="relative">
@@ -313,15 +335,6 @@ const ReservationsManager = () => {
                       <SelectItem value="cancelled">Canceladas</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fecha</label>
-                  <Input
-                    type="date"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                  />
                 </div>
 
                 <div className="space-y-2">
