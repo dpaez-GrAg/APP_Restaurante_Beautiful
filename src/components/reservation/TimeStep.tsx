@@ -114,26 +114,28 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       // Check restaurant schedule (regular vs special)
       const specialSchedule = specialSchedules?.find(s => s.date === dateStr);
       const dayOfWeek = date.getDay();
-      const restaurantSchedule = schedules?.find(s => s.day_of_week === dayOfWeek);
+      const restaurantSchedules = schedules?.filter(s => s.day_of_week === dayOfWeek) || [];
       
-      let openingTime: string, closingTime: string;
+      let filteredSlots: any[] = [];
       
       if (specialSchedule) {
-        openingTime = specialSchedule.opening_time;
-        closingTime = specialSchedule.closing_time;
-      } else if (restaurantSchedule) {
-        openingTime = restaurantSchedule.opening_time;
-        closingTime = restaurantSchedule.closing_time;
+        // Use special schedule
+        filteredSlots = timeSlots?.filter(slot => {
+          const slotTime = slot.time;
+          return slotTime >= specialSchedule.opening_time && slotTime < specialSchedule.closing_time;
+        }) || [];
+      } else if (restaurantSchedules.length > 0) {
+        // Handle multiple schedules for the same day (e.g., lunch and dinner)
+        filteredSlots = timeSlots?.filter(slot => {
+          const slotTime = slot.time;
+          return restaurantSchedules.some(schedule => 
+            slotTime >= schedule.opening_time && slotTime < schedule.closing_time
+          );
+        }) || [];
       } else {
         setAvailableSlots([]);
         return;
       }
-
-      // Filter slots that are within restaurant hours
-      let filteredSlots = timeSlots?.filter(slot => {
-        const slotTime = slot.time;
-        return slotTime >= openingTime && slotTime < closingTime;
-      }) || [];
 
       // Filter out past times if the selected date is today
       const now = new Date();
