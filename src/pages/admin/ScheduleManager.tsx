@@ -266,12 +266,20 @@ const ScheduleManager = () => {
         return;
       }
 
+      // Helper function to format date as YYYY-MM-DD in local timezone
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
       const newDay = {
-        date: (isRange ? selectedStartDate! : selectedDate!).toISOString().split('T')[0],
+        date: formatDateLocal(isRange ? selectedStartDate! : selectedDate!),
         reason: reason || null,
         is_range: isRange,
-        range_start: isRange ? selectedStartDate!.toISOString().split('T')[0] : null,
-        range_end: isRange ? selectedEndDate!.toISOString().split('T')[0] : null
+        range_start: isRange ? formatDateLocal(selectedStartDate!) : null,
+        range_end: isRange ? formatDateLocal(selectedEndDate!) : null
       };
 
       const { error } = await supabase
@@ -364,8 +372,16 @@ const ScheduleManager = () => {
         return;
       }
 
+      // Helper function to format date as YYYY-MM-DD in local timezone
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
       const newSchedule = {
-        date: specialDate.toISOString().split('T')[0],
+        date: formatDateLocal(specialDate),
         opening_time: specialOpenTime,
         closing_time: specialCloseTime,
         reason: specialReason || null,
