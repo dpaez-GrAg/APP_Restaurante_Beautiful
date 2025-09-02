@@ -101,7 +101,7 @@ const ReservationForm = () => {
           p_time: selectedTime,
           p_guests: selectedGuests,
           p_special_requests: customer.comments || null,
-          p_duration_minutes: 120
+          p_duration_minutes: 90
         });
 
       if (reservationError) throw reservationError;

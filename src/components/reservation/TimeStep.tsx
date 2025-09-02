@@ -50,7 +50,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       const { data: rpcData, error } = await supabase.rpc('get_available_time_slots' as any, {
         p_date: dateStr,
         p_guests: guests,
-        p_duration_minutes: 120
+        p_duration_minutes: 90
       });
 
       if (error) {
