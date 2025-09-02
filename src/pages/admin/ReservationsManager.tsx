@@ -7,10 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3, CalendarIcon } from "lucide-react";
+import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3, CalendarIcon, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import ReservationTimeGrid from "@/components/ReservationTimeGrid";
+import InteractiveReservationGrid from "@/components/admin/InteractiveReservationGrid";
+import { CreateReservationDialog } from "@/components/admin/CreateReservationDialog";
+import { EditReservationDialog } from "@/components/admin/EditReservationDialog";
+import { Edit } from "lucide-react";
 import { formatDateLocal } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +40,10 @@ const ReservationsManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(formatDateLocal(new Date()));
+  
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
 
   const { toast } = useToast();
 
@@ -45,17 +53,8 @@ const ReservationsManager = () => {
     // Set up realtime subscription
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'reservations'
-        },
-        () => {
-          loadReservations();
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, loadReservations)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservation_table_assignments' }, loadReservations)
       .subscribe();
 
     return () => {
@@ -325,7 +324,10 @@ const ReservationsManager = () => {
         </TabsList>
 
         <TabsContent value="grid" className="space-y-4">
-          <ReservationTimeGrid selectedDate={dateFilter} />
+          <InteractiveReservationGrid 
+            selectedDate={dateFilter} 
+            onRefresh={loadReservations}
+          />
         </TabsContent>
 
         <TabsContent value="list" className="space-y-4">
@@ -388,12 +390,23 @@ const ReservationsManager = () => {
           {/* Reservations List */}
           <Card className="shadow-elegant">
             <CardHeader>
-              <CardTitle className="text-restaurant-brown">
-                Reservas ({filteredReservations.length})
-              </CardTitle>
-              <CardDescription>
-                Lista de todas las reservas filtradas
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-restaurant-brown">
+                    Reservas ({filteredReservations.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Lista de todas las reservas filtradas
+                  </CardDescription>
+                </div>
+                <Button
+                  onClick={() => setCreateDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nueva Reserva
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -444,30 +457,43 @@ const ReservationsManager = () => {
                          )}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                        {reservation.status === "pending" && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => updateReservationStatus(reservation.id, "confirmed")}
-                              className="bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Confirmar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateReservationStatus(reservation.id, "cancelled")}
-                              className="text-red-600 border-red-200 hover:bg-red-50"
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Cancelar
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => {
+                             setEditingReservation(reservation);
+                             setEditDialogOpen(true);
+                           }}
+                           className="flex items-center gap-1"
+                         >
+                           <Edit className="w-4 h-4" />
+                           Editar
+                         </Button>
+                         
+                         {reservation.status === "pending" && (
+                           <>
+                             <Button
+                               variant="default"
+                               size="sm"
+                               onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                               className="bg-green-600 hover:bg-green-700"
+                             >
+                               <Check className="w-4 h-4 mr-1" />
+                               Confirmar
+                             </Button>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => updateReservationStatus(reservation.id, "cancelled")}
+                               className="text-red-600 border-red-200 hover:bg-red-50"
+                             >
+                               <X className="w-4 h-4 mr-1" />
+                               Cancelar
+                             </Button>
+                           </>
+                         )}
+                       </div>
                     </div>
                   </div>
                 ))}
@@ -488,6 +514,35 @@ const ReservationsManager = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <CreateReservationDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        defaultDate={dateFilter}
+        onSuccess={loadReservations}
+      />
+
+      <EditReservationDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        reservation={editingReservation ? {
+          id: editingReservation.id,
+          customer_name: editingReservation.name,
+          name: editingReservation.name,
+          email: editingReservation.email,
+          phone: editingReservation.phone,
+          date: editingReservation.date,
+          time: editingReservation.time,
+          guests: editingReservation.guests,
+          status: editingReservation.status,
+          special_requests: editingReservation.message,
+          tableAssignments: editingReservation.table_assignments?.map(ta => ({
+            table_id: ta.table_id,
+            table_name: ta.table_name || ''
+          }))
+        } : null}
+        onUpdate={loadReservations}
+      />
     </div>
   );
 };

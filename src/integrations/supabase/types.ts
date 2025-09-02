@@ -429,6 +429,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_reservation: {
+        Args: {
+          p_customer_email: string
+          p_customer_name: string
+          p_customer_phone?: string
+          p_date: string
+          p_duration_minutes?: number
+          p_guests: number
+          p_special_requests?: string
+          p_table_ids?: string[]
+          p_time: string
+        }
+        Returns: Json
+      }
       create_reservation_with_assignment: {
         Args: {
           p_customer_id: string
@@ -440,6 +454,18 @@ export type Database = {
         }
         Returns: Json
       }
+      create_reservation_with_specific_tables: {
+        Args: {
+          p_customer_id: string
+          p_date: string
+          p_duration_minutes?: number
+          p_guests: number
+          p_special_requests?: string
+          p_table_ids?: string[]
+          p_time: string
+        }
+        Returns: Json
+      }
       get_available_time_slots: {
         Args: { p_date: string; p_duration_minutes?: number; p_guests: number }
         Returns: {
@@ -447,6 +473,25 @@ export type Database = {
           id: string
           slot_time: string
         }[]
+      }
+      move_reservation_with_validation: {
+        Args: {
+          p_duration_minutes?: number
+          p_new_date: string
+          p_new_table_ids?: string[]
+          p_new_time: string
+          p_reservation_id: string
+        }
+        Returns: Json
+      }
+      update_reservation_details: {
+        Args: {
+          p_guests?: number
+          p_reservation_id: string
+          p_special_requests?: string
+          p_status?: string
+        }
+        Returns: Json
       }
     }
     Enums: {
