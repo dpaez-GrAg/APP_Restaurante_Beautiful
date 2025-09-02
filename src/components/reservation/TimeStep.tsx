@@ -103,7 +103,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       const { data: existingReservations, error: reservationsError } = await supabase
         .from('reservations')
         .select(`
-          time, guests, status, start_at, end_at,
+          time, guests, status, start_at, end_at, duration_minutes,
           reservation_table_assignments!inner(table_id)
         `)
         .eq('date', dateStr)
@@ -153,10 +153,18 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         
         // Find overlapping reservations
         const overlappingReservations = existingReservations?.filter(reservation => {
-          if (!reservation.start_at || !reservation.end_at) return false;
+          let reservationStart: Date;
+          let reservationEnd: Date;
           
-          const reservationStart = new Date(reservation.start_at);
-          const reservationEnd = new Date(reservation.end_at);
+          // Handle reservations with null start_at/end_at by reconstructing from date + time
+          if (!reservation.start_at || !reservation.end_at) {
+            reservationStart = new Date(`${dateStr}T${reservation.time}:00`);
+            const durationMinutes = reservation.duration_minutes || 120; // Default 2 hours
+            reservationEnd = new Date(reservationStart.getTime() + durationMinutes * 60000);
+          } else {
+            reservationStart = new Date(reservation.start_at);
+            reservationEnd = new Date(reservation.end_at);
+          }
           
           // Check for time overlap
           return (
@@ -186,7 +194,9 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         };
       });
 
-      setAvailableSlots(slotsWithAvailability);
+      // Only show slots that have availability for the requested number of guests
+      const availableSlotsOnly = slotsWithAvailability.filter(slot => slot.available);
+      setAvailableSlots(availableSlotsOnly);
     } catch (error) {
       console.error('Error checking availability:', error);
       toast({
@@ -249,27 +259,18 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
           {lunchSlots.length > 0 && (
             <div>
               <h3 className="font-medium text-sm mb-3">COMIDA</h3>
-              {lunchSlots.some(slot => slot.available) ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {lunchSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      variant="outline"
-                      className={`h-12 ${
-                        !slot.available 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : 'hover:bg-black hover:text-white'
-                      }`}
-                      disabled={!slot.available}
-                      onClick={() => onNext(slot.time)}
-                    >
-                      {formatTime(slot.time)}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">Servicio no disponible: selecciona otro servicio o fecha</p>
-              )}
+              <div className="grid grid-cols-3 gap-2">
+                {lunchSlots.map((slot) => (
+                  <Button
+                    key={slot.id}
+                    variant="outline"
+                    className="h-12 hover:bg-black hover:text-white"
+                    onClick={() => onNext(slot.time)}
+                  >
+                    {formatTime(slot.time)}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -277,27 +278,18 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
           {dinnerSlots.length > 0 && (
             <div>
               <h3 className="font-medium text-sm mb-3">CENA</h3>
-              {dinnerSlots.some(slot => slot.available) ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {dinnerSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      variant="outline"
-                      className={`h-12 ${
-                        !slot.available 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : 'hover:bg-black hover:text-white'
-                      }`}
-                      disabled={!slot.available}
-                      onClick={() => onNext(slot.time)}
-                    >
-                      {formatTime(slot.time)}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">Servicio no disponible: selecciona otro servicio o fecha</p>
-              )}
+              <div className="grid grid-cols-3 gap-2">
+                {dinnerSlots.map((slot) => (
+                  <Button
+                    key={slot.id}
+                    variant="outline"
+                    className="h-12 hover:bg-black hover:text-white"
+                    onClick={() => onNext(slot.time)}
+                  >
+                    {formatTime(slot.time)}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
           
