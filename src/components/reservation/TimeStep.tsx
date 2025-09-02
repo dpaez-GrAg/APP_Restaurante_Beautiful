@@ -44,27 +44,20 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       };
 
       const dateStr = formatDateLocal(date);
+      console.log('📅 Formatted date:', dateStr);
 
-      // Call the RPC function directly using fetch
-      const response = await fetch(`https://ltnjdpteckpdodwuegfw.supabase.co/rest/v1/rpc/get_available_time_slots`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0bmpkcHRlY2twZG9kd3VlZ2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTcwMDQsImV4cCI6MjA3MjIzMzAwNH0.95qwJnD__cfCIf5Y8KRBepU2jYWBhFafeNEuKxoyULk',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0bmpkcHRlY2twZG9kd3VlZ2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTcwMDQsImV4cCI6MjA3MjIzMzAwNH0.95qwJnD__cfCIf5Y8KRBepU2jYWBhFafeNEuKxoyULk`
-        },
-        body: JSON.stringify({
-          p_date: dateStr,
-          p_guests: guests,
-          p_duration_minutes: 120
-        })
+      // Use supabase.rpc instead of fetch
+      const { data: rpcData, error } = await supabase.rpc('get_available_time_slots' as any, {
+        p_date: dateStr,
+        p_guests: guests,
+        p_duration_minutes: 120
       });
 
-      if (!response.ok) {
-        throw new Error(`RPC call failed: ${response.statusText}`);
+      if (error) {
+        console.error('RPC Error:', error);
+        throw new Error(`RPC call failed: ${error.message}`);
       }
 
-      const rpcData = await response.json();
       console.log('📋 Available time slots from RPC:', rpcData);
 
       // Transform the data to match the expected format

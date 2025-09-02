@@ -35,9 +35,9 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
 
   const canGoBackTo = (step: string) => {
     switch (step) {
-      case 'date': return currentStep !== 'date';
-      case 'guests': return isCompleted('date') && currentStep !== 'guests';
-      case 'time': return isCompleted('guests') && currentStep !== 'time';
+      case 'date': return currentStep !== 'date' && (currentStep === 'guests' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirmation');
+      case 'guests': return isCompleted('date') && currentStep !== 'guests' && (currentStep === 'time' || currentStep === 'info' || currentStep === 'confirmation');
+      case 'time': return isCompleted('guests') && currentStep !== 'time' && (currentStep === 'info' || currentStep === 'confirmation');
       default: return false;
     }
   };
