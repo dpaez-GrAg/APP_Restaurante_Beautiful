@@ -201,29 +201,15 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
     return timeString.slice(0, 5);
   };
 
-  const brunchSlots = availableSlots.filter(slot => {
-    const hour = parseInt(slot.time.split(':')[0]);
-    return hour >= 11 && hour < 13;
-  });
-
+  // Categorize slots into Comida (lunch) and Cena (dinner)
   const lunchSlots = availableSlots.filter(slot => {
     const hour = parseInt(slot.time.split(':')[0]);
-    return hour >= 13 && hour < 16;
+    return hour >= 12 && hour < 17; // 12:00 to 16:59
   });
 
   const dinnerSlots = availableSlots.filter(slot => {
     const hour = parseInt(slot.time.split(':')[0]);
-    return hour >= 19;
-  });
-
-  const dinnerFirstSlots = dinnerSlots.filter(slot => {
-    const hour = parseInt(slot.time.split(':')[0]);
-    return hour >= 19 && hour < 21;
-  });
-
-  const dinnerSecondSlots = dinnerSlots.filter(slot => {
-    const hour = parseInt(slot.time.split(':')[0]);
-    return hour >= 21;
+    return hour >= 19; // 19:00 onwards
   });
 
   if (loading) {
@@ -257,38 +243,10 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         <h2 className="text-lg font-medium text-primary mb-6">Selecciona una hora</h2>
         
         <div className="space-y-6">
-          {/* Brunch */}
-          {brunchSlots.length > 0 && (
-            <div>
-              <h3 className="font-medium text-sm mb-3">Brunch</h3>
-              {brunchSlots.some(slot => slot.available) ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {brunchSlots.map((slot) => (
-                    <Button
-                      key={slot.id}
-                      variant="outline"
-                      className={`h-12 ${
-                        !slot.available 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : 'hover:bg-black hover:text-white'
-                      }`}
-                      disabled={!slot.available}
-                      onClick={() => onNext(slot.time)}
-                    >
-                      {formatTime(slot.time)}
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">Servicio no disponible: selecciona otro servicio o fecha</p>
-              )}
-            </div>
-          )}
-
-          {/* Lunch */}
+          {/* Comida */}
           {lunchSlots.length > 0 && (
             <div>
-              <h3 className="font-medium text-sm mb-3">Comida Primer Turno</h3>
+              <h3 className="font-medium text-sm mb-3">COMIDA</h3>
               {lunchSlots.some(slot => slot.available) ? (
                 <div className="grid grid-cols-3 gap-2">
                   {lunchSlots.map((slot) => (
@@ -313,44 +271,38 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
             </div>
           )}
 
-          {/* Dinner */}
-          <div>
-            <h3 className="font-medium text-sm mb-3">Cena</h3>
-            {dinnerFirstSlots.some(slot => slot.available) ? (
-              <div className="grid grid-cols-3 gap-2">
-                {dinnerFirstSlots.map((slot) => (
-                  <Button
-                    key={slot.id}
-                    variant="outline"
-                    className={`h-12 ${
-                      !slot.available 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-black hover:text-white'
-                    }`}
-                    disabled={!slot.available}
-                    onClick={() => onNext(slot.time)}
-                  >
-                    {formatTime(slot.time)}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Servicio no disponible: selecciona otro servicio o fecha</p>
-            )}
-          </div>
-
-          {/* Dinner Second Turn */}
-          {dinnerSecondSlots.length > 0 && (
+          {/* Cena */}
+          {dinnerSlots.length > 0 && (
             <div>
-              <h3 className="font-medium text-sm mb-3">CENA PRIMER TURNO</h3>
-              <p className="text-sm text-gray-500 mb-3">Servicio no disponible: selecciona otro servicio o fecha</p>
+              <h3 className="font-medium text-sm mb-3">CENA</h3>
+              {dinnerSlots.some(slot => slot.available) ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {dinnerSlots.map((slot) => (
+                    <Button
+                      key={slot.id}
+                      variant="outline"
+                      className={`h-12 ${
+                        !slot.available 
+                          ? 'opacity-50 cursor-not-allowed' 
+                          : 'hover:bg-black hover:text-white'
+                      }`}
+                      disabled={!slot.available}
+                      onClick={() => onNext(slot.time)}
+                    >
+                      {formatTime(slot.time)}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Servicio no disponible: selecciona otro servicio o fecha</p>
+              )}
             </div>
           )}
-
-          {dinnerSecondSlots.length > 0 && (
-            <div>
-              <h3 className="font-medium text-sm mb-3">CENA SEGUNDO TURNO</h3>
-              <p className="text-sm text-gray-500 mb-3">Servicio no disponible: selecciona otro servicio o fecha</p>
+          
+          {/* No slots available */}
+          {lunchSlots.length === 0 && dinnerSlots.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No hay horarios disponibles para esta fecha</p>
             </div>
           )}
         </div>

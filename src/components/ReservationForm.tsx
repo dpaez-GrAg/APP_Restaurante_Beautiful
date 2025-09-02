@@ -104,9 +104,14 @@ const ReservationForm = () => {
 
       if (reservationError) throw reservationError;
 
+      // Check if reservation was successful
       if (!result || typeof result !== 'object' || !('success' in result) || !result.success) {
         console.error('Reservation creation failed:', result);
-        // For now, we'll still show success to user, but log the error
+        const errorMessage = result && typeof result === 'object' && 'error' in result 
+          ? result.error as string 
+          : 'No se pudo crear la reserva. Por favor, inténtalo de nuevo.';
+        
+        throw new Error(errorMessage);
       }
 
       const resultObj = result as any;
