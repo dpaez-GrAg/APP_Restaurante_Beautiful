@@ -32,6 +32,15 @@ interface SpecialClosedDay {
   range_end?: Date;
 }
 
+interface SpecialScheduleDay {
+  id: string;
+  date: Date;
+  opening_time: string;
+  closing_time: string;
+  reason?: string;
+  is_active: boolean;
+}
+
 const DAYS_OF_WEEK = [
   { value: 1, label: 'Lunes' },
   { value: 2, label: 'Martes' },
@@ -56,18 +65,25 @@ const generateTimeOptions = () => {
 const ScheduleManager = () => {
   const [daySchedules, setDaySchedules] = useState<DaySchedule[]>([]);
   const [specialDays, setSpecialDays] = useState<SpecialClosedDay[]>([]);
+  const [specialSchedules, setSpecialSchedules] = useState<SpecialScheduleDay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedStartDate, setSelectedStartDate] = useState<Date>();
   const [selectedEndDate, setSelectedEndDate] = useState<Date>();
   const [reason, setReason] = useState("");
   const [isRange, setIsRange] = useState(false);
+  // Special schedule states
+  const [specialDate, setSpecialDate] = useState<Date>();
+  const [specialOpenTime, setSpecialOpenTime] = useState("09:00");
+  const [specialCloseTime, setSpecialCloseTime] = useState("22:00");
+  const [specialReason, setSpecialReason] = useState("");
   const { toast } = useToast();
   const timeOptions = generateTimeOptions();
 
   useEffect(() => {
     loadSchedules();
     loadSpecialDays();
+    loadSpecialSchedules();
   }, []);
 
   const initializeDaySchedules = () => {
@@ -305,6 +321,103 @@ const ScheduleManager = () => {
       toast({
         title: "Error",
         description: "No se pudo eliminar el día especial",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadSpecialSchedules = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('special_schedule_days')
+        .select('*')
+        .order('date');
+      
+      if (error) throw error;
+      
+      const formattedSchedules = data?.map(schedule => ({
+        ...schedule,
+        date: new Date(schedule.date),
+        opening_time: schedule.opening_time.substring(0, 5),
+        closing_time: schedule.closing_time.substring(0, 5)
+      })) || [];
+      
+      setSpecialSchedules(formattedSchedules);
+    } catch (error) {
+      console.error('Error loading special schedules:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los horarios especiales",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const addSpecialSchedule = async () => {
+    try {
+      if (!specialDate) {
+        toast({
+          title: "Error", 
+          description: "Selecciona una fecha",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const newSchedule = {
+        date: specialDate.toISOString().split('T')[0],
+        opening_time: specialOpenTime,
+        closing_time: specialCloseTime,
+        reason: specialReason || null,
+        is_active: true
+      };
+
+      const { error } = await supabase
+        .from('special_schedule_days')
+        .insert(newSchedule);
+
+      if (error) throw error;
+
+      toast({
+        title: "Horario especial añadido",
+        description: "El horario especial se ha guardado correctamente"
+      });
+
+      setSpecialDate(undefined);
+      setSpecialOpenTime("09:00");
+      setSpecialCloseTime("22:00");
+      setSpecialReason("");
+      await loadSpecialSchedules();
+    } catch (error) {
+      console.error('Error adding special schedule:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo añadir el horario especial",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteSpecialSchedule = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('special_schedule_days')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Horario especial eliminado",
+        description: "El horario especial se ha eliminado correctamente"
+      });
+
+      await loadSpecialSchedules();
+    } catch (error) {
+      console.error('Error deleting special schedule:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el horario especial",
         variant: "destructive"
       });
     }
@@ -635,6 +748,122 @@ const ScheduleManager = () => {
                   </div>
                   <UIButton
                     onClick={() => deleteSpecialDay(day.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </UIButton>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Horarios especiales</CardTitle>
+          <p className="text-xs text-muted-foreground">Configura horarios específicos para días particulares</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-3 border rounded-md p-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Fecha</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <UIButton
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal h-8 text-xs",
+                      !specialDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {specialDate ? format(specialDate, "PPP") : "Seleccionar fecha"}
+                  </UIButton>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={specialDate}
+                    onSelect={setSpecialDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Apertura</Label>
+                <Select
+                  value={specialOpenTime}
+                  onValueChange={setSpecialOpenTime}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeOptions.map((time) => (
+                      <SelectItem key={time} value={time} className="text-xs">
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Cierre</Label>
+                <Select
+                  value={specialCloseTime}
+                  onValueChange={setSpecialCloseTime}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeOptions.map((time) => (
+                      <SelectItem key={time} value={time} className="text-xs">
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Motivo (opcional)</Label>
+              <Input 
+                value={specialReason}
+                onChange={(e) => setSpecialReason(e.target.value)}
+                placeholder="Ej: Evento especial, Día festivo..."
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <UIButton onClick={addSpecialSchedule} size="sm" className="w-full">
+              Guardar Horario Especial
+            </UIButton>
+          </div>
+
+          {specialSchedules.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Horarios configurados</Label>
+              {specialSchedules.map((schedule) => (
+                <div key={schedule.id} className="flex items-center justify-between bg-muted/50 rounded p-2">
+                  <div className="text-xs">
+                    <div className="font-medium">
+                      {format(schedule.date, "dd/MM/yyyy")} - {schedule.opening_time} a {schedule.closing_time}
+                    </div>
+                    {schedule.reason && (
+                      <div className="text-muted-foreground">{schedule.reason}</div>
+                    )}
+                  </div>
+                  <UIButton
+                    onClick={() => deleteSpecialSchedule(schedule.id)}
                     variant="ghost"
                     size="sm"
                     className="h-6 w-6 p-0 text-destructive hover:text-destructive"
