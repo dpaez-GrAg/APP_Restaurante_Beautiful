@@ -44,163 +44,53 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       };
 
       const dateStr = formatDateLocal(date);
-      
-      // Get restaurant schedules
-      const { data: schedules, error: schedulesError } = await supabase
-        .from('restaurant_schedules')
-        .select('*')
-        .eq('is_active', true);
 
-      if (schedulesError) throw schedulesError;
-
-      // Get special closed days
-      const { data: specialClosedDays, error: closedDaysError } = await supabase
-        .from('special_closed_days')
-        .select('*');
-
-      if (closedDaysError) throw closedDaysError;
-
-      // Get special schedules
-      const { data: specialSchedules, error: specialSchedulesError } = await supabase
-        .from('special_schedule_days')
-        .select('*')
-        .eq('is_active', true);
-
-      if (specialSchedulesError) throw specialSchedulesError;
-
-      // Check if date is closed
-      const isClosed = specialClosedDays?.some(closedDay => {
-        if (closedDay.is_range) {
-          return closedDay.range_start && closedDay.range_end &&
-                 dateStr >= closedDay.range_start && 
-                 dateStr <= closedDay.range_end;
-        } else {
-          return closedDay.date === dateStr;
-        }
+      // Call the RPC function directly using fetch
+      const response = await fetch(`https://ltnjdpteckpdodwuegfw.supabase.co/rest/v1/rpc/get_available_time_slots`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0bmpkcHRlY2twZG9kd3VlZ2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTcwMDQsImV4cCI6MjA3MjIzMzAwNH0.95qwJnD__cfCIf5Y8KRBepU2jYWBhFafeNEuKxoyULk',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0bmpkcHRlY2twZG9kd3VlZ2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY2NTcwMDQsImV4cCI6MjA3MjIzMzAwNH0.95qwJnD__cfCIf5Y8KRBepU2jYWBhFafeNEuKxoyULk`
+        },
+        body: JSON.stringify({
+          p_date: dateStr,
+          p_guests: guests,
+          p_duration_minutes: 120
+        })
       });
 
-      if (isClosed) {
-        setAvailableSlots([]);
-        return;
+      if (!response.ok) {
+        throw new Error(`RPC call failed: ${response.statusText}`);
       }
 
-      // Get all time slots
-      const { data: timeSlots, error: timeSlotsError } = await supabase
-        .from('time_slots')
-        .select('*')
-        .order('time');
+      const rpcData = await response.json();
+      console.log('📋 Available time slots from RPC:', rpcData);
 
-      if (timeSlotsError) throw timeSlotsError;
+      // Transform the data to match the expected format
+      const slots = Array.isArray(rpcData) ? rpcData.map((slot: any) => ({
+        id: slot.id,
+        time: slot.time,
+        available: true,
+        capacity: slot.capacity
+      })) : [];
 
-      // Get active tables to calculate total capacity
-      const { data: tables, error: tablesError } = await supabase
-        .from('tables')
-        .select('*')
-        .eq('is_active', true);
+      console.log('🔄 Transformed slots:', slots);
 
-      if (tablesError) throw tablesError;
-
-      // Get existing reservations and their table assignments for the selected date
-      const { data: existingReservations, error: reservationsError } = await supabase
-        .from('reservations')
-        .select(`
-          time, guests, status, start_at, end_at, duration_minutes,
-          reservation_table_assignments!inner(table_id)
-        `)
-        .eq('date', dateStr)
-        .neq('status', 'cancelled');
-
-      console.log('📋 Existing reservations for', dateStr, ':', existingReservations);
-
-      if (reservationsError) throw reservationsError;
-
-      // Check restaurant schedule (regular vs special)
-      const specialSchedule = specialSchedules?.find(s => s.date === dateStr);
-      const dayOfWeek = date.getDay();
-      const restaurantSchedules = schedules?.filter(s => s.day_of_week === dayOfWeek) || [];
-      
-      let filteredSlots: any[] = [];
-      
-      if (specialSchedule) {
-        // Use special schedule
-        filteredSlots = timeSlots?.filter(slot => {
-          const slotTime = slot.time;
-          return slotTime >= specialSchedule.opening_time && slotTime < specialSchedule.closing_time;
-        }) || [];
-      } else if (restaurantSchedules.length > 0) {
-        // Handle multiple schedules for the same day (e.g., lunch and dinner)
-        filteredSlots = timeSlots?.filter(slot => {
-          const slotTime = slot.time;
-          return restaurantSchedules.some(schedule => 
-            slotTime >= schedule.opening_time && slotTime < schedule.closing_time
-          );
-        }) || [];
-      } else {
-        setAvailableSlots([]);
-        return;
-      }
-
-      // Filter out past times if the selected date is today
+      // Filter out past times for today
       const now = new Date();
-      const isToday = date.toDateString() === now.toDateString();
-      
-      if (isToday) {
-        const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-        filteredSlots = filteredSlots.filter(slot => slot.time > currentTime);
-      }
+      const today = formatDateLocal(now);
+      const currentTime = now.toTimeString().slice(0, 8);
 
-      // Calculate availability for each slot based on actual table capacity
-      const slotsWithAvailability = filteredSlots.map(slot => {
-        const slotStartTime = new Date(`${dateStr}T${slot.time}:00`);
-        const slotEndTime = new Date(slotStartTime.getTime() + 120 * 60000); // 2 hours
-        
-        // Find overlapping reservations
-        const overlappingReservations = existingReservations?.filter(reservation => {
-          let reservationStart: Date;
-          let reservationEnd: Date;
-          
-          // Handle reservations with null start_at/end_at by reconstructing from date + time
-          if (!reservation.start_at || !reservation.end_at) {
-            reservationStart = new Date(`${dateStr}T${reservation.time}:00`);
-            const durationMinutes = reservation.duration_minutes || 120; // Default 2 hours
-            reservationEnd = new Date(reservationStart.getTime() + durationMinutes * 60000);
-          } else {
-            reservationStart = new Date(reservation.start_at);
-            reservationEnd = new Date(reservation.end_at);
-          }
-          
-          // Check for time overlap
-          return (
-            (reservationStart <= slotStartTime && reservationEnd > slotStartTime) ||
-            (reservationStart < slotEndTime && reservationEnd >= slotEndTime) ||
-            (reservationStart >= slotStartTime && reservationEnd <= slotEndTime)
-          );
-        }) || [];
-        
-        // Calculate occupied table capacity
-        const occupiedTableIds = new Set();
-        overlappingReservations.forEach(reservation => {
-          reservation.reservation_table_assignments?.forEach((assignment: any) => {
-            occupiedTableIds.add(assignment.table_id);
-          });
-        });
-        
-        // Calculate available capacity from unoccupied tables
-        const availableTables = tables?.filter(table => !occupiedTableIds.has(table.id)) || [];
-        const totalAvailableCapacity = availableTables.reduce((sum, table) => sum + table.capacity, 0);
-        
-        return {
-          id: slot.id,
-          time: slot.time,
-          available: totalAvailableCapacity >= guests,
-          capacity: totalAvailableCapacity
-        };
+      const filteredSlots = slots.filter((slot: any) => {
+        if (dateStr === today) {
+          return slot.time > currentTime;
+        }
+        return true;
       });
 
-      // Only show slots that have availability for the requested number of guests
-      const availableSlotsOnly = slotsWithAvailability.filter(slot => slot.available);
-      console.log('✅ Available slots only:', availableSlotsOnly.length, 'out of', slotsWithAvailability.length);
-      setAvailableSlots(availableSlotsOnly);
+      console.log('✅ Available slots after filtering past times:', filteredSlots.length);
+      setAvailableSlots(filteredSlots);
     } catch (error) {
       console.error('Error checking availability:', error);
       toast({

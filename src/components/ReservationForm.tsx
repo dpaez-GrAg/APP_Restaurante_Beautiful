@@ -136,6 +136,9 @@ const ReservationForm = () => {
         description: error instanceof Error ? error.message : "No se pudo crear la reserva. Por favor, inténtalo de nuevo.",
         variant: "destructive",
       });
+      
+      // Return to time step to refresh availability
+      setCurrentStep('time');
     }
   };
 
