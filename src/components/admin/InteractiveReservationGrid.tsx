@@ -97,12 +97,11 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   const generateHourHeaders = () => {
     const headers = [];
-    // Para cada hora, creamos una cabecera que abarca 4 slots de 15 minutos
     for (let hour = 12; hour <= 23; hour++) {
       headers.push({
-        hour: `${hour.toString().padStart(2, '0')}:00`,
+        hour: `${hour.toString().padStart(2, '0')}h`,
         startSlotIndex: (hour - 12) * 4,
-        spanSlots: hour === 23 ? 2 : 4 // La última hora (23h) solo tiene 2 slots hasta 23:30
+        spanSlots: hour === 23 ? 2 : 4 // 23h solo hasta 23:30
       });
     }
     return headers;
@@ -207,20 +206,37 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       if (!hasTableAssigned) return false;
 
       if (reservation.start_at && reservation.end_at) {
-        // Create local time slot without timezone conversion
-        const [year, month, day] = selectedDate.split('-');
-        const [hour, minute] = timeSlot.split(':');
-        const slotStartTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
-        const slotEndTime = new Date(slotStartTime.getTime() + 15 * 60000);
+        // Parse times as local time to avoid timezone conversion
+        const reservationTimeStr = reservation.time.substring(0, 5); // Use time field directly
+        const slotTime = timeSlot;
         
-        // Parse reservation times as local time
-        const reservationStart = new Date(reservation.start_at);
-        const reservationEnd = new Date(reservation.end_at);
+        // Check if the slot time matches the reservation time
+        if (reservationTimeStr === slotTime) {
+          return true;
+        }
+        
+        // For duration-based checking, calculate if slot falls within reservation period
+        const [resHour, resMinute] = reservationTimeStr.split(':').map(Number);
+        const [slotHour, slotMinute] = slotTime.split(':').map(Number);
+        
+        const resStartMinutes = resHour * 60 + resMinute;
+        const slotStartMinutes = slotHour * 60 + slotMinute;
+        const slotEndMinutes = slotStartMinutes + 15;
+        
+        // Default duration 90 minutes if not calculable from timestamps
+        let durationMinutes = 90;
+        if (reservation.start_at && reservation.end_at) {
+          const start = new Date(reservation.start_at);
+          const end = new Date(reservation.end_at);
+          durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+        }
+        
+        const resEndMinutes = resStartMinutes + durationMinutes;
         
         return (
-          (reservationStart <= slotStartTime && reservationEnd > slotStartTime) ||
-          (reservationStart < slotEndTime && reservationEnd >= slotEndTime) ||
-          (reservationStart >= slotStartTime && reservationEnd <= slotEndTime)
+          (resStartMinutes <= slotStartMinutes && resEndMinutes > slotStartMinutes) ||
+          (resStartMinutes < slotEndMinutes && resEndMinutes >= slotEndMinutes) ||
+          (resStartMinutes >= slotStartMinutes && resEndMinutes <= slotEndMinutes)
         );
       }
       
@@ -231,21 +247,25 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   // Get reservation details with position info for rendering as single block
   const getReservationDetails = (tableId: string, timeSlot: string) => {
     const reservation = getReservationForTableAndTime(tableId, timeSlot);
-    if (!reservation || !reservation.start_at || !reservation.end_at) return null;
+    if (!reservation) return null;
 
-    const reservationStart = new Date(reservation.start_at);
-    const reservationEnd = new Date(reservation.end_at);
+    // Use the reservation.time field directly instead of start_at to avoid timezone issues
+    const reservationTimeStr = reservation.time.substring(0, 5); // "14:30"
+    const [resHour, resMinute] = reservationTimeStr.split(':').map(Number);
     
-    // Find the starting slot index for this reservation
-    const startHour = reservationStart.getHours();
-    const startMinute = reservationStart.getMinutes();
-    const startTimeSlot = `${startHour.toString().padStart(2, '0')}:${Math.floor(startMinute / 15) * 15}`.padStart(5, '0');
+    // Calculate duration from reservation data (default 90 minutes if not specified)
+    let durationMinutes = 90;
+    if (reservation.start_at && reservation.end_at) {
+      const start = new Date(reservation.start_at);
+      const end = new Date(reservation.end_at);
+      durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    }
     
-    const startSlotIndex = timeSlots.findIndex(slot => slot === startTimeSlot);
+    // Find the starting slot index for this reservation based on time field
+    const startSlotIndex = timeSlots.findIndex(slot => slot === reservationTimeStr);
     if (startSlotIndex === -1) return null;
 
     // Calculate duration in 15-minute slots
-    const durationMinutes = (reservationEnd.getTime() - reservationStart.getTime()) / (1000 * 60);
     const durationSlots = Math.ceil(durationMinutes / 15);
     
     // Check if this is the first slot of the reservation
@@ -390,48 +410,28 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </CardHeader>
           <CardContent className="p-4">
             <div className="w-full overflow-x-auto">
-              {/* Header with perfect alignment */}
+              {/* Header with hour markers only */}
               <div className="relative" style={{ minWidth: '800px' }}>
                 {/* Mesa column header */}
-                <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center">
+                <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center z-10">
                   <span className="text-sm font-medium">Mesa</span>
                 </div>
                 
-                {/* Time slot headers - one for each 15-minute slot */}
-                <div 
-                  className="ml-[100px] grid gap-0 h-[40px]" 
-                  style={{ 
-                    gridTemplateColumns: `repeat(${timeSlots.length}, minmax(10px, 1fr))`
-                  }}
-                >
-                  {timeSlots.map((timeSlot, index) => {
-                    const isHourMark = timeSlot.endsWith(':00');
-                    const isHalfHour = timeSlot.endsWith(':30');
-                    const isQuarterHour = timeSlot.endsWith(':15') || timeSlot.endsWith(':45');
-                    
-                    return (
-                      <div 
-                        key={timeSlot}
-                        className={`border-l border-t border-b flex items-center justify-center text-xs relative ${
-                          isHourMark ? 'border-l-2 border-l-gray-600 bg-muted font-bold' :
-                          isHalfHour ? 'border-l-gray-400 bg-muted/70 font-medium' :
-                          'border-l-gray-200 bg-muted/40'
-                        }`}
-                      >
-                        {isHourMark && (
-                          <span className="text-xs font-bold">
-                            {timeSlot.substring(0, 2)}h
-                          </span>
-                        )}
-                        {isHalfHour && !isHourMark && (
-                          <span className="text-xs opacity-70">:30</span>
-                        )}
-                        {index === timeSlots.length - 1 && (
-                          <div className="border-r border-t border-b h-full absolute right-0 top-0"></div>
-                        )}
-                      </div>
-                    );
-                  })}
+                {/* Hour headers spanning multiple slots */}
+                <div className="ml-[100px] relative h-[40px] border-t border-b">
+                  {hourHeaders.map((header, index) => (
+                    <div 
+                      key={header.hour}
+                      className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-sm"
+                      style={{
+                        left: `${(header.startSlotIndex / timeSlots.length) * 100}%`,
+                        width: `${(header.spanSlots / timeSlots.length) * 100}%`,
+                        borderLeftWidth: index === 0 ? '0px' : '1px'
+                      }}
+                    >
+                      {header.hour}
+                    </div>
+                  ))}
                 </div>
               </div>
 
