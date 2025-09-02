@@ -185,7 +185,11 @@ const ReservationsManager = () => {
   };
 
   const getStatusCount = (status: string) => {
-    return reservations.filter((r) => r.status === status).length;
+    const dateFilteredReservations = reservations.filter((r) => r.date === dateFilter);
+    if (status === "all") {
+      return dateFilteredReservations.length;
+    }
+    return dateFilteredReservations.filter((r) => r.status === status).length;
   };
 
   return (
@@ -263,7 +267,7 @@ const ReservationsManager = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-restaurant-brown">{reservations.length}</p>
+                <p className="text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
               </div>
               <Calendar className="w-8 h-8 text-restaurant-gold" />
             </div>
