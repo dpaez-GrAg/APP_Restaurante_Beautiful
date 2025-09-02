@@ -96,11 +96,16 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   };
 
   const generateHourHeaders = () => {
-    const hours = [];
+    const headers = [];
+    // Para cada hora, creamos una cabecera que abarca 4 slots de 15 minutos
     for (let hour = 12; hour <= 23; hour++) {
-      hours.push(`${hour.toString().padStart(2, '0')}:00`);
+      headers.push({
+        hour: `${hour.toString().padStart(2, '0')}:00`,
+        startSlotIndex: (hour - 12) * 4,
+        spanSlots: hour === 23 ? 2 : 4 // La última hora (23h) solo tiene 2 slots hasta 23:30
+      });
     }
-    return hours;
+    return headers;
   };
 
   const timeSlots = generateTimeSlots();
@@ -385,113 +390,146 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </CardHeader>
           <CardContent className="p-4">
             <div className="w-full overflow-x-auto">
-              {/* Hour headers */}
-              <div className="grid gap-0 mb-2" style={{ 
-                gridTemplateColumns: `100px repeat(${hourHeaders.length}, minmax(40px, 1fr))`,
-                minWidth: '800px'
-              }}>
-                <div className="p-2 text-sm font-medium text-center bg-muted border">Mesa</div>
-                {hourHeaders.map(time => (
-                  <div key={time} className="p-1 text-xs font-medium text-center bg-muted border-l border-t border-b">
-                    {time.substring(0, 2)}h
-                  </div>
-                ))}
+              {/* Header with perfect alignment */}
+              <div className="relative" style={{ minWidth: '800px' }}>
+                {/* Mesa column header */}
+                <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center">
+                  <span className="text-sm font-medium">Mesa</span>
+                </div>
+                
+                {/* Time slot headers - one for each 15-minute slot */}
+                <div 
+                  className="ml-[100px] grid gap-0 h-[40px]" 
+                  style={{ 
+                    gridTemplateColumns: `repeat(${timeSlots.length}, minmax(10px, 1fr))`
+                  }}
+                >
+                  {timeSlots.map((timeSlot, index) => {
+                    const isHourMark = timeSlot.endsWith(':00');
+                    const isHalfHour = timeSlot.endsWith(':30');
+                    const isQuarterHour = timeSlot.endsWith(':15') || timeSlot.endsWith(':45');
+                    
+                    return (
+                      <div 
+                        key={timeSlot}
+                        className={`border-l border-t border-b flex items-center justify-center text-xs relative ${
+                          isHourMark ? 'border-l-2 border-l-gray-600 bg-muted font-bold' :
+                          isHalfHour ? 'border-l-gray-400 bg-muted/70 font-medium' :
+                          'border-l-gray-200 bg-muted/40'
+                        }`}
+                      >
+                        {isHourMark && (
+                          <span className="text-xs font-bold">
+                            {timeSlot.substring(0, 2)}h
+                          </span>
+                        )}
+                        {isHalfHour && !isHourMark && (
+                          <span className="text-xs opacity-70">:30</span>
+                        )}
+                        {index === timeSlots.length - 1 && (
+                          <div className="border-r border-t border-b h-full absolute right-0 top-0"></div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Table rows */}
+              {/* Table rows with perfect alignment */}
               <div style={{ minWidth: '800px' }}>
                 {tables.map(table => (
-                  <div 
-                    key={table.id} 
-                    className="grid gap-0 border-b" 
-                    style={{ 
-                      gridTemplateColumns: `100px repeat(${timeSlots.length}, minmax(10px, 1fr))`
-                    }}
-                  >
-                    {/* Table name */}
-                    <div className="p-2 bg-muted text-sm font-medium flex items-center border-r border-b">
+                  <div key={table.id} className="relative">
+                    {/* Table name column */}
+                    <div className="absolute left-0 top-0 w-[100px] min-h-[50px] bg-muted text-sm font-medium flex items-center border-r border-b p-2">
                       <div>
                         <div className="font-semibold text-xs">{table.name}</div>
                         <div className="text-xs text-muted-foreground">
                           {table.capacity}p
                         </div>
-                      </div>
-                    </div>
+              </div>
+            </div>
                     
-                    {/* Time slots for this table */}
-                    {timeSlots.map(timeSlot => {
-                      const reservationDetails = getReservationDetails(table.id, timeSlot);
-                      const isOpen = isRestaurantOpen(timeSlot);
-                      const cellId = `${table.id}-${timeSlot}`;
-                      
-                      // Only render content for the first slot of each reservation
-                      const shouldRenderReservation = reservationDetails?.isFirstSlot;
-                      const isPartOfReservation = reservationDetails !== null;
-                      
-                      return (
-                        <div 
-                          key={cellId}
-                          id={cellId}
-                          onClick={() => !isPartOfReservation && handleCellClick(table.id, timeSlot)}
-                          className={`border-b border-r min-h-[50px] relative ${
-                            !isOpen 
-                              ? 'bg-gray-200 border-gray-300 cursor-not-allowed' 
-                              : isPartOfReservation
-                                ? reservationDetails.reservation.status === 'confirmed' 
-                                  ? 'bg-green-100 border-green-300' 
-                                  : 'bg-yellow-100 border-yellow-300'
-                                : 'bg-gray-50 hover:bg-blue-50 border-gray-200 cursor-pointer'
-                          }`}
-                          style={{
-                            cursor: isPartOfReservation ? 'pointer' : isOpen ? 'pointer' : 'not-allowed'
-                          }}
-                        >
-                          {shouldRenderReservation && (
-                            <div
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', reservationDetails.reservation.id);
-                                setDraggedReservation(reservationDetails.reservation);
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingReservation(reservationDetails.reservation);
-                                setEditDialogOpen(true);
-                              }}
-                              className="absolute inset-0 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity z-10 text-xs font-medium"
-                              style={{
-                                width: `${reservationDetails.durationSlots * 100}%`,
-                                left: '0%',
-                                backgroundColor: reservationDetails.reservation.status === 'confirmed' 
-                                  ? 'rgba(34, 197, 94, 0.2)' 
-                                  : 'rgba(251, 191, 36, 0.2)',
-                                border: `2px solid ${reservationDetails.reservation.status === 'confirmed' 
-                                  ? 'rgb(34, 197, 94)' 
-                                  : 'rgb(251, 191, 36)'}`,
-                                borderRadius: '4px'
-                              }}
-                            >
-                              <div className="text-center px-1">
-                                <div className="font-semibold text-foreground leading-tight truncate" title={reservationDetails.reservation.customer_name}>
-                                  {reservationDetails.reservation.customer_name}
-                                </div>
-                                <div className="text-xs">
-                                  {reservationDetails.reservation.guests}p • {reservationDetails.reservation.time.substring(0, 5)}
-                                </div>
-                                {reservationDetails.reservation.tableAssignments && reservationDetails.reservation.tableAssignments.length > 0 && (
-                                  <div className="text-xs opacity-75">
-                                    {reservationDetails.reservation.tableAssignments.map(t => t.table_name).join(', ')}
+                    {/* Time slots grid for this table */}
+                    <div 
+                      className="ml-[100px] grid gap-0" 
+                      style={{ 
+                        gridTemplateColumns: `repeat(${timeSlots.length}, minmax(10px, 1fr))`
+                      }}
+                    >
+                      {timeSlots.map(timeSlot => {
+                        const reservationDetails = getReservationDetails(table.id, timeSlot);
+                        const isOpen = isRestaurantOpen(timeSlot);
+                        const cellId = `${table.id}-${timeSlot}`;
+                        
+                        // Only render content for the first slot of each reservation
+                        const shouldRenderReservation = reservationDetails?.isFirstSlot;
+                        const isPartOfReservation = reservationDetails !== null;
+                        
+                        return (
+                          <div 
+                            key={cellId}
+                            id={cellId}
+                            onClick={() => !isPartOfReservation && handleCellClick(table.id, timeSlot)}
+                            className={`border-b border-r min-h-[50px] relative ${
+                              !isOpen 
+                                ? 'bg-gray-200 border-gray-300 cursor-not-allowed' 
+                                : isPartOfReservation
+                                  ? reservationDetails.reservation.status === 'confirmed' 
+                                    ? 'bg-green-100 border-green-300' 
+                                    : 'bg-yellow-100 border-yellow-300'
+                                  : 'bg-gray-50 hover:bg-blue-50 border-gray-200 cursor-pointer'
+                            }`}
+                            style={{
+                              cursor: isPartOfReservation ? 'pointer' : isOpen ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            {shouldRenderReservation && (
+                              <div
+                                draggable
+                                onDragStart={(e) => {
+                                  e.dataTransfer.setData('text/plain', reservationDetails.reservation.id);
+                                  setDraggedReservation(reservationDetails.reservation);
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingReservation(reservationDetails.reservation);
+                                  setEditDialogOpen(true);
+                                }}
+                                className="absolute inset-0 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity z-10 text-xs font-medium"
+                                style={{
+                                  width: `${reservationDetails.durationSlots * 100}%`,
+                                  left: '0%',
+                                  backgroundColor: reservationDetails.reservation.status === 'confirmed' 
+                                    ? 'rgba(34, 197, 94, 0.2)' 
+                                    : 'rgba(251, 191, 36, 0.2)',
+                                  border: `2px solid ${reservationDetails.reservation.status === 'confirmed' 
+                                    ? 'rgb(34, 197, 94)' 
+                                    : 'rgb(251, 191, 36)'}`,
+                                  borderRadius: '4px'
+                                }}
+                              >
+                                <div className="text-center px-1">
+                                  <div className="font-semibold text-foreground leading-tight truncate" title={reservationDetails.reservation.customer_name}>
+                                    {reservationDetails.reservation.customer_name}
                                   </div>
-                                )}
+                                  <div className="text-xs">
+                                    {reservationDetails.reservation.guests}p • {reservationDetails.reservation.time.substring(0, 5)}
+                                  </div>
+                                  {reservationDetails.reservation.tableAssignments && reservationDetails.reservation.tableAssignments.length > 0 && (
+                                    <div className="text-xs opacity-75">
+                                      {reservationDetails.reservation.tableAssignments.map(t => t.table_name).join(', ')}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                          {!isPartOfReservation && !isOpen && (
-                            <div className="text-xs text-gray-500 flex items-center justify-center h-full">✕</div>
-                          )}
-                        </div>
-                      );
-                    })}
+                            )}
+                            {!isPartOfReservation && !isOpen && (
+                              <div className="text-xs text-gray-500 flex items-center justify-center h-full">✕</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>
