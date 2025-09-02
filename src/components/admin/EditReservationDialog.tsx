@@ -42,7 +42,8 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     time: '',
     guests: 2,
     special_requests: '',
-    status: 'confirmed'
+    status: 'confirmed',
+    duration_minutes: 90
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -53,7 +54,8 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         time: reservation.time,
         guests: reservation.guests,
         special_requests: reservation.special_requests || '',
-        status: reservation.status
+        status: reservation.status,
+        duration_minutes: 90
       });
     }
   }, [reservation]);
@@ -64,13 +66,13 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
     setIsLoading(true);
     try {
-      // Check if date/time changed, use move function
-      if (formData.date !== reservation.date || formData.time !== reservation.time) {
+      // Check if date/time/duration changed, use move function
+      if (formData.date !== reservation.date || formData.time !== reservation.time || formData.duration_minutes !== 90) {
         const { data, error } = await supabase.rpc('move_reservation_with_validation', {
           p_reservation_id: reservation.id,
           p_new_date: formData.date,
           p_new_time: formData.time,
-          p_duration_minutes: 90
+          p_duration_minutes: formData.duration_minutes
         });
 
         if (error) throw error;
@@ -108,6 +110,29 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Reserva</DialogTitle>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <strong>Cliente:</strong> {reservation.customer_name || reservation.name || 'Sin nombre'}
+              </div>
+              <div>
+                <strong>Email:</strong> {reservation.email}
+              </div>
+            </div>
+            {reservation.phone && (
+              <div>
+                <strong>Teléfono:</strong> {reservation.phone}
+              </div>
+            )}
+            {(reservation.tableAssignments?.length || reservation.table_assignments?.length) && (
+              <div>
+                <strong>Mesas:</strong> {
+                  (reservation.tableAssignments?.map(t => t.table_name) || 
+                   reservation.table_assignments?.map(t => t.table.name) || []).join(', ')
+                }
+              </div>
+            )}
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -131,16 +156,30 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             </div>
           </div>
 
-          <div>
-            <Label>Comensales</Label>
-            <Input
-              type="number"
-              min="1"
-              max="20"
-              value={formData.guests}
-              onChange={(e) => setFormData(prev => ({ ...prev, guests: parseInt(e.target.value) }))}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Comensales</Label>
+              <Input
+                type="number"
+                min="1"
+                max="20"
+                value={formData.guests}
+                onChange={(e) => setFormData(prev => ({ ...prev, guests: parseInt(e.target.value) }))}
+                required
+              />
+            </div>
+            <div>
+              <Label>Duración (minutos)</Label>
+              <Input
+                type="number"
+                min="30"
+                max="240"
+                step="15"
+                value={formData.duration_minutes}
+                onChange={(e) => setFormData(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) }))}
+                required
+              />
+            </div>
           </div>
 
           <div>

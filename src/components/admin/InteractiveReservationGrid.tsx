@@ -189,7 +189,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     return daySchedules.some(schedule => {
       const openTime = schedule.opening_time.substring(0, 5);
       const closeTime = schedule.closing_time.substring(0, 5);
-      return timeSlot >= openTime && timeSlot <= closeTime;
+      return timeSlot >= openTime && timeSlot < closeTime;
     });
   };
 
@@ -202,9 +202,13 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       if (!hasTableAssigned) return false;
 
       if (reservation.start_at && reservation.end_at) {
-        const slotStartTime = new Date(`${selectedDate}T${timeSlot}:00`);
+        // Create local time slot without timezone conversion
+        const [year, month, day] = selectedDate.split('-');
+        const [hour, minute] = timeSlot.split(':');
+        const slotStartTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
         const slotEndTime = new Date(slotStartTime.getTime() + 15 * 60000);
         
+        // Parse reservation times as local time
         const reservationStart = new Date(reservation.start_at);
         const reservationEnd = new Date(reservation.end_at);
         
@@ -217,6 +221,39 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       
       return reservation.time.substring(0, 5) === timeSlot;
     });
+  };
+
+  // Get reservation details with position info for rendering as single block
+  const getReservationDetails = (tableId: string, timeSlot: string) => {
+    const reservation = getReservationForTableAndTime(tableId, timeSlot);
+    if (!reservation || !reservation.start_at || !reservation.end_at) return null;
+
+    const reservationStart = new Date(reservation.start_at);
+    const reservationEnd = new Date(reservation.end_at);
+    
+    // Find the starting slot index for this reservation
+    const startHour = reservationStart.getHours();
+    const startMinute = reservationStart.getMinutes();
+    const startTimeSlot = `${startHour.toString().padStart(2, '0')}:${Math.floor(startMinute / 15) * 15}`.padStart(5, '0');
+    
+    const startSlotIndex = timeSlots.findIndex(slot => slot === startTimeSlot);
+    if (startSlotIndex === -1) return null;
+
+    // Calculate duration in 15-minute slots
+    const durationMinutes = (reservationEnd.getTime() - reservationStart.getTime()) / (1000 * 60);
+    const durationSlots = Math.ceil(durationMinutes / 15);
+    
+    // Check if this is the first slot of the reservation
+    const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
+    const isFirstSlot = currentSlotIndex === startSlotIndex;
+    
+    return {
+      reservation,
+      isFirstSlot,
+      startSlotIndex,
+      durationSlots,
+      currentSlotIndex
+    };
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -383,39 +420,74 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                     
                     {/* Time slots for this table */}
                     {timeSlots.map(timeSlot => {
-                      const reservation = getReservationForTableAndTime(table.id, timeSlot);
+                      const reservationDetails = getReservationDetails(table.id, timeSlot);
                       const isOpen = isRestaurantOpen(timeSlot);
                       const cellId = `${table.id}-${timeSlot}`;
+                      
+                      // Only render content for the first slot of each reservation
+                      const shouldRenderReservation = reservationDetails?.isFirstSlot;
+                      const isPartOfReservation = reservationDetails !== null;
                       
                       return (
                         <div 
                           key={cellId}
                           id={cellId}
-                          onClick={() => handleCellClick(table.id, timeSlot)}
-                          className={`border-b border-r min-h-[50px] flex items-center justify-center text-xs transition-all cursor-pointer ${
+                          onClick={() => !isPartOfReservation && handleCellClick(table.id, timeSlot)}
+                          className={`border-b border-r min-h-[50px] relative ${
                             !isOpen 
                               ? 'bg-gray-200 border-gray-300 cursor-not-allowed' 
-                              : reservation 
-                                ? reservation.status === 'confirmed' 
-                                  ? 'bg-green-100 border-green-300 hover:bg-green-200' 
-                                  : 'bg-yellow-100 border-yellow-300 hover:bg-yellow-200'
+                              : isPartOfReservation
+                                ? reservationDetails.reservation.status === 'confirmed' 
+                                  ? 'bg-green-100 border-green-300' 
+                                  : 'bg-yellow-100 border-yellow-300'
                                 : 'bg-gray-50 hover:bg-blue-50 border-gray-200 cursor-pointer'
                           }`}
+                          style={{
+                            cursor: isPartOfReservation ? 'pointer' : isOpen ? 'pointer' : 'not-allowed'
+                          }}
                         >
-                          {reservation && (
+                          {shouldRenderReservation && (
                             <div
                               draggable
                               onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', reservation.id);
-                                setDraggedReservation(reservation);
+                                e.dataTransfer.setData('text/plain', reservationDetails.reservation.id);
+                                setDraggedReservation(reservationDetails.reservation);
                               }}
-                              className="w-full h-full flex items-center justify-center"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingReservation(reservationDetails.reservation);
+                                setEditDialogOpen(true);
+                              }}
+                              className="absolute inset-0 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity z-10 text-xs font-medium"
+                              style={{
+                                width: `${reservationDetails.durationSlots * 100}%`,
+                                left: '0%',
+                                backgroundColor: reservationDetails.reservation.status === 'confirmed' 
+                                  ? 'rgba(34, 197, 94, 0.2)' 
+                                  : 'rgba(251, 191, 36, 0.2)',
+                                border: `2px solid ${reservationDetails.reservation.status === 'confirmed' 
+                                  ? 'rgb(34, 197, 94)' 
+                                  : 'rgb(251, 191, 36)'}`,
+                                borderRadius: '4px'
+                              }}
                             >
-                              <ReservationBlock reservation={reservation} />
+                              <div className="text-center px-1">
+                                <div className="font-semibold text-foreground leading-tight truncate" title={reservationDetails.reservation.customer_name}>
+                                  {reservationDetails.reservation.customer_name}
+                                </div>
+                                <div className="text-xs">
+                                  {reservationDetails.reservation.guests}p • {reservationDetails.reservation.time.substring(0, 5)}
+                                </div>
+                                {reservationDetails.reservation.tableAssignments && reservationDetails.reservation.tableAssignments.length > 0 && (
+                                  <div className="text-xs opacity-75">
+                                    {reservationDetails.reservation.tableAssignments.map(t => t.table_name).join(', ')}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                          {!reservation && !isOpen && (
-                            <div className="text-xs text-gray-500">✕</div>
+                          {!isPartOfReservation && !isOpen && (
+                            <div className="text-xs text-gray-500 flex items-center justify-center h-full">✕</div>
                           )}
                         </div>
                       );
