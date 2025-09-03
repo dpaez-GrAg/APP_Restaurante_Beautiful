@@ -201,6 +201,9 @@ const ReservationsManager = () => {
     if (status === "all") {
       return dateFilteredReservations.length;
     }
+    if (status === "guests") {
+      return dateFilteredReservations.reduce((total, r) => total + r.guests, 0);
+    }
     return dateFilteredReservations.filter(r => r.status === status).length;
   };
   return <div className="space-y-6 overflow-x-hidden">
@@ -269,10 +272,10 @@ const ReservationsManager = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
+                <p className="text-sm font-medium text-muted-foreground">Comensales</p>
+                <p className="text-2xl font-bold text-blue-600">{getStatusCount("guests")}</p>
               </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
+              <Users className="w-8 h-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
