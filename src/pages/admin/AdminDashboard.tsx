@@ -123,7 +123,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card 
           className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
           onClick={() => navigate('/admin/reservations')}
@@ -140,6 +140,23 @@ const AdminDashboard = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Total reservas
+            </p>
+          </CardContent>
+        </Card>
+
+                <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Comensales
+            </CardTitle>
+            <Users className="h-4 w-4 text-restaurant-gold" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-restaurant-brown">
+              {stats.totalGuests}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Confirmados
             </p>
           </CardContent>
         </Card>
@@ -184,22 +201,6 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Comensales
-            </CardTitle>
-            <Users className="h-4 w-4 text-restaurant-gold" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-restaurant-brown">
-              {stats.totalGuests}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Confirmados
-            </p>
-          </CardContent>
-        </Card>
 
         <Card 
           className="shadow-elegant hover:shadow-glow transition-all duration-300 cursor-pointer"
