@@ -52,18 +52,39 @@ const ReservationsManager = () => {
   useEffect(() => {
     loadReservations();
 
-    // Set up realtime subscription
-    const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservations'
-    }, loadReservations).on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservation_table_assignments'
-    }, loadReservations).subscribe();
+    // Set up realtime subscription for reservations list
+    const listChannel = supabase
+      .channel('reservations-list-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservations'
+      }, (payload) => {
+        console.log('List: Reservation change detected:', payload);
+        loadReservations();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservation_table_assignments'
+      }, (payload) => {
+        console.log('List: Table assignment change detected:', payload);
+        loadReservations();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'customers'
+      }, (payload) => {
+        console.log('List: Customer change detected:', payload);
+        loadReservations();
+      })
+      .subscribe((status) => {
+        console.log('List realtime subscription status:', status);
+      });
+    
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(listChannel);
     };
   }, []);
   useEffect(() => {
