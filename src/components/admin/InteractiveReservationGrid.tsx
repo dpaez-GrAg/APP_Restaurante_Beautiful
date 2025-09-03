@@ -296,7 +296,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </CardContent>
       </Card>;
   }
-  return <Card className="w-full">
+  return (
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
