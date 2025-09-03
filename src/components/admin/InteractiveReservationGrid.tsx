@@ -508,9 +508,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                   {/* Current time indicator */}
                   {currentTimePosition !== null && (
                     <div 
-                      className="absolute top-0 w-0.5 h-full bg-red-500 z-20"
+                      className="absolute top-0 w-0.5 bg-red-500 z-20"
                       style={{
                         left: `${currentTimePosition}%`,
+                        height: `${40 + tables.length * 50}px`, // Header height + all table rows
                       }}
                     >
                       <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
@@ -521,16 +522,6 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
               {/* Table rows with perfect alignment */}
               <div style={{ minWidth: '800px' }} className="relative">
-                {/* Current time line spanning all tables */}
-                {currentTimePosition !== null && (
-                  <div 
-                    className="absolute top-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                    style={{
-                      left: `${100 + (currentTimePosition * (100 - 100 / 100))}px`,
-                      height: `${tables.length * 50}px`,
-                    }}
-                  />
-                )}
                 
                 {tables.map(table => (
                   <div key={table.id} className="relative">
