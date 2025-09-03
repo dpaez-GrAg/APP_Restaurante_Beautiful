@@ -73,7 +73,7 @@ const AdminLayout = () => {
           <div className="flex w-full pt-14">
             <AdminSidebar />
             
-            <main className="flex-1 p-6 bg-gradient-subtle min-h-screen">
+            <main className="flex-1 p-6 bg-gradient-subtle min-h-screen overflow-x-hidden">
               <Outlet />
             </main>
           </div>

@@ -304,7 +304,7 @@ const ReservationsManager = () => {
 
       {/* Timeline Grid */}
       <div className="space-y-4 overflow-x-hidden">
-        <div className="w-full overflow-x-auto">
+        <div className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x">
           <InteractiveReservationGrid selectedDate={dateFilter} onRefresh={loadReservations} refreshTrigger={gridRefreshKey} onReservationClick={gridReservation => {
         // Convert grid reservation to manager reservation format
         const managerReservation: Reservation = {

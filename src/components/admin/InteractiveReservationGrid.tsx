@@ -349,7 +349,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto overscroll-x-contain touch-pan-x">
           {/* Header with hour markers only */}
           <div className="relative min-w-[350px] md:min-w-[800px]">
             {/* Mesa column header */}
