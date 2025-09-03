@@ -78,38 +78,16 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     loadData();
   }, [selectedDate, refreshTrigger]);
   useEffect(() => {
-    // Subscribe to real-time updates with optimized channel management
-    const channelName = `reservations-${selectedDate}`;
-    const reservationsChannel = supabase
-      .channel(channelName)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'reservations'
-      }, (payload) => {
-        console.log('Reservation change detected:', payload);
-        loadData();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'reservation_table_assignments'
-      }, (payload) => {
-        console.log('Table assignment change detected:', payload);
-        loadData();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'customers'
-      }, (payload) => {
-        console.log('Customer change detected:', payload);
-        loadData();
-      })
-      .subscribe((status) => {
-        console.log('Realtime subscription status:', status);
-      });
-
+    // Subscribe to real-time updates
+    const reservationsChannel = supabase.channel('reservations-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'reservations'
+    }, loadData).on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'reservation_table_assignments'
+    }, loadData).subscribe();
     return () => {
       supabase.removeChannel(reservationsChannel);
     };
@@ -296,8 +274,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </CardContent>
       </Card>;
   }
-  return (
-    <Card className="w-full">
+  return <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -315,9 +292,11 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
-        <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+        <div className="w-full overflow-x-auto">
           {/* Header with hour markers only */}
-          <div className="relative min-w-[800px]">
+          <div className="relative" style={{
+          minWidth: '800px'
+        }}>
             {/* Mesa column header */}
             <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center z-10">
               <span className="text-sm font-medium">Mesa</span>
@@ -336,7 +315,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               {/* Current time indicator */}
               {currentTimePosition !== null && <div className="absolute top-0 w-0.5 bg-red-500 z-20" style={{
               left: `${currentTimePosition}%`,
-              height: `${39 + tables.length * 50}px` // Header height + all table rows
+              height: `${40 + tables.length * 50}px` // Header height + all table rows
             }}>
                   <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
                 </div>}
@@ -344,7 +323,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </div>
 
           {/* Table rows with perfect alignment */}
-          <div className="relative min-w-[800px]">
+          <div style={{
+          minWidth: '400px'
+        }} className="relative">
             
             {tables.map(table => <div key={table.id} className="relative">
                 {/* Table name column */}
@@ -415,19 +396,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </div>
         
         {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-50 border border-gray-200"></div>
-            <span>Horario abierto</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gray-200 border border-gray-300"></div>
-            <span>Horario cerrado</span>
-          </div>
-        </div>
+        
       </CardContent>
-    </Card>
-  );
+    </Card>;
 };
-
 export default InteractiveReservationGrid;
