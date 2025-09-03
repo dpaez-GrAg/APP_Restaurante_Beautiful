@@ -339,7 +339,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => setCurrentPeriod('morning')}
-              className={`p-1 ${currentPeriod === 'morning' ? 'bg-primary text-primary-foreground' : ''}`}
+              className={`p-1 ${currentPeriod === 'evening' ? 'bg-primary text-primary-foreground' : ''}`}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -350,7 +350,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => setCurrentPeriod('evening')}
-              className={`p-1 ${currentPeriod === 'evening' ? 'bg-primary text-primary-foreground' : ''}`}
+              className={`p-1 ${currentPeriod === 'morning' ? 'bg-primary text-primary-foreground' : ''}`}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
