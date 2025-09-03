@@ -313,11 +313,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4 overflow-x-auto overscroll-x-contain touch-pan-x">
+      <CardContent className="p-4">
+        <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
           {/* Header with hour markers only */}
-          <div className="relative" style={{
-          minWidth: '800px'
-        }}>
+          <div className="relative min-w-[800px]">
             {/* Mesa column header */}
             <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center z-10">
               <span className="text-sm font-medium">Mesa</span>
@@ -344,9 +343,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </div>
 
           {/* Table rows with perfect alignment */}
-          <div style={{
-          minWidth: '800px'
-        }} className="relative">
+          <div className="relative min-w-[800px]">
             
             {tables.map(table => <div key={table.id} className="relative">
                 {/* Table name column */}
@@ -414,10 +411,22 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                 </div>
               </div>)}
           </div>
+        </div>
         
         {/* Legend */}
-        
+        <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-50 border border-gray-200"></div>
+            <span>Horario abierto</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gray-200 border border-gray-300"></div>
+            <span>Horario cerrado</span>
+          </div>
+        </div>
       </CardContent>
-    </Card>;
+    </Card>
+  );
 };
+
 export default InteractiveReservationGrid;
