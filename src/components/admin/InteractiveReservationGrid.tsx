@@ -294,9 +294,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       <CardContent className="p-4">
         <div className="w-full overflow-x-auto">
           {/* Header with hour markers only */}
-          <div className="relative" style={{
-          minWidth: '800px'
-        }}>
+          <div className="relative min-w-[380px] md:min-w-[800px]">
             {/* Mesa column header */}
             <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center z-10">
               <span className="text-sm font-medium">Mesa</span>
