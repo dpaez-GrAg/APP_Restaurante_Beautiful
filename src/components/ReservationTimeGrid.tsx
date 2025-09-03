@@ -201,7 +201,7 @@ const ReservationTimeGrid = ({ selectedDate }: { selectedDate: string }) => {
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          Vista de Ocupación por Horarios
+          Timeline
           <Badge variant="secondary">
             {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
           </Badge>
