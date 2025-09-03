@@ -298,12 +298,12 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           minWidth: '800px'
         }}>
             {/* Mesa column header */}
-            <div className="absolute top-0 left-0 w-[100px] h-[40px] bg-muted border flex items-center justify-center z-10">
+            <div className="absolute top-0 left-0 w-[60px] h-[40px] bg-muted border flex items-center justify-center z-10">
               <span className="text-sm font-medium">Mesa</span>
             </div>
             
             {/* Hour headers spanning multiple slots */}
-            <div className="ml-[100px] relative h-[40px] border-t border-b">
+            <div className="ml-[60px] relative h-[40px] border-t border-b">
               {hourHeaders.map((header, index) => <div key={header.hour} className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-sm" style={{
               left: `${header.startSlotIndex / timeSlots.length * 100}%`,
               width: `${header.spanSlots / timeSlots.length * 100}%`,
@@ -329,7 +329,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
             
             {tables.map(table => <div key={table.id} className="relative">
                 {/* Table name column */}
-                <div className="absolute left-0 top-0 w-[100px] min-h-[50px] bg-muted text-sm font-medium flex items-center border-r border-b p-2">
+                <div className="absolute left-0 top-0 w-[60px] min-h-[50px] bg-muted text-sm font-medium flex items-center border-r border-b p-2">
                   <div>
                     <div className="font-semibold text-xs">{table.name}</div>
                     <div className="text-xs text-muted-foreground">
@@ -339,7 +339,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                 </div>
                 
                 {/* Time slots row (read-only, no overflow) */}
-                <div className="ml-[100px] relative min-h-[50px] border-b overflow-hidden">
+                <div className="ml-[60px] relative min-h-[50px] border-b overflow-hidden">
                   {/* Background slots indicating open/closed hours (non-interactive) */}
                   <div className="absolute inset-0 pointer-events-none flex">
                     {timeSlots.map((timeSlot, idx) => {
