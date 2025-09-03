@@ -354,47 +354,78 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                   </div>
                 </div>
                 
-                {/* Time slots grid for this table */}
+                {/* Time slots row (read-only, no overflow) */}
                 <div 
-                  className="ml-[100px] grid gap-0" 
-                  style={{ 
-                    gridTemplateColumns: `repeat(${timeSlots.length}, minmax(10px, 1fr))`
-                  }}
+                  className="ml-[100px] relative min-h-[50px] border-b overflow-hidden"
                 >
-                  {timeSlots.map(timeSlot => {
-                    const reservationDetails = getReservationDetails(table.id, timeSlot);
-                    const isOpen = isRestaurantOpen(timeSlot);
-                    
-                    // Only render content for the first slot of each reservation
-                    const shouldRenderReservation = reservationDetails?.isFirstSlot;
-                    const isPartOfReservation = reservationDetails !== null;
-                    
-                    return (
-                      <div
-                        key={`${table.id}-${timeSlot}`}
-                        className={`border-b border-r min-h-[50px] relative ${
-                          !isOpen 
+                  {/* Background slots indicating open/closed hours (non-interactive) */}
+                  <div className="absolute inset-0 pointer-events-none flex">
+                    {timeSlots.map((timeSlot, idx) => {
+                      const isOpen = isRestaurantOpen(timeSlot);
+                      const slotWidth = 100 / timeSlots.length;
+                      return (
+                        <div
+                          key={`${table.id}-bg-${timeSlot}`}
+                          className={`${!isOpen 
                             ? 'bg-gray-200 border-gray-300' 
-                            : isPartOfReservation
-                              ? reservationDetails.reservation.status === 'confirmed' 
-                                ? 'bg-green-100 border-green-300' 
-                                : 'bg-yellow-100 border-yellow-300'
-                              : 'bg-gray-50 border-gray-200'
-                        }`}
-                        style={{
-                          gridColumn: shouldRenderReservation 
-                            ? `${reservationDetails.currentSlotIndex + 1} / span ${reservationDetails.durationSlots}`
-                            : undefined
-                        }}
-                      >
-                        {shouldRenderReservation ? (
-                          <ReservationBlock reservation={reservationDetails.reservation} />
-                        ) : (
-                          <div />
-                        )}
-                      </div>
+                            : 'bg-gray-50 border-gray-200'} border-r`} 
+                          style={{ width: `${slotWidth}%` }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Reservation blocks (absolute, precise to minutes) */}
+                  {(() => {
+                    // Helpers for minute math
+                    const toMinutes = (hhmm: string) => {
+                      const [h, m] = hhmm.split(':').map(Number);
+                      return h * 60 + m;
+                    };
+                    const dayStart = 12 * 60; // 12:00
+                    const dayEnd = 23 * 60 + 30; // 23:30
+                    const totalRange = dayEnd - dayStart;
+
+                    const tableReservations = reservations.filter(r =>
+                      r.tableAssignments?.some(a => a.table_id === table.id)
                     );
-                  })}
+
+                    return tableReservations.map((reservation) => {
+                      const reservationTimeStr = reservation.time.substring(0, 5); // HH:MM
+                      let durationMinutes = reservation.duration_minutes || 90;
+                      if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
+                        const start = new Date(reservation.start_at);
+                        const end = new Date(reservation.end_at);
+                        durationMinutes = Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60));
+                      }
+
+                      let startMin = toMinutes(reservationTimeStr);
+                      let endMin = startMin + durationMinutes;
+
+                      // Clamp within visible range
+                      startMin = Math.max(dayStart, startMin);
+                      endMin = Math.min(dayEnd, endMin);
+                      if (endMin <= startMin) return null;
+
+                      const leftPct = ((startMin - dayStart) / totalRange) * 100;
+                      const widthPct = ((endMin - startMin) / totalRange) * 100;
+
+                      const statusClasses = reservation.status === 'confirmed'
+                        ? 'bg-green-100 border-green-300'
+                        : 'bg-yellow-100 border-yellow-300';
+
+                      return (
+                        <div
+                          key={`res-${reservation.id}-${table.id}`}
+                          className={`absolute top-0 bottom-0 ${statusClasses} border rounded-sm pointer-events-none`}
+                          style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                          title={`${reservation.customer_name} • ${reservationTimeStr} • ${reservation.guests}p`}
+                        >
+                          <ReservationBlock reservation={reservation} />
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             ))}
