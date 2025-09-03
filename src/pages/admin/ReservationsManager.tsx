@@ -47,6 +47,7 @@ const ReservationsManager = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
+  const [gridRefreshKey, setGridRefreshKey] = useState(0);
 
   const { toast } = useToast();
 
@@ -333,6 +334,7 @@ const ReservationsManager = () => {
           <InteractiveReservationGrid 
             selectedDate={dateFilter} 
             onRefresh={loadReservations}
+            refreshTrigger={gridRefreshKey}
             onReservationClick={(gridReservation) => {
               // Convert grid reservation to manager reservation format
               const managerReservation: Reservation = {
@@ -550,7 +552,7 @@ const ReservationsManager = () => {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         defaultDate={dateFilter}
-        onSuccess={loadReservations}
+        onSuccess={() => { loadReservations(); setGridRefreshKey((prev) => prev + 1); }}
       />
 
       <EditReservationDialog
@@ -575,7 +577,7 @@ const ReservationsManager = () => {
             table_name: ta.table_name || ''
           }))
         } : null}
-        onUpdate={loadReservations}
+        onUpdate={() => { loadReservations(); setGridRefreshKey((prev) => prev + 1); }}
       />
     </div>
   );

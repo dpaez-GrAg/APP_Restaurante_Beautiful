@@ -38,13 +38,15 @@ interface InteractiveReservationGridProps {
   onRefresh: () => void;
   onReservationClick?: (reservation: Reservation) => void;
   onNewReservation?: () => void;
+  refreshTrigger?: number;
 }
 
 const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   selectedDate,
   onRefresh,
   onReservationClick,
-  onNewReservation
+  onNewReservation,
+  refreshTrigger
 }) => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -81,7 +83,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [selectedDate]);
+  }, [selectedDate, refreshTrigger]);
 
   useEffect(() => {
     // Subscribe to real-time updates
