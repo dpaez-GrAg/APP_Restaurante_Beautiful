@@ -313,8 +313,13 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
               Linea de tiempo
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="hidden sm:inline-flex">
                 {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", {
+                locale: es
+              })}
+              </Badge>
+              <Badge variant="secondary" className="sm:hidden">
+                {format(parseISO(selectedDate), "d/M", {
                 locale: es
               })}
               </Badge>
