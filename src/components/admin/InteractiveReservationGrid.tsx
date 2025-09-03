@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 interface Reservation {
   id: string;
   customer_name: string;
@@ -221,8 +221,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
           {reservation.customer_name.split(' ')[0]}
         </div>
-        <div className="text-xs font-medium">
-          {reservation.guests}p
+        <div className="text-xs font-medium flex items-center justify-center gap-1">
+          <Users className="w-3 h-3" />
+          {reservation.guests}
         </div>
       </div>;
   };
