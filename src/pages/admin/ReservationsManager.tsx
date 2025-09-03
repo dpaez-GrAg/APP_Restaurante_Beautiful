@@ -303,8 +303,9 @@ const ReservationsManager = () => {
       </div>
 
       {/* Timeline Grid */}
-      <div className="space-y-4">
-        <InteractiveReservationGrid selectedDate={dateFilter} onRefresh={loadReservations} refreshTrigger={gridRefreshKey} onReservationClick={gridReservation => {
+      <div className="space-y-4 overflow-x-hidden">
+        <div className="w-full overflow-x-auto">
+          <InteractiveReservationGrid selectedDate={dateFilter} onRefresh={loadReservations} refreshTrigger={gridRefreshKey} onReservationClick={gridReservation => {
         // Convert grid reservation to manager reservation format
         const managerReservation: Reservation = {
           id: gridReservation.id,
@@ -329,6 +330,7 @@ const ReservationsManager = () => {
         setEditingReservation(managerReservation);
         setEditDialogOpen(true);
       }} onNewReservation={() => setCreateDialogOpen(true)} />
+        </div>
       </div>
 
       {/* Lista de Reservas */}
