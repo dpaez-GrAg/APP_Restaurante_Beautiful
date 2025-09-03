@@ -334,7 +334,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </div>
           
           {/* Segunda línea: Navegación móvil */}
-          <div className="md:hidden flex items-center justify-center gap-1">
+          <div className="block md:hidden flex items-center justify-center gap-1">
             <Button
               variant="ghost"
               size="sm"
