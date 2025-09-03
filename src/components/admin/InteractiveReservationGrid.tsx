@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Plus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 interface Reservation {
   id: string;
   customer_name: string;
@@ -48,65 +48,32 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   const [tables, setTables] = useState<Table[]>([]);
   const [schedules, setSchedules] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPeriod, setCurrentPeriod] = useState<'morning' | 'evening'>('morning');
 
   // Generate 15-minute time slots from 12:00 to 23:30
-  const generateTimeSlots = (isMobile: boolean = false) => {
+  const generateTimeSlots = () => {
     const slots = [];
-    let startHour = 12;
-    let endHour = 23;
-    
-    if (isMobile) {
-      if (currentPeriod === 'morning') {
-        startHour = 12;
-        endHour = 17; // Until 17:45
-      } else {
-        startHour = 18;
-        endHour = 23;
-      }
-    }
-    
-    for (let hour = startHour; hour <= endHour; hour++) {
+    for (let hour = 12; hour <= 23; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
         if (hour === 23 && minute === 45) break;
-        if (isMobile && currentPeriod === 'morning' && hour === 17 && minute === 45) break;
         const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
         slots.push(timeString);
       }
     }
     return slots;
   };
-  const generateHourHeaders = (isMobile: boolean = false) => {
+  const generateHourHeaders = () => {
     const headers = [];
-    let startHour = 12;
-    let endHour = 23;
-    let baseOffset = 12;
-    
-    if (isMobile) {
-      if (currentPeriod === 'morning') {
-        startHour = 12;
-        endHour = 17;
-        baseOffset = 12;
-      } else {
-        startHour = 18;
-        endHour = 23;
-        baseOffset = 18;
-      }
-    }
-    
-    for (let hour = startHour; hour <= endHour; hour++) {
+    for (let hour = 12; hour <= 23; hour++) {
       headers.push({
         hour: `${hour.toString().padStart(2, '0')}h`,
-        startSlotIndex: (hour - baseOffset) * 4,
-        spanSlots: hour === 23 ? 2 : (isMobile && currentPeriod === 'morning' && hour === 17) ? 3 : 4
+        startSlotIndex: (hour - 12) * 4,
+        spanSlots: hour === 23 ? 2 : 4 // 23h solo hasta 23:30
       });
     }
     return headers;
   };
-  // Detect mobile viewport
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const timeSlots = generateTimeSlots(isMobile);
-  const hourHeaders = generateHourHeaders(isMobile);
+  const timeSlots = generateTimeSlots();
+  const hourHeaders = generateHourHeaders();
   useEffect(() => {
     loadData();
   }, [selectedDate, refreshTrigger]);
@@ -332,29 +299,6 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               <span className="sm:hidden">+</span>
             </Button>
           </div>
-          
-          {/* Segunda línea: Navegación móvil */}
-          <div className="block md:hidden flex items-center justify-center gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentPeriod('morning')}
-              className={`p-1 ${currentPeriod === 'evening' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-xs px-2">
-              {currentPeriod === 'morning' ? '12-18h' : '18-23h'}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentPeriod('evening')}
-              className={`p-1 ${currentPeriod === 'morning' ? 'bg-primary text-primary-foreground' : ''}`}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
@@ -422,18 +366,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                   const [h, m] = hhmm.split(':').map(Number);
                   return h * 60 + m;
                 };
-                let dayStart = 12 * 60; // 12:00
-                let dayEnd = 23 * 60 + 30; // 23:30
-                
-                if (isMobile) {
-                  if (currentPeriod === 'morning') {
-                    dayStart = 12 * 60;
-                    dayEnd = 18 * 60; // 18:00
-                  } else {
-                    dayStart = 18 * 60;
-                    dayEnd = 23 * 60 + 30;
-                  }
-                }
+                const dayStart = 12 * 60; // 12:00
+                const dayEnd = 23 * 60 + 30; // 23:30
                 
                 const totalRange = dayEnd - dayStart;
                 const tableReservations = reservations.filter(r => r.tableAssignments?.some(a => a.table_id === table.id));
