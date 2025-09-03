@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
 
 interface Reservation {
   id: string;
@@ -35,12 +37,14 @@ interface InteractiveReservationGridProps {
   selectedDate: string;
   onRefresh: () => void;
   onReservationClick?: (reservation: Reservation) => void;
+  onNewReservation?: () => void;
 }
 
 const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   selectedDate,
   onRefresh,
-  onReservationClick
+  onReservationClick,
+  onNewReservation
 }) => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -295,10 +299,20 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     <Card className="w-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          Vista de Ocupación
-          <Badge variant="secondary">
-            {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
-          </Badge>
+          <div className="flex items-center gap-2">
+            Vista de Ocupación
+            <Badge variant="secondary">
+              {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
+            </Badge>
+          </div>
+          <Button
+            onClick={onNewReservation}
+            className="flex items-center gap-2"
+            size="sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nueva Reserva
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">

@@ -348,6 +348,7 @@ const ReservationsManager = () => {
               setEditingReservation(managerReservation);
               setEditDialogOpen(true);
             }}
+            onNewReservation={() => setCreateDialogOpen(true)}
           />
         </TabsContent>
 
