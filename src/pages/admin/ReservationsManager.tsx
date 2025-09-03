@@ -182,32 +182,31 @@ const ReservationsManager = () => {
     }
     return dateFilteredReservations.filter(r => r.status === status).length;
   };
-  return <div className="space-y-4 lg:space-y-6 p-4 lg:p-6">
+  return <div className="space-y-3 sm:space-y-4 lg:space-y-6 p-2 sm:p-4 lg:p-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+      <div className="flex flex-col space-y-3 sm:space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
         <div className="space-y-1">
-          <h1 className="text-2xl lg:text-3xl font-bold text-restaurant-brown">Gestión de Reservas</h1>
-          <p className="text-sm lg:text-base text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-restaurant-brown">Gestión de Reservas</h1>
+          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
             Administra todas las reservas de tu restaurante
           </p>
         </div>
         
         {/* Date Navigation */}
-        <div className="flex items-center gap-2 self-start lg:self-auto">
+        <div className="flex items-center gap-1 sm:gap-2 justify-center lg:justify-start">
           <Button variant="outline" size="sm" onClick={() => {
           const currentDate = new Date(dateFilter);
           currentDate.setDate(currentDate.getDate() - 1);
           setDateFilter(formatDateLocal(currentDate));
-        }}>
+        }} className="px-2 sm:px-3">
             ←
           </Button>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("min-w-[120px] lg:min-w-[140px] justify-center text-xs lg:text-sm font-medium")}>
-                <CalendarIcon className="mr-1 lg:mr-2 h-3 lg:h-4 w-3 lg:w-4" />
+              <Button variant="outline" className={cn("min-w-[100px] sm:min-w-[120px] lg:min-w-[140px] justify-center text-xs sm:text-sm font-medium px-2 sm:px-3")}>
+                <CalendarIcon className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
                 <span className="truncate">
                   {new Date(dateFilter).toLocaleDateString('es-ES', {
-                  weekday: 'short',
                   day: 'numeric',
                   month: 'short'
                 })}
@@ -226,58 +225,58 @@ const ReservationsManager = () => {
           const currentDate = new Date(dateFilter);
           currentDate.setDate(currentDate.getDate() + 1);
           setDateFilter(formatDateLocal(currentDate));
-        }}>
+        }} className="px-2 sm:px-3">
             →
           </Button>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
         <Card className="shadow-elegant">
-          <CardContent className="pt-4 lg:pt-6">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 px-3 sm:px-4 lg:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-xl lg:text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
+                <p className="text-xs sm:text-xs lg:text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
               </div>
-              <Calendar className="w-6 h-6 lg:w-8 lg:h-8 text-restaurant-gold" />
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-restaurant-gold" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-4 lg:pt-6">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 px-3 sm:px-4 lg:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Pendientes</p>
-                <p className="text-xl lg:text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
+                <p className="text-xs sm:text-xs lg:text-sm font-medium text-muted-foreground">Pendientes</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
               </div>
-              <Clock className="w-6 h-6 lg:w-8 lg:h-8 text-yellow-500" />
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-4 lg:pt-6">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 px-3 sm:px-4 lg:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Confirmadas</p>
-                <p className="text-xl lg:text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
+                <p className="text-xs sm:text-xs lg:text-sm font-medium text-muted-foreground">Confirmadas</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
               </div>
-              <Check className="w-6 h-6 lg:w-8 lg:h-8 text-green-500" />
+              <Check className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-4 lg:pt-6">
+          <CardContent className="pt-3 sm:pt-4 lg:pt-6 px-3 sm:px-4 lg:px-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Canceladas</p>
-                <p className="text-xl lg:text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
+                <p className="text-xs sm:text-xs lg:text-sm font-medium text-muted-foreground">Canceladas</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
               </div>
-              <X className="w-6 h-6 lg:w-8 lg:h-8 text-red-500" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -323,7 +322,7 @@ const ReservationsManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Buscar</label>
                   <div className="relative">
@@ -367,16 +366,16 @@ const ReservationsManager = () => {
               
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {filteredReservations.map(reservation => <div key={reservation.id} className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
+                <div className="space-y-4">
+                {filteredReservations.map(reservation => <div key={reservation.id} className="p-3 sm:p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
+                    <div className="flex flex-col space-y-3 sm:space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
                       <div className="space-y-2">
                         <div className="flex items-center space-x-3">
                           <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
                           {getStatusBadge(reservation.status)}
                         </div>
                         
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-4 h-4" />
                             <span>{reservation.date} • {reservation.time}</span>

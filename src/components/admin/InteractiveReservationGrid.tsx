@@ -218,12 +218,12 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     reservation: Reservation;
   }) => {
     return <div className="text-center w-full px-0.5">
-        <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
+        <div className="font-semibold text-foreground text-xs leading-tight mb-0.5 sm:mb-1 truncate" title={reservation.customer_name}>
           {reservation.customer_name.split(' ')[0]}
         </div>
-        <div className="text-xs font-medium flex items-center justify-center gap-1">
-          <Users className="w-3 h-3" />
-          {reservation.guests}
+        <div className="text-xs font-medium flex items-center justify-center gap-0.5 sm:gap-1">
+          <Users className="w-2 h-2 sm:w-3 sm:h-3" />
+          <span className="text-xs">{reservation.guests}</span>
         </div>
       </div>;
   };
@@ -275,37 +275,37 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       </Card>;
   }
   return <Card className="w-full">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+      <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-4 lg:px-6">
+        <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
           <div className="flex items-center gap-2">
-            <span className="text-lg lg:text-xl font-semibold">Línea de tiempo</span>
-            <Badge variant="secondary" className="text-xs lg:text-sm">
-              {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", {
+            <span className="text-base sm:text-lg lg:text-xl font-semibold">Línea de tiempo</span>
+            <Badge variant="secondary" className="text-xs">
+              {format(parseISO(selectedDate), "d MMM", {
               locale: es
             })}
             </Badge>
           </div>
           <Button onClick={onNewReservation} className="flex items-center gap-2" size="sm">
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nueva Reserva</span>
-            <span className="sm:hidden">Nueva</span>
+            <span className="hidden xs:inline">Nueva</span>
+            <span className="xs:hidden">+</span>
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-2 lg:p-4">
+      <CardContent className="p-1 sm:p-2 lg:p-4">
         <div className="w-full overflow-x-auto">
           {/* Header with hour markers only */}
           <div className="relative" style={{
-          minWidth: '600px'
+          minWidth: '500px'
         }}>
             {/* Mesa column header */}
-            <div className="absolute top-0 left-0 w-[60px] h-[40px] bg-muted border flex items-center justify-center z-10">
-              <span className="text-sm font-medium">Mesa</span>
+            <div className="absolute top-0 left-0 w-[50px] sm:w-[60px] h-[30px] sm:h-[40px] bg-muted border flex items-center justify-center z-10">
+              <span className="text-xs sm:text-sm font-medium">Mesa</span>
             </div>
             
             {/* Hour headers spanning multiple slots */}
-            <div className="ml-[60px] relative h-[40px] border-t border-b">
-              {hourHeaders.map((header, index) => <div key={header.hour} className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-sm" style={{
+            <div className="ml-[50px] sm:ml-[60px] relative h-[30px] sm:h-[40px] border-t border-b">
+              {hourHeaders.map((header, index) => <div key={header.hour} className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-xs sm:text-sm" style={{
               left: `${header.startSlotIndex / timeSlots.length * 100}%`,
               width: `${header.spanSlots / timeSlots.length * 100}%`,
               borderLeftWidth: index === 0 ? '0px' : '1px'
@@ -316,7 +316,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               {/* Current time indicator */}
               {currentTimePosition !== null && <div className="absolute top-0 w-0.5 bg-red-500 z-20" style={{
               left: `${currentTimePosition}%`,
-              height: `${40 + tables.length * 50}px` // Header height + all table rows
+              height: `${(30 + tables.length * 35) + (window.innerWidth >= 640 ? (10 + tables.length * 15) : 0)}px` // Responsive height
             }}>
                   <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
                 </div>}
@@ -325,23 +325,23 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
           {/* Table rows with perfect alignment */}
           <div style={{
-          minWidth: '600px'
+          minWidth: '500px'
         }} className="relative">
             
             {tables.map(table => <div key={table.id} className="relative">
                 {/* Table name column */}
-                <div className="absolute left-0 top-0 w-[60px] min-h-[40px] lg:min-h-[50px] bg-muted text-xs lg:text-sm font-medium flex items-center border-r border-b p-1 lg:p-2">
+                <div className="absolute left-0 top-0 w-[50px] sm:w-[60px] min-h-[35px] sm:min-h-[40px] lg:min-h-[50px] bg-muted text-xs font-medium flex items-center border-r border-b p-1">
                   <div>
                     <div className="font-semibold text-xs truncate">{table.name}</div>
                     <div className="text-xs text-muted-foreground flex items-center justify-center gap-0.5">
-                      <Users className="w-2.5 h-2.5" />
-                      {table.capacity}
+                      <Users className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                      <span className="text-xs">{table.capacity}</span>
                     </div>
                   </div>
                 </div>
                 
                 {/* Time slots row (read-only, no overflow) */}
-                <div className="ml-[60px] relative min-h-[40px] lg:min-h-[50px] border-b overflow-hidden">
+                <div className="ml-[50px] sm:ml-[60px] relative min-h-[35px] sm:min-h-[40px] lg:min-h-[50px] border-b overflow-hidden">
                   {/* Background slots indicating open/closed hours (non-interactive) */}
                   <div className="absolute inset-0 pointer-events-none flex">
                     {timeSlots.map((timeSlot, idx) => {
