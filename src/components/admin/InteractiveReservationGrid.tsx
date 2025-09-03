@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Plus, Users } from 'lucide-react';
+
 interface Reservation {
   id: string;
   customer_name: string;
@@ -25,11 +26,13 @@ interface Reservation {
     table_name: string;
   }>;
 }
+
 interface Table {
   id: string;
   name: string;
   capacity: number;
 }
+
 interface InteractiveReservationGridProps {
   selectedDate: string;
   onRefresh: () => void;
@@ -37,6 +40,7 @@ interface InteractiveReservationGridProps {
   onNewReservation?: () => void;
   refreshTrigger?: number;
 }
+
 const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   selectedDate,
   onRefresh,
@@ -61,6 +65,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     }
     return slots;
   };
+
   const generateHourHeaders = () => {
     const headers = [];
     for (let hour = 12; hour <= 23; hour++) {
@@ -72,39 +77,53 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     }
     return headers;
   };
+
   const timeSlots = generateTimeSlots();
   const hourHeaders = generateHourHeaders();
+
   useEffect(() => {
     loadData();
   }, [selectedDate, refreshTrigger]);
+
   useEffect(() => {
     // Subscribe to real-time updates
-    const reservationsChannel = supabase.channel('reservations-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservations'
-    }, loadData).on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservation_table_assignments'
-    }, loadData).subscribe();
+    const reservationsChannel = supabase.channel('reservations-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservations'
+      }, loadData)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservation_table_assignments'
+      }, loadData)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(reservationsChannel);
     };
   }, [selectedDate]);
+
   const loadData = async () => {
     try {
-      const [reservationsResult, tablesResult, schedulesResult] = await Promise.all([supabase.from('reservations').select(`
+      const [reservationsResult, tablesResult, schedulesResult] = await Promise.all([
+        supabase.from('reservations').select(`
             *,
             customers(name, email, phone),
             reservation_table_assignments(
               table_id,
               tables(name)
             )
-          `).eq('date', selectedDate).in('status', ['confirmed', 'pending']), supabase.from('tables').select('*').eq('is_active', true).order('name'), supabase.from('restaurant_schedules').select('*').eq('is_active', true)]);
+          `).eq('date', selectedDate).in('status', ['confirmed', 'pending']),
+        supabase.from('tables').select('*').eq('is_active', true).order('name'),
+        supabase.from('restaurant_schedules').select('*').eq('is_active', true)
+      ]);
+
       if (reservationsResult.error) throw reservationsResult.error;
       if (tablesResult.error) throw tablesResult.error;
       if (schedulesResult.error) throw schedulesResult.error;
+
       const mappedReservations = (reservationsResult.data || []).map(reservation => ({
         id: reservation.id,
         customer_name: reservation.customers?.name || 'Cliente',
@@ -123,6 +142,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           table_name: assignment.tables?.name || 'Mesa'
         })) || []
       }));
+
       setReservations(mappedReservations);
       setTables(tablesResult.data || []);
       setSchedules(schedulesResult.data || []);
@@ -133,6 +153,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       setIsLoading(false);
     }
   };
+
   const isRestaurantOpen = (timeSlot: string) => {
     const currentDay = new Date(selectedDate).getDay();
     const daySchedules = schedules.filter(s => s.day_of_week === currentDay && s.is_active);
@@ -142,10 +163,12 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       return timeSlot >= openTime && timeSlot < closeTime;
     });
   };
+
   const getReservationForTableAndTime = (tableId: string, timeSlot: string) => {
     return reservations.find(reservation => {
       const hasTableAssigned = reservation.tableAssignments?.some(assignment => assignment.table_id === tableId);
       if (!hasTableAssigned) return false;
+
       if (reservation.start_at && reservation.end_at) {
         // Parse times as local time to avoid timezone conversion
         const reservationTimeStr = reservation.time.substring(0, 5); // Use time field directly
@@ -171,53 +194,19 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
         }
         const resEndMinutes = resStartMinutes + durationMinutes;
-        return resStartMinutes <= slotStartMinutes && resEndMinutes > slotStartMinutes || resStartMinutes < slotEndMinutes && resEndMinutes >= slotEndMinutes || resStartMinutes >= slotStartMinutes && resEndMinutes <= slotEndMinutes;
+
+        return (resStartMinutes <= slotStartMinutes && resEndMinutes > slotStartMinutes) ||
+               (resStartMinutes < slotEndMinutes && resEndMinutes >= slotEndMinutes) ||
+               (resStartMinutes >= slotStartMinutes && resEndMinutes <= slotEndMinutes);
       }
+
       return reservation.time.substring(0, 5) === timeSlot;
     });
   };
 
-  // Get reservation details with position info for rendering as single block
-  const getReservationDetails = (tableId: string, timeSlot: string) => {
-    const reservation = getReservationForTableAndTime(tableId, timeSlot);
-    if (!reservation) return null;
-
-    // Use the reservation.time field directly instead of start_at to avoid timezone issues
-    const reservationTimeStr = reservation.time.substring(0, 5); // "14:30"
-    const [resHour, resMinute] = reservationTimeStr.split(':').map(Number);
-
-    // Calculate duration from reservation data (prefer duration_minutes, fallback to calculation)
-    let durationMinutes = reservation.duration_minutes || 90;
-    if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
-      const start = new Date(reservation.start_at);
-      const end = new Date(reservation.end_at);
-      durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-    }
-
-    // Find the starting slot index for this reservation based on time field
-    const startSlotIndex = timeSlots.findIndex(slot => slot === reservationTimeStr);
-    if (startSlotIndex === -1) return null;
-
-    // Calculate duration in 15-minute slots
-    const durationSlots = Math.ceil(durationMinutes / 15);
-
-    // Check if this is the first slot of the reservation
-    const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
-    const isFirstSlot = currentSlotIndex === startSlotIndex;
-    return {
-      reservation,
-      isFirstSlot,
-      startSlotIndex,
-      durationSlots,
-      currentSlotIndex
-    };
-  };
-  const ReservationBlock = ({
-    reservation
-  }: {
-    reservation: Reservation;
-  }) => {
-    return <div className="text-center w-full px-0.5">
+  const ReservationBlock = ({ reservation }: { reservation: Reservation }) => {
+    return (
+      <div className="text-center w-full px-0.5">
         <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
           {reservation.customer_name.split(' ')[0]}
         </div>
@@ -225,7 +214,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           <Users className="w-3 h-3" />
           {reservation.guests}
         </div>
-      </div>;
+      </div>
+    );
   };
 
   // Generate unique pastel color for each reservation
@@ -234,14 +224,14 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     let hash = 0;
     for (let i = 0; i < reservationId.length; i++) {
       const char = reservationId.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
+      hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
 
     // Use the hash to generate consistent HSL values
     const hue = Math.abs(hash) % 360;
-    const saturation = 40 + Math.abs(hash) % 30; // 40-70% saturation for soft colors
-    const lightness = 85 + Math.abs(hash) % 10; // 85-95% lightness for pastel tones
+    const saturation = 40 + (Math.abs(hash) % 30); // 40-70% saturation for soft colors
+    const lightness = 85 + (Math.abs(hash) % 10); // 85-95% lightness for pastel tones
 
     return {
       backgroundColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
@@ -256,9 +246,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     const currentMinute = now.getMinutes();
 
     // Only show if within restaurant hours (12:00 - 23:30)
-    if (currentHour < 12 || currentHour > 23 || currentHour === 23 && currentMinute > 30) {
+    if (currentHour < 12 || (currentHour > 23) || (currentHour === 23 && currentMinute > 30)) {
       return null;
     }
+
     const totalMinutes = currentHour * 60 + currentMinute;
     const startMinutes = 12 * 60; // 12:00
     const endMinutes = 23 * 60 + 30; // 23:30
@@ -266,15 +257,21 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     const percentage = (totalMinutes - startMinutes) / (endMinutes - startMinutes) * 100;
     return Math.max(0, Math.min(100, percentage));
   };
+
   const currentTimePosition = getCurrentTimePosition();
+
   if (isLoading) {
-    return <Card>
+    return (
+      <Card>
         <CardContent className="p-6">
           <div className="text-center">Cargando vista de reservas...</div>
         </CardContent>
-      </Card>;
+      </Card>
+    );
   }
-  return <Card className="w-full">
+
+  return (
+    <Card className="w-full">
       <CardHeader>
         <CardTitle className="space-y-2">
           {/* Primera línea: Título y fecha */}
@@ -282,14 +279,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
             <div className="flex items-center gap-2">
               Linea de tiempo
               <Badge variant="secondary" className="hidden sm:inline-flex">
-                {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", {
-                locale: es
-              })}
+                {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
               </Badge>
               <Badge variant="secondary" className="sm:hidden">
-                {format(parseISO(selectedDate), "d/M", {
-                locale: es
-              })}
+                {format(parseISO(selectedDate), "d/M", { locale: es })}
               </Badge>
             </div>
             {/* Botón nueva reserva - siempre visible */}
@@ -312,28 +305,39 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
             
             {/* Hour headers spanning multiple slots */}
             <div className="ml-[60px] md:ml-[80px] relative h-[40px] border-t border-b">
-              {hourHeaders.map((header, index) => <div key={header.hour} className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-sm" style={{
-              left: `${header.startSlotIndex / timeSlots.length * 100}%`,
-              width: `${header.spanSlots / timeSlots.length * 100}%`,
-              borderLeftWidth: index === 0 ? '0px' : '1px'
-            }}>
+              {hourHeaders.map((header, index) => (
+                <div 
+                  key={header.hour} 
+                  className="absolute top-0 h-full flex items-center justify-center bg-muted border-l border-r font-medium text-sm" 
+                  style={{
+                    left: `${(header.startSlotIndex / timeSlots.length) * 100}%`,
+                    width: `${(header.spanSlots / timeSlots.length) * 100}%`,
+                    borderLeftWidth: index === 0 ? '0px' : '1px'
+                  }}
+                >
                   {header.hour}
-                </div>)}
+                </div>
+              ))}
               
               {/* Current time indicator */}
-              {currentTimePosition !== null && <div className="absolute top-0 w-0.5 bg-red-500 z-20" style={{
-              left: `${currentTimePosition}%`,
-              height: `${40 + tables.length * 50}px` // Header height + all table rows
-            }}>
+              {currentTimePosition !== null && (
+                <div 
+                  className="absolute top-0 w-0.5 bg-red-500 z-20" 
+                  style={{
+                    left: `${currentTimePosition}%`,
+                    height: `${40 + tables.length * 50}px` // Header height + all table rows
+                  }}
+                >
                   <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
-                </div>}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Table rows with perfect alignment */}
-          <div  className="relative">
-            
-            {tables.map(table => <div key={table.id} className="relative">
+          <div className="relative">
+            {tables.map(table => (
+              <div key={table.id} className="relative">
                 {/* Table name column */}
                 <div className="absolute left-0 top-0 w-[60px] md:w-[80px] min-h-[50px] bg-muted text-sm font-medium flex items-center border-r border-b p-2">
                   <div>
@@ -349,64 +353,87 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                   {/* Background slots indicating open/closed hours (non-interactive) */}
                   <div className="absolute inset-0 pointer-events-none flex">
                     {timeSlots.map((timeSlot, idx) => {
-                  const isOpen = isRestaurantOpen(timeSlot);
-                  // Use the same calculation as headers: each slot is 1/timeSlots.length of total width
-                  const slotWidth = 100 / timeSlots.length;
-                  
-                  return <div key={`${table.id}-bg-${timeSlot}`} className={`${!isOpen ? 'bg-gray-200 border-gray-300' : 'bg-gray-50 border-gray-200'} border-r`} style={{
-                    width: `${slotWidth}%`
-                  }} />;
-                })}
+                      const isOpen = isRestaurantOpen(timeSlot);
+                      // Use the same calculation as headers: each slot is 1/timeSlots.length of total width
+                      const slotWidth = 100 / timeSlots.length;
+                      
+                      return (
+                        <div 
+                          key={`${table.id}-bg-${timeSlot}`} 
+                          className={`${!isOpen ? 'bg-gray-200 border-gray-300' : 'bg-gray-50 border-gray-200'} border-r`} 
+                          style={{
+                            width: `${slotWidth}%`
+                          }} 
+                        />
+                      );
+                    })}
                   </div>
 
                   {/* Reservation blocks (absolute, precise to minutes) */}
                   {(() => {
-                // Helpers for minute math
-                const toMinutes = (hhmm: string) => {
-                  const [h, m] = hhmm.split(':').map(Number);
-                  return h * 60 + m;
-                };
-                const dayStart = 12 * 60; // 12:00
-                const dayEnd = 23 * 60 + 30; // 23:30
-                
-                const totalRange = dayEnd - dayStart;
-                const tableReservations = reservations.filter(r => r.tableAssignments?.some(a => a.table_id === table.id));
-                return tableReservations.map(reservation => {
-                  const reservationTimeStr = reservation.time.substring(0, 5); // HH:MM
-                  let durationMinutes = reservation.duration_minutes || 90;
-                  if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
-                    const start = new Date(reservation.start_at);
-                    const end = new Date(reservation.end_at);
-                    durationMinutes = Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60));
-                  }
-                  let startMin = toMinutes(reservationTimeStr);
-                  let endMin = startMin + durationMinutes;
+                    // Helpers for minute math
+                    const toMinutes = (hhmm: string) => {
+                      const [h, m] = hhmm.split(':').map(Number);
+                      return h * 60 + m;
+                    };
+                    const dayStart = 12 * 60; // 12:00
+                    const dayEnd = 23 * 60 + 30; // 23:30
+                    
+                    const totalRange = dayEnd - dayStart;
+                    const tableReservations = reservations.filter(r => 
+                      r.tableAssignments?.some(a => a.table_id === table.id)
+                    );
+                    
+                    return tableReservations.map(reservation => {
+                      const reservationTimeStr = reservation.time.substring(0, 5); // HH:MM
+                      let durationMinutes = reservation.duration_minutes || 90;
+                      if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
+                        const start = new Date(reservation.start_at);
+                        const end = new Date(reservation.end_at);
+                        durationMinutes = Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60));
+                      }
+                      
+                      let startMin = toMinutes(reservationTimeStr);
+                      let endMin = startMin + durationMinutes;
 
-                  // Clamp within visible range
-                  startMin = Math.max(dayStart, startMin);
-                  endMin = Math.min(dayEnd, endMin);
-                  if (endMin <= startMin) return null;
-                  const leftPct = (startMin - dayStart) / totalRange * 100;
-                  const widthPct = (endMin - startMin) / totalRange * 100;
-                  const reservationColors = getReservationColor(reservation.id);
-                  return <div key={`res-${reservation.id}-${table.id}`} className="absolute top-0 bottom-0 border rounded-sm cursor-pointer hover:shadow-md transition-shadow" style={{
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    backgroundColor: reservationColors.backgroundColor,
-                    borderColor: reservationColors.borderColor
-                  }} title={`${reservation.customer_name} • ${reservationTimeStr} • ${reservation.guests}p`} onClick={() => onReservationClick?.(reservation)}>
+                      // Clamp within visible range
+                      startMin = Math.max(dayStart, startMin);
+                      endMin = Math.min(dayEnd, endMin);
+                      if (endMin <= startMin) return null;
+                      
+                      const leftPct = (startMin - dayStart) / totalRange * 100;
+                      const widthPct = (endMin - startMin) / totalRange * 100;
+                      const reservationColors = getReservationColor(reservation.id);
+                      
+                      return (
+                        <div 
+                          key={`res-${reservation.id}-${table.id}`} 
+                          className="absolute top-0 bottom-0 border rounded-sm cursor-pointer hover:shadow-md transition-shadow" 
+                          style={{
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`,
+                            backgroundColor: reservationColors.backgroundColor,
+                            borderColor: reservationColors.borderColor
+                          }} 
+                          title={`${reservation.customer_name} • ${reservationTimeStr} • ${reservation.guests}p`} 
+                          onClick={() => onReservationClick?.(reservation)}
+                        >
                           <ReservationBlock reservation={reservation} />
-                        </div>;
-                });
-              })()}
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
-              </div>)}
+              </div>
+            ))}
           </div>
         </div>
         
         {/* Legend */}
         
       </CardContent>
-    </Card>;
+    </Card>
+  );
 };
+
 export default InteractiveReservationGrid;
