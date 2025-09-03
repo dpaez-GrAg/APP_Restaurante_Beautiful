@@ -299,7 +299,30 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       return;
     }
 
-    const [targetTableId, targetTime] = (over.id as string).split('-');
+    const cellIdParts = (over.id as string).split('__');
+    if (cellIdParts.length !== 2) {
+      console.error('Invalid cellId format:', over.id);
+      setDraggedReservation(null);
+      return;
+    }
+
+    const [targetTableId, targetTime] = cellIdParts;
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(targetTableId)) {
+      console.error('Invalid table UUID:', targetTableId);
+      setDraggedReservation(null);
+      return;
+    }
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(targetTime)) {
+      console.error('Invalid time format:', targetTime);
+      setDraggedReservation(null);
+      return;
+    }
     
     // Snap to nearest 15-minute slot
     const targetTimeSlot = timeSlots.find(slot => slot === targetTime) || targetTime;
