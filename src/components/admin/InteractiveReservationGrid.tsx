@@ -315,7 +315,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               {/* Current time indicator */}
               {currentTimePosition !== null && <div className="absolute top-0 w-0.5 bg-red-500 z-20" style={{
               left: `${currentTimePosition}%`,
-              height: `${40 + tables.length * 50}px` // Header height + all table rows
+              height: `${39 + tables.length * 50}px` // Header height + all table rows
             }}>
                   <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
                 </div>}
