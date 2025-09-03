@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar, Clock, Users, Mail, Phone, Search, Filter, Check, X, Grid3X3, CalendarIcon, Plus } from "lucide-react";
@@ -317,53 +317,42 @@ const ReservationsManager = () => {
         </Card>
       </div>
 
-      {/* Tabs para diferentes vistas */}
-      <Tabs defaultValue="grid" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 lg:w-400">
-          <TabsTrigger value="grid" className="flex items-center gap-2">
-            <Grid3X3 className="w-4 h-4" />
-            Vista de Ocupación
-          </TabsTrigger>
-          <TabsTrigger value="list" className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Lista de Reservas
-          </TabsTrigger>
-        </TabsList>
+      {/* Timeline Grid */}
+      <div className="space-y-4">
+        <InteractiveReservationGrid 
+          selectedDate={dateFilter} 
+          onRefresh={loadReservations}
+          refreshTrigger={gridRefreshKey}
+          onReservationClick={(gridReservation) => {
+            // Convert grid reservation to manager reservation format
+            const managerReservation: Reservation = {
+              id: gridReservation.id,
+              name: gridReservation.customer_name,
+              email: gridReservation.email,
+              phone: gridReservation.phone,
+              date: gridReservation.date,
+              time: gridReservation.time,
+              guests: gridReservation.guests,
+              status: gridReservation.status as "pending" | "confirmed" | "cancelled",
+              message: gridReservation.special_requests,
+              table_assignments: gridReservation.tableAssignments?.map(ta => ({
+                table_id: ta.table_id,
+                table_name: ta.table_name
+              })),
+              created_at: new Date().toISOString(), // Fallback
+              duration_minutes: gridReservation.duration_minutes,
+              start_at: gridReservation.start_at,
+              end_at: gridReservation.end_at
+            };
+            setEditingReservation(managerReservation);
+            setEditDialogOpen(true);
+          }}
+          onNewReservation={() => setCreateDialogOpen(true)}
+        />
+      </div>
 
-        <TabsContent value="grid" className="space-y-4">
-          <InteractiveReservationGrid 
-            selectedDate={dateFilter} 
-            onRefresh={loadReservations}
-            refreshTrigger={gridRefreshKey}
-            onReservationClick={(gridReservation) => {
-              // Convert grid reservation to manager reservation format
-              const managerReservation: Reservation = {
-                id: gridReservation.id,
-                name: gridReservation.customer_name,
-                email: gridReservation.email,
-                phone: gridReservation.phone,
-                date: gridReservation.date,
-                time: gridReservation.time,
-                guests: gridReservation.guests,
-                status: gridReservation.status as "pending" | "confirmed" | "cancelled",
-                message: gridReservation.special_requests,
-                table_assignments: gridReservation.tableAssignments?.map(ta => ({
-                  table_id: ta.table_id,
-                  table_name: ta.table_name
-                })),
-                created_at: new Date().toISOString(), // Fallback
-                duration_minutes: gridReservation.duration_minutes,
-                start_at: gridReservation.start_at,
-                end_at: gridReservation.end_at
-              };
-              setEditingReservation(managerReservation);
-              setEditDialogOpen(true);
-            }}
-            onNewReservation={() => setCreateDialogOpen(true)}
-          />
-        </TabsContent>
-
-        <TabsContent value="list" className="space-y-4">
+      {/* Lista de Reservas */}
+      <div className="space-y-4">
           {/* Filters */}
           <Card className="shadow-elegant">
             <CardHeader>
@@ -544,9 +533,8 @@ const ReservationsManager = () => {
                  ) : null}
               </div>
             </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+           </Card>
+        </div>
 
       <CreateReservationDialog
         open={createDialogOpen}
