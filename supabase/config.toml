@@ -1,1 +1,7 @@
 project_id = "ltnjdpteckpdodwuegfw"
+
+[functions.agent-availability]
+verify_jwt = false
+
+[functions.agent-create-reservation]
+verify_jwt = false
