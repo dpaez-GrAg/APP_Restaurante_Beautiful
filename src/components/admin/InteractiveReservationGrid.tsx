@@ -266,6 +266,27 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     );
   };
 
+  // Generate unique pastel color for each reservation
+  const getReservationColor = (reservationId: string) => {
+    // Generate a hash from the reservation ID
+    let hash = 0;
+    for (let i = 0; i < reservationId.length; i++) {
+      const char = reservationId.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    // Use the hash to generate consistent HSL values
+    const hue = Math.abs(hash) % 360;
+    const saturation = 40 + (Math.abs(hash) % 30); // 40-70% saturation for soft colors
+    const lightness = 85 + (Math.abs(hash) % 10); // 85-95% lightness for pastel tones
+    
+    return {
+      backgroundColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+      borderColor: `hsl(${hue}, ${saturation + 10}%, ${lightness - 15}%)`
+    };
+  };
+
   // Current time indicator
   const getCurrentTimePosition = () => {
     const now = new Date();
@@ -428,15 +449,18 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                       const leftPct = ((startMin - dayStart) / totalRange) * 100;
                       const widthPct = ((endMin - startMin) / totalRange) * 100;
 
-                      const statusClasses = reservation.status === 'confirmed'
-                        ? 'bg-green-100 border-green-300'
-                        : 'bg-yellow-100 border-yellow-300';
+                      const reservationColors = getReservationColor(reservation.id);
 
                       return (
                         <div
                           key={`res-${reservation.id}-${table.id}`}
-                          className={`absolute top-0 bottom-0 ${statusClasses} border rounded-sm cursor-pointer hover:shadow-md transition-shadow`}
-                          style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                          className="absolute top-0 bottom-0 border rounded-sm cursor-pointer hover:shadow-md transition-shadow"
+                          style={{ 
+                            left: `${leftPct}%`, 
+                            width: `${widthPct}%`,
+                            backgroundColor: reservationColors.backgroundColor,
+                            borderColor: reservationColors.borderColor
+                          }}
                           title={`${reservation.customer_name} • ${reservationTimeStr} • ${reservation.guests}p`}
                           onClick={() => onReservationClick?.(reservation)}
                         >
@@ -454,12 +478,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-            <span>Confirmada</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-100 border border-yellow-300 rounded"></div>
-            <span>Pendiente</span>
+            <div className="w-4 h-4 bg-gradient-to-r from-red-200 via-blue-200 to-green-200 border rounded"></div>
+            <span>Cada reserva tiene un color pastel único</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-gray-200 border border-gray-300 rounded"></div>
