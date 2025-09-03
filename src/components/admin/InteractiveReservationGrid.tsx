@@ -72,7 +72,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       headers.push({
         hour: `${hour.toString().padStart(2, '0')}h`,
         startSlotIndex: (hour - 12) * 4,
-        spanSlots: hour === 23 ? 2 : 4 // 23h solo hasta 23:30
+        spanSlots: hour === 23 ? 3 : 4 // 23h tiene 3 slots: 00, 15, 30
       });
     }
     return headers;
