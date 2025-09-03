@@ -275,11 +275,11 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
       </Card>;
   }
   return <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
           <div className="flex items-center gap-2">
-            Linea de tiempo
-            <Badge variant="secondary">
+            <span className="text-lg lg:text-xl font-semibold">Línea de tiempo</span>
+            <Badge variant="secondary" className="text-xs lg:text-sm">
               {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", {
               locale: es
             })}
@@ -287,15 +287,16 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </div>
           <Button onClick={onNewReservation} className="flex items-center gap-2" size="sm">
             <Plus className="w-4 h-4" />
-            Nueva Reserva
+            <span className="hidden sm:inline">Nueva Reserva</span>
+            <span className="sm:hidden">Nueva</span>
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-2 lg:p-4">
         <div className="w-full overflow-x-auto">
           {/* Header with hour markers only */}
           <div className="relative" style={{
-          minWidth: '800px'
+          minWidth: '600px'
         }}>
             {/* Mesa column header */}
             <div className="absolute top-0 left-0 w-[60px] h-[40px] bg-muted border flex items-center justify-center z-10">
@@ -324,22 +325,23 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
           {/* Table rows with perfect alignment */}
           <div style={{
-          minWidth: '800px'
+          minWidth: '600px'
         }} className="relative">
             
             {tables.map(table => <div key={table.id} className="relative">
                 {/* Table name column */}
-                <div className="absolute left-0 top-0 w-[60px] min-h-[50px] bg-muted text-sm font-medium flex items-center border-r border-b p-2">
+                <div className="absolute left-0 top-0 w-[60px] min-h-[40px] lg:min-h-[50px] bg-muted text-xs lg:text-sm font-medium flex items-center border-r border-b p-1 lg:p-2">
                   <div>
-                    <div className="font-semibold text-xs">{table.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {table.capacity}p
+                    <div className="font-semibold text-xs truncate">{table.name}</div>
+                    <div className="text-xs text-muted-foreground flex items-center justify-center gap-0.5">
+                      <Users className="w-2.5 h-2.5" />
+                      {table.capacity}
                     </div>
                   </div>
                 </div>
                 
                 {/* Time slots row (read-only, no overflow) */}
-                <div className="ml-[60px] relative min-h-[50px] border-b overflow-hidden">
+                <div className="ml-[60px] relative min-h-[40px] lg:min-h-[50px] border-b overflow-hidden">
                   {/* Background slots indicating open/closed hours (non-interactive) */}
                   <div className="absolute inset-0 pointer-events-none flex">
                     {timeSlots.map((timeSlot, idx) => {

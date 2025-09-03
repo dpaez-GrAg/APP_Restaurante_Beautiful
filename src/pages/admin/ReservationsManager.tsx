@@ -182,18 +182,18 @@ const ReservationsManager = () => {
     }
     return dateFilteredReservations.filter(r => r.status === status).length;
   };
-  return <div className="space-y-6">
+  return <div className="space-y-4 lg:space-y-6 p-4 lg:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-restaurant-brown">Gestión de Reservas</h1>
-          <p className="text-muted-foreground">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+        <div className="space-y-1">
+          <h1 className="text-2xl lg:text-3xl font-bold text-restaurant-brown">Gestión de Reservas</h1>
+          <p className="text-sm lg:text-base text-muted-foreground">
             Administra todas las reservas de tu restaurante
           </p>
         </div>
         
         {/* Date Navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start lg:self-auto">
           <Button variant="outline" size="sm" onClick={() => {
           const currentDate = new Date(dateFilter);
           currentDate.setDate(currentDate.getDate() - 1);
@@ -203,13 +203,15 @@ const ReservationsManager = () => {
           </Button>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("min-w-[140px] justify-center text-sm font-medium")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {new Date(dateFilter).toLocaleDateString('es-ES', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
-              })}
+              <Button variant="outline" className={cn("min-w-[120px] lg:min-w-[140px] justify-center text-xs lg:text-sm font-medium")}>
+                <CalendarIcon className="mr-1 lg:mr-2 h-3 lg:h-4 w-3 lg:w-4" />
+                <span className="truncate">
+                  {new Date(dateFilter).toLocaleDateString('es-ES', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short'
+                })}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="center">
@@ -231,51 +233,51 @@ const ReservationsManager = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <Card className="shadow-elegant">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 lg:pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
+                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Total</p>
+                <p className="text-xl lg:text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
               </div>
-              <Calendar className="w-8 h-8 text-restaurant-gold" />
+              <Calendar className="w-6 h-6 lg:w-8 lg:h-8 text-restaurant-gold" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 lg:pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
+                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Pendientes</p>
+                <p className="text-xl lg:text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
               </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
+              <Clock className="w-6 h-6 lg:w-8 lg:h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 lg:pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Confirmadas</p>
-                <p className="text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
+                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Confirmadas</p>
+                <p className="text-xl lg:text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
               </div>
-              <Check className="w-8 h-8 text-green-500" />
+              <Check className="w-6 h-6 lg:w-8 lg:h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="shadow-elegant">
-          <CardContent className="pt-6">
+          <CardContent className="pt-4 lg:pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Canceladas</p>
-                <p className="text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
+                <p className="text-xs lg:text-sm font-medium text-muted-foreground">Canceladas</p>
+                <p className="text-xl lg:text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
               </div>
-              <X className="w-8 h-8 text-red-500" />
+              <X className="w-6 h-6 lg:w-8 lg:h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -321,7 +323,7 @@ const ReservationsManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Buscar</label>
                   <div className="relative">
@@ -374,7 +376,7 @@ const ReservationsManager = () => {
                           {getStatusBadge(reservation.status)}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-4 h-4" />
                             <span>{reservation.date} • {reservation.time}</span>
