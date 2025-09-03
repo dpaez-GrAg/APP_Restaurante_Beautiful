@@ -203,7 +203,7 @@ const ReservationsManager = () => {
     }
     return dateFilteredReservations.filter(r => r.status === status).length;
   };
-  return <div className="space-y-6">
+  return <div className="space-y-6 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -416,15 +416,15 @@ const ReservationsManager = () => {
                         </div>
 
                         {/* Tercera línea: Email y Teléfono */}
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Mail className="w-4 h-4" />
-                            <span>{reservation.email}</span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
+                          <div className="flex items-center space-x-1 min-w-0">
+                            <Mail className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{reservation.email}</span>
                           </div>
                           {reservation.phone && (
-                            <div className="flex items-center space-x-1">
-                              <Phone className="w-4 h-4" />
-                              <span>{reservation.phone}</span>
+                            <div className="flex items-center space-x-1 min-w-0">
+                              <Phone className="w-4 h-4 flex-shrink-0" />
+                              <span className="truncate">{reservation.phone}</span>
                             </div>
                           )}
                         </div>
