@@ -30,6 +30,9 @@ interface Reservation {
   status: "pending" | "confirmed" | "cancelled";
   table_assignments?: Array<{ table_id: string; table_name?: string }>;
   created_at: string;
+  duration_minutes?: number;
+  start_at?: string;
+  end_at?: string;
 }
 
 const ReservationsManager = () => {
@@ -99,7 +102,10 @@ const ReservationsManager = () => {
           table_id: assignment.table_id,
           table_name: assignment.tables?.name
         })) || [],
-        created_at: reservation.created_at
+        created_at: reservation.created_at,
+        duration_minutes: reservation.duration_minutes,
+        start_at: reservation.start_at,
+        end_at: reservation.end_at
       })) || [];
 
       setReservations(formattedReservations);
@@ -343,7 +349,10 @@ const ReservationsManager = () => {
                   table_id: ta.table_id,
                   table_name: ta.table_name
                 })),
-                created_at: new Date().toISOString() // Fallback
+                created_at: new Date().toISOString(), // Fallback
+                duration_minutes: gridReservation.duration_minutes,
+                start_at: gridReservation.start_at,
+                end_at: gridReservation.end_at
               };
               setEditingReservation(managerReservation);
               setEditDialogOpen(true);
@@ -558,6 +567,9 @@ const ReservationsManager = () => {
           guests: editingReservation.guests,
           status: editingReservation.status,
           special_requests: editingReservation.message,
+          duration_minutes: editingReservation.duration_minutes,
+          start_at: editingReservation.start_at,
+          end_at: editingReservation.end_at,
           tableAssignments: editingReservation.table_assignments?.map(ta => ({
             table_id: ta.table_id,
             table_name: ta.table_name || ''
