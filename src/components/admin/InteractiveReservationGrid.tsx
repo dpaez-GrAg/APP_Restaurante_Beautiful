@@ -335,7 +335,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </div>
 
           {/* Table rows with perfect alignment */}
-          <div className="relative">
+          <div className="relative min-w-[350px] md:min-w-[800px]">
             {tables.map(table => (
               <div key={table.id} className="relative">
                 {/* Table name column */}
