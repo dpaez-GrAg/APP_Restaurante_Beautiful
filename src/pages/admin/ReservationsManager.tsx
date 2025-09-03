@@ -327,6 +327,27 @@ const ReservationsManager = () => {
           <InteractiveReservationGrid 
             selectedDate={dateFilter} 
             onRefresh={loadReservations}
+            onReservationClick={(gridReservation) => {
+              // Convert grid reservation to manager reservation format
+              const managerReservation: Reservation = {
+                id: gridReservation.id,
+                name: gridReservation.customer_name,
+                email: gridReservation.email,
+                phone: gridReservation.phone,
+                date: gridReservation.date,
+                time: gridReservation.time,
+                guests: gridReservation.guests,
+                status: gridReservation.status as "pending" | "confirmed" | "cancelled",
+                message: gridReservation.special_requests,
+                table_assignments: gridReservation.tableAssignments?.map(ta => ({
+                  table_id: ta.table_id,
+                  table_name: ta.table_name
+                })),
+                created_at: new Date().toISOString() // Fallback
+              };
+              setEditingReservation(managerReservation);
+              setEditDialogOpen(true);
+            }}
           />
         </TabsContent>
 

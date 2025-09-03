@@ -34,11 +34,13 @@ interface Table {
 interface InteractiveReservationGridProps {
   selectedDate: string;
   onRefresh: () => void;
+  onReservationClick?: (reservation: Reservation) => void;
 }
 
 const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   selectedDate,
-  onRefresh
+  onRefresh,
+  onReservationClick
 }) => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
@@ -417,9 +419,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                       return (
                         <div
                           key={`res-${reservation.id}-${table.id}`}
-                          className={`absolute top-0 bottom-0 ${statusClasses} border rounded-sm pointer-events-none`}
+                          className={`absolute top-0 bottom-0 ${statusClasses} border rounded-sm cursor-pointer hover:shadow-md transition-shadow`}
                           style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
                           title={`${reservation.customer_name} • ${reservationTimeStr} • ${reservation.guests}p`}
+                          onClick={() => onReservationClick?.(reservation)}
                         >
                           <ReservationBlock reservation={reservation} />
                         </div>
