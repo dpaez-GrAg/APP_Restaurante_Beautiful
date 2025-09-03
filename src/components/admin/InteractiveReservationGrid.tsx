@@ -78,16 +78,38 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     loadData();
   }, [selectedDate, refreshTrigger]);
   useEffect(() => {
-    // Subscribe to real-time updates
-    const reservationsChannel = supabase.channel('reservations-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservations'
-    }, loadData).on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'reservation_table_assignments'
-    }, loadData).subscribe();
+    // Subscribe to real-time updates with optimized channel management
+    const channelName = `reservations-${selectedDate}`;
+    const reservationsChannel = supabase
+      .channel(channelName)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservations'
+      }, (payload) => {
+        console.log('Reservation change detected:', payload);
+        loadData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'reservation_table_assignments'
+      }, (payload) => {
+        console.log('Table assignment change detected:', payload);
+        loadData();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'customers'
+      }, (payload) => {
+        console.log('Customer change detected:', payload);
+        loadData();
+      })
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
     return () => {
       supabase.removeChannel(reservationsChannel);
     };
