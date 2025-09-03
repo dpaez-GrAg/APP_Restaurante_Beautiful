@@ -36,6 +36,15 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Update form data when props change (for slot clicking)
+  React.useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      date: defaultDate || prev.date,
+      time: defaultTime || prev.time
+    }));
+  }, [defaultDate, defaultTime]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);

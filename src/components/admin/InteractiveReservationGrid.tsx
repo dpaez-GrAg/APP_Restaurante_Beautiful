@@ -17,6 +17,8 @@ import {
   useSensors,
   MouseSensor,
   TouchSensor,
+  useDraggable,
+  useDroppable,
 } from '@dnd-kit/core';
 import { CreateReservationDialog } from './CreateReservationDialog';
 import { EditReservationDialog } from './EditReservationDialog';
@@ -30,6 +32,7 @@ interface Reservation {
   status: string;
   start_at?: string;
   end_at?: string;
+  duration_minutes?: number;
   email: string;
   phone?: string;
   special_requests?: string;
@@ -168,6 +171,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         status: reservation.status,
         start_at: reservation.start_at,
         end_at: reservation.end_at,
+        duration_minutes: reservation.duration_minutes,
         special_requests: reservation.special_requests,
         tableAssignments: reservation.reservation_table_assignments?.map(assignment => ({
           table_id: assignment.table_id,
@@ -224,8 +228,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         const slotEndMinutes = slotStartMinutes + 15;
         
         // Default duration 90 minutes if not calculable from timestamps
-        let durationMinutes = 90;
-        if (reservation.start_at && reservation.end_at) {
+        let durationMinutes = reservation.duration_minutes || 90;
+        if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
           const start = new Date(reservation.start_at);
           const end = new Date(reservation.end_at);
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
@@ -253,9 +257,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     const reservationTimeStr = reservation.time.substring(0, 5); // "14:30"
     const [resHour, resMinute] = reservationTimeStr.split(':').map(Number);
     
-    // Calculate duration from reservation data (default 90 minutes if not specified)
-    let durationMinutes = 90;
-    if (reservation.start_at && reservation.end_at) {
+    // Calculate duration from reservation data (prefer duration_minutes, fallback to calculation)
+    let durationMinutes = reservation.duration_minutes || 90;
+    if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
       const start = new Date(reservation.start_at);
       const end = new Date(reservation.end_at);
       durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
@@ -314,7 +318,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         p_reservation_id: draggedReservation.id,
         p_new_date: selectedDate,
         p_new_time: targetTimeSlot,
-        p_duration_minutes: 90,
+        p_duration_minutes: draggedReservation.duration_minutes || 90,
         p_new_table_ids: [targetTableId]
       });
 
@@ -354,16 +358,84 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     }
   };
 
-  const ReservationBlock = ({ reservation }: { reservation: Reservation }) => (
-    <div className="text-center w-full px-0.5 cursor-pointer">
-      <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
-        {reservation.customer_name.split(' ')[0]}
+  const DraggableReservationBlock = ({ reservation }: { reservation: Reservation }) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+      id: reservation.id,
+    });
+
+    return (
+      <div 
+        ref={setNodeRef} 
+        {...listeners} 
+        {...attributes}
+        className={`text-center w-full px-0.5 cursor-grab active:cursor-grabbing ${
+          isDragging ? 'opacity-50' : ''
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setEditingReservation(reservation);
+          setEditDialogOpen(true);
+        }}
+      >
+        <div className="font-semibold text-foreground text-xs leading-tight mb-1 truncate" title={reservation.customer_name}>
+          {reservation.customer_name.split(' ')[0]}
+        </div>
+        <div className="text-xs font-medium">
+          {reservation.guests}p
+        </div>
       </div>
-      <div className="text-xs font-medium">
-        {reservation.guests}p
+    );
+  };
+
+  const DroppableCell = ({ 
+    children, 
+    cellId, 
+    className, 
+    onClick,
+    style 
+  }: { 
+    children: React.ReactNode; 
+    cellId: string; 
+    className: string; 
+    onClick?: () => void; 
+    style?: React.CSSProperties;
+  }) => {
+    const { isOver, setNodeRef } = useDroppable({
+      id: cellId,
+    });
+
+    return (
+      <div 
+        ref={setNodeRef}
+        onClick={onClick}
+        className={`${className} ${isOver ? 'bg-blue-200 border-blue-400' : ''}`}
+        style={style}
+      >
+        {children}
       </div>
-    </div>
-  );
+    );
+  };
+
+  // Current time indicator
+  const getCurrentTimePosition = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Only show if within restaurant hours (12:00 - 23:30)
+    if (currentHour < 12 || currentHour > 23 || (currentHour === 23 && currentMinute > 30)) {
+      return null;
+    }
+    
+    const totalMinutes = currentHour * 60 + currentMinute;
+    const startMinutes = 12 * 60; // 12:00
+    const endMinutes = 23 * 60 + 30; // 23:30
+    
+    const percentage = ((totalMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
+    return Math.max(0, Math.min(100, percentage));
+  };
+
+  const currentTimePosition = getCurrentTimePosition();
 
   if (isLoading) {
     return (
@@ -432,11 +504,34 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                       {header.hour}
                     </div>
                   ))}
+                  
+                  {/* Current time indicator */}
+                  {currentTimePosition !== null && (
+                    <div 
+                      className="absolute top-0 w-0.5 h-full bg-red-500 z-20"
+                      style={{
+                        left: `${currentTimePosition}%`,
+                      }}
+                    >
+                      <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Table rows with perfect alignment */}
-              <div style={{ minWidth: '800px' }}>
+              <div style={{ minWidth: '800px' }} className="relative">
+                {/* Current time line spanning all tables */}
+                {currentTimePosition !== null && (
+                  <div 
+                    className="absolute top-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                    style={{
+                      left: `${100 + (currentTimePosition * (100 - 100 / 100))}px`,
+                      height: `${tables.length * 50}px`,
+                    }}
+                  />
+                )}
+                
                 {tables.map(table => (
                   <div key={table.id} className="relative">
                     {/* Table name column */}
@@ -446,8 +541,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                         <div className="text-xs text-muted-foreground">
                           {table.capacity}p
                         </div>
-              </div>
-            </div>
+                      </div>
+                    </div>
                     
                     {/* Time slots grid for this table */}
                     <div 
@@ -466,9 +561,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                         const isPartOfReservation = reservationDetails !== null;
                         
                         return (
-                          <div 
+                          <DroppableCell
                             key={cellId}
-                            id={cellId}
+                            cellId={cellId}
                             onClick={() => !isPartOfReservation && handleCellClick(table.id, timeSlot)}
                             className={`border-b border-r min-h-[50px] relative ${
                               !isOpen 
@@ -480,54 +575,15 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                                   : 'bg-gray-50 hover:bg-blue-50 border-gray-200 cursor-pointer'
                             }`}
                             style={{
-                              cursor: isPartOfReservation ? 'pointer' : isOpen ? 'pointer' : 'not-allowed'
+                              gridColumn: shouldRenderReservation 
+                                ? `${reservationDetails.currentSlotIndex + 1} / span ${reservationDetails.durationSlots}`
+                                : undefined
                             }}
                           >
                             {shouldRenderReservation && (
-                              <div
-                                draggable
-                                onDragStart={(e) => {
-                                  e.dataTransfer.setData('text/plain', reservationDetails.reservation.id);
-                                  setDraggedReservation(reservationDetails.reservation);
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingReservation(reservationDetails.reservation);
-                                  setEditDialogOpen(true);
-                                }}
-                                className="absolute inset-0 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity z-10 text-xs font-medium"
-                                style={{
-                                  width: `${reservationDetails.durationSlots * 100}%`,
-                                  left: '0%',
-                                  backgroundColor: reservationDetails.reservation.status === 'confirmed' 
-                                    ? 'rgba(34, 197, 94, 0.2)' 
-                                    : 'rgba(251, 191, 36, 0.2)',
-                                  border: `2px solid ${reservationDetails.reservation.status === 'confirmed' 
-                                    ? 'rgb(34, 197, 94)' 
-                                    : 'rgb(251, 191, 36)'}`,
-                                  borderRadius: '4px',
-                                  minWidth: `${reservationDetails.durationSlots * 100}%`
-                                }}
-                              >
-                                <div className="text-center px-1">
-                                  <div className="font-semibold text-foreground leading-tight truncate" title={reservationDetails.reservation.customer_name}>
-                                    {reservationDetails.reservation.customer_name}
-                                  </div>
-                                  <div className="text-xs">
-                                    {reservationDetails.reservation.guests}p • {reservationDetails.reservation.time.substring(0, 5)}
-                                  </div>
-                                  {reservationDetails.reservation.tableAssignments && reservationDetails.reservation.tableAssignments.length > 0 && (
-                                    <div className="text-xs opacity-75">
-                                      {reservationDetails.reservation.tableAssignments.map(t => t.table_name).join(', ')}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                              <DraggableReservationBlock reservation={reservationDetails.reservation} />
                             )}
-                            {!isPartOfReservation && !isOpen && (
-                              <div className="text-xs text-gray-500 flex items-center justify-center h-full">✕</div>
-                            )}
-                          </div>
+                          </DroppableCell>
                         );
                       })}
                     </div>
@@ -564,7 +620,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         <DragOverlay>
           {draggedReservation ? (
             <div className="bg-white border border-primary rounded p-2 shadow-lg">
-              <ReservationBlock reservation={draggedReservation} />
+              <DraggableReservationBlock reservation={draggedReservation} />
             </div>
           ) : null}
         </DragOverlay>

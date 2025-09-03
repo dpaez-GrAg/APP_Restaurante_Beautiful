@@ -22,6 +22,9 @@ interface EditReservation {
   guests: number;
   status: string;
   special_requests?: string;
+  duration_minutes?: number;
+  start_at?: string;
+  end_at?: string;
   table_assignments?: Array<{ table: { id: string; name: string } }>;
   tableAssignments?: Array<{ table_id: string; table_name: string }>;
 }
@@ -52,13 +55,26 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
   useEffect(() => {
     if (reservation) {
+      // Get duration from reservation data if available
+      let duration = 90; // default
+      
+      // Try to get from database field first
+      if (reservation.duration_minutes) {
+        duration = reservation.duration_minutes;
+      } else if (reservation.start_at && reservation.end_at) {
+        // Calculate from timestamps as fallback
+        const start = new Date(reservation.start_at);
+        const end = new Date(reservation.end_at);
+        duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+      }
+      
       setFormData({
         date: reservation.date,
         time: reservation.time,
         guests: reservation.guests,
         special_requests: reservation.special_requests || '',
         status: reservation.status,
-        duration_minutes: 90
+        duration_minutes: duration
       });
     }
   }, [reservation]);
