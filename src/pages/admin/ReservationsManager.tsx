@@ -52,39 +52,18 @@ const ReservationsManager = () => {
   useEffect(() => {
     loadReservations();
 
-    // Set up realtime subscription for reservations list
-    const listChannel = supabase
-      .channel('reservations-list-updates')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'reservations'
-      }, (payload) => {
-        console.log('List: Reservation change detected:', payload);
-        loadReservations();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'reservation_table_assignments'
-      }, (payload) => {
-        console.log('List: Table assignment change detected:', payload);
-        loadReservations();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'customers'
-      }, (payload) => {
-        console.log('List: Customer change detected:', payload);
-        loadReservations();
-      })
-      .subscribe((status) => {
-        console.log('List realtime subscription status:', status);
-      });
-    
+    // Set up realtime subscription
+    const channel = supabase.channel('schema-db-changes').on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'reservations'
+    }, loadReservations).on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'reservation_table_assignments'
+    }, loadReservations).subscribe();
     return () => {
-      supabase.removeChannel(listChannel);
+      supabase.removeChannel(channel);
     };
   }, []);
   useEffect(() => {
@@ -201,14 +180,11 @@ const ReservationsManager = () => {
     if (status === "all") {
       return dateFilteredReservations.length;
     }
-    if (status === "guests") {
-      return dateFilteredReservations.reduce((total, r) => total + r.guests, 0);
-    }
     return dateFilteredReservations.filter(r => r.status === status).length;
   };
-  return <div className="space-y-6 overflow-x-hidden">
+  return <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-restaurant-brown">Gestión de Reservas</h1>
           <p className="text-muted-foreground">
@@ -255,7 +231,7 @@ const ReservationsManager = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="shadow-elegant">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -272,10 +248,10 @@ const ReservationsManager = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Comensales</p>
-                <p className="text-2xl font-bold text-blue-600">{getStatusCount("guests")}</p>
+                <p className="text-sm font-medium text-muted-foreground">Pendientes</p>
+                <p className="text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
               </div>
-              <Users className="w-8 h-8 text-blue-500" />
+              <Clock className="w-8 h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -284,7 +260,7 @@ const ReservationsManager = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Confirmadas</p>
+                <p className="text-sm font-medium text-muted-foreground">Reservas</p>
                 <p className="text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
               </div>
               <Check className="w-8 h-8 text-green-500" />
@@ -306,9 +282,8 @@ const ReservationsManager = () => {
       </div>
 
       {/* Timeline Grid */}
-      <div className="space-y-4 overflow-x-hidden">
-        <div className="w-full max-w-full overflow-x-auto overscroll-x-contain touch-pan-x">
-          <InteractiveReservationGrid selectedDate={dateFilter} onRefresh={loadReservations} refreshTrigger={gridRefreshKey} onReservationClick={gridReservation => {
+      <div className="space-y-4">
+        <InteractiveReservationGrid selectedDate={dateFilter} onRefresh={loadReservations} refreshTrigger={gridRefreshKey} onReservationClick={gridReservation => {
         // Convert grid reservation to manager reservation format
         const managerReservation: Reservation = {
           id: gridReservation.id,
@@ -333,7 +308,6 @@ const ReservationsManager = () => {
         setEditingReservation(managerReservation);
         setEditDialogOpen(true);
       }} onNewReservation={() => setCreateDialogOpen(true)} />
-        </div>
       </div>
 
       {/* Lista de Reservas */}
@@ -392,24 +366,15 @@ const ReservationsManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                 {filteredReservations.map(reservation => <div key={reservation.id} className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between space-y-3 lg:space-y-0">
-                      <div className="space-y-2 flex-1">
-                        {/* Primera línea: Nombre, Mesa y Estado */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
-                            {reservation.table_assignments && reservation.table_assignments.length > 0 && (
-                              <span className="text-sm text-muted-foreground bg-restaurant-cream/30 px-2 py-1 rounded">
-                                Mesa: {reservation.table_assignments.map(ta => ta.table_name).join(', ')}
-                              </span>
-                            )}
-                          </div>
+                {filteredReservations.map(reservation => <div key={reservation.id} className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
                           {getStatusBadge(reservation.status)}
                         </div>
                         
-                        {/* Segunda línea: Fecha, Hora y Personas */}
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-4 h-4" />
                             <span>{reservation.date} • {reservation.time}</span>
@@ -418,23 +383,22 @@ const ReservationsManager = () => {
                             <Users className="w-4 h-4" />
                             <span>{reservation.guests} personas</span>
                           </div>
-                        </div>
-
-                        {/* Tercera línea: Email y Teléfono */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1 min-w-0">
-                            <Mail className="w-4 h-4 flex-shrink-0" />
-                            <span className="truncate">{reservation.email}</span>
+                          <div className="flex items-center space-x-1">
+                            <Mail className="w-4 h-4" />
+                            <span>{reservation.email}</span>
                           </div>
-                          {reservation.phone && (
-                            <div className="flex items-center space-x-1 min-w-0">
-                              <Phone className="w-4 h-4 flex-shrink-0" />
-                              <span className="truncate">{reservation.phone}</span>
-                            </div>
-                          )}
                         </div>
 
-                         {reservation.message && <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded mt-2">
+                        {reservation.phone && <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                            <Phone className="w-4 h-4" />
+                            <span>{reservation.phone}</span>
+                          </div>}
+
+                         {reservation.table_assignments && reservation.table_assignments.length > 0 && <div className="text-sm text-muted-foreground">
+                             <strong>Mesas asignadas:</strong> {reservation.table_assignments.map(ta => ta.table_name).join(', ')}
+                           </div>}
+
+                         {reservation.message && <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded">
                              <strong>Mensaje:</strong> {reservation.message}
                            </div>}
                       </div>
