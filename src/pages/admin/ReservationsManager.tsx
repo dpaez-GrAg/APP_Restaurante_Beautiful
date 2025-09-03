@@ -387,15 +387,24 @@ const ReservationsManager = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {filteredReservations.map(reservation => <div key={reservation.id} className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
+                 {filteredReservations.map(reservation => <div key={reservation.id} className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between space-y-3 lg:space-y-0">
+                      <div className="space-y-2 flex-1">
+                        {/* Primera línea: Nombre, Mesa y Estado */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
+                            {reservation.table_assignments && reservation.table_assignments.length > 0 && (
+                              <span className="text-sm text-muted-foreground bg-restaurant-cream/30 px-2 py-1 rounded">
+                                Mesa: {reservation.table_assignments.map(ta => ta.table_name).join(', ')}
+                              </span>
+                            )}
+                          </div>
                           {getStatusBadge(reservation.status)}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                        {/* Segunda línea: Fecha, Hora y Personas */}
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Calendar className="w-4 h-4" />
                             <span>{reservation.date} • {reservation.time}</span>
@@ -404,22 +413,23 @@ const ReservationsManager = () => {
                             <Users className="w-4 h-4" />
                             <span>{reservation.guests} personas</span>
                           </div>
+                        </div>
+
+                        {/* Tercera línea: Email y Teléfono */}
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Mail className="w-4 h-4" />
                             <span>{reservation.email}</span>
                           </div>
+                          {reservation.phone && (
+                            <div className="flex items-center space-x-1">
+                              <Phone className="w-4 h-4" />
+                              <span>{reservation.phone}</span>
+                            </div>
+                          )}
                         </div>
 
-                        {reservation.phone && <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                            <Phone className="w-4 h-4" />
-                            <span>{reservation.phone}</span>
-                          </div>}
-
-                         {reservation.table_assignments && reservation.table_assignments.length > 0 && <div className="text-sm text-muted-foreground">
-                             <strong>Mesas asignadas:</strong> {reservation.table_assignments.map(ta => ta.table_name).join(', ')}
-                           </div>}
-
-                         {reservation.message && <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded">
+                         {reservation.message && <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded mt-2">
                              <strong>Mensaje:</strong> {reservation.message}
                            </div>}
                       </div>
