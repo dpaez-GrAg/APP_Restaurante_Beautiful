@@ -545,7 +545,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                       {timeSlots.map(timeSlot => {
                         const reservationDetails = getReservationDetails(table.id, timeSlot);
                         const isOpen = isRestaurantOpen(timeSlot);
-                        const cellId = `${table.id}-${timeSlot}`;
+                        const cellId = `${table.id}__${timeSlot}`;
                         
                         // Only render content for the first slot of each reservation
                         const shouldRenderReservation = reservationDetails?.isFirstSlot;
