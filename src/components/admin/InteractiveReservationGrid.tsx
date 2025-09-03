@@ -309,8 +309,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   }
   return <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <CardTitle className="space-y-2">
+          {/* Primera línea: Título y fecha */}
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               Linea de tiempo
               <Badge variant="secondary" className="hidden sm:inline-flex">
@@ -324,33 +325,36 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
               })}
               </Badge>
             </div>
-            {/* Mobile period navigation */}
-            <div className="md:hidden flex items-center gap-1 ml-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPeriod('morning')}
-                className={`p-1 ${currentPeriod === 'morning' ? 'bg-primary text-primary-foreground' : ''}`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-xs px-2">
-                {currentPeriod === 'morning' ? '12-18h' : '18-23h'}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setCurrentPeriod('evening')}
-                className={`p-1 ${currentPeriod === 'evening' ? 'bg-primary text-primary-foreground' : ''}`}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+            {/* Botón nueva reserva - siempre visible */}
+            <Button onClick={onNewReservation} className="flex items-center gap-2" size="sm">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nueva Reserva</span>
+              <span className="sm:hidden">+</span>
+            </Button>
           </div>
-          <Button onClick={onNewReservation} className="flex items-center gap-2" size="sm">
-            <Plus className="w-4 h-4" />
-            Nueva Reserva
-          </Button>
+          
+          {/* Segunda línea: Navegación móvil */}
+          <div className="md:hidden flex items-center justify-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentPeriod('morning')}
+              className={`p-1 ${currentPeriod === 'morning' ? 'bg-primary text-primary-foreground' : ''}`}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-xs px-2">
+              {currentPeriod === 'morning' ? '12-18h' : '18-23h'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentPeriod('evening')}
+              className={`p-1 ${currentPeriod === 'evening' ? 'bg-primary text-primary-foreground' : ''}`}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4">
