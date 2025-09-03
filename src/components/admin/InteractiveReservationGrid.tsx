@@ -406,18 +406,11 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                   <div className="absolute inset-0 pointer-events-none flex">
                     {timeSlots.map((timeSlot, idx) => {
                   const isOpen = isRestaurantOpen(timeSlot);
-                  // Calculate slot width as 1/4 of each hour column (4 slots per hour)
-                  const hourIndex = Math.floor(idx / 4);
-                  const slotInHour = idx % 4;
-                  const totalHours = Math.ceil(timeSlots.length / 4);
-                  const hourWidth = 100 / totalHours;
-                  const slotWidth = hourWidth / 4;
-                  const leftPosition = (hourIndex * hourWidth) + (slotInHour * slotWidth);
+                  // Use the same calculation as headers: each slot is 1/timeSlots.length of total width
+                  const slotWidth = 100 / timeSlots.length;
                   
-                  return <div key={`${table.id}-bg-${timeSlot}`} className={`${!isOpen ? 'bg-gray-200 border-gray-300' : 'bg-gray-50 border-gray-200'} border-r absolute`} style={{
-                    width: `${slotWidth}%`,
-                    left: `${leftPosition}%`,
-                    height: '100%'
+                  return <div key={`${table.id}-bg-${timeSlot}`} className={`${!isOpen ? 'bg-gray-200 border-gray-300' : 'bg-gray-50 border-gray-200'} border-r`} style={{
+                    width: `${slotWidth}%`
                   }} />;
                 })}
                   </div>
