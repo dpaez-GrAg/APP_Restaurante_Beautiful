@@ -27,17 +27,14 @@ const RestaurantSettings = () => {
     setIsSaving(true);
     
     try {
-      // TODO: Replace with actual Supabase update call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update context with new config
-      updateContextConfig(config);
+      await updateContextConfig(config);
       
       toast({
         title: "Configuración guardada",
         description: "Los cambios se han aplicado correctamente",
       });
     } catch (error) {
+      console.error("Error saving config:", error);
       toast({
         title: "Error",
         description: "No se pudieron guardar los cambios",

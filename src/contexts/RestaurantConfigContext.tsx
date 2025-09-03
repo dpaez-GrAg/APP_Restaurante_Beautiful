@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface RestaurantConfig {
   id: string;
@@ -38,21 +39,43 @@ export const RestaurantConfigProvider = ({ children }: RestaurantConfigProviderP
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        // TODO: Replace with actual Supabase fetch
-        const mockConfig: RestaurantConfig = {
-          id: "1",
-          restaurant_name: "Restaurante Élite",
-          hero_title: "Bienvenido a una experiencia gastronómica única",
-          hero_subtitle: "Disfruta de los mejores sabores en un ambiente elegante y sofisticado",
-          hero_image_url: "src/assets/restaurant-hero.jpg",
-          contact_phone: "+34 123 456 789",
-          contact_email: "info@restaurante-elite.com",
-          contact_address: "Calle Principal 123, Madrid"
-        };
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setConfig(mockConfig);
+        const { data, error } = await supabase
+          .from('restaurant_config')
+          .select('*')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error loading restaurant config:", error);
+          return;
+        }
+
+        if (data) {
+          setConfig(data);
+        } else {
+          // Si no hay configuración, crear una por defecto
+          const defaultConfig = {
+            restaurant_name: "Mi Restaurante",
+            hero_title: "Bienvenido a una experiencia gastronómica única",
+            hero_subtitle: "Disfruta de los mejores sabores en un ambiente elegante y sofisticado",
+            hero_image_url: "src/assets/restaurant-hero.jpg",
+            contact_phone: "+34 123 456 789",
+            contact_email: "info@mi-restaurante.com",
+            contact_address: "Calle Principal 123, Madrid"
+          };
+          
+          const { data: newConfig, error: insertError } = await supabase
+            .from('restaurant_config')
+            .insert(defaultConfig)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("Error creating default config:", insertError);
+          } else {
+            setConfig(newConfig);
+          }
+        }
       } catch (error) {
         console.error("Error loading restaurant config:", error);
       } finally {
@@ -63,9 +86,23 @@ export const RestaurantConfigProvider = ({ children }: RestaurantConfigProviderP
     loadConfig();
   }, []);
 
-  const updateConfig = (newConfig: RestaurantConfig) => {
-    setConfig(newConfig);
-    // TODO: Update in Supabase
+  const updateConfig = async (newConfig: RestaurantConfig) => {
+    try {
+      const { error } = await supabase
+        .from('restaurant_config')
+        .update(newConfig)
+        .eq('id', newConfig.id);
+
+      if (error) {
+        console.error("Error updating restaurant config:", error);
+        throw error;
+      }
+
+      setConfig(newConfig);
+    } catch (error) {
+      console.error("Error updating restaurant config:", error);
+      throw error;
+    }
   };
 
   return (
