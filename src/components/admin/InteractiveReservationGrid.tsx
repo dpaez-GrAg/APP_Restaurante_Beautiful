@@ -571,8 +571,10 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                                 : undefined
                             }}
                           >
-                            {shouldRenderReservation && (
+                            {shouldRenderReservation ? (
                               <DraggableReservationBlock reservation={reservationDetails.reservation} />
+                            ) : (
+                              <div />
                             )}
                           </DroppableCell>
                         );
