@@ -313,8 +313,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           </Button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
-        <div className="w-full overflow-x-auto">
+      <CardContent className="p-4 overflow-x-auto">
           {/* Header with hour markers only */}
           <div className="relative" style={{
           minWidth: '800px'
@@ -415,7 +414,6 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
                 </div>
               </div>)}
           </div>
-        </div>
         
         {/* Legend */}
         
