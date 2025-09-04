@@ -67,60 +67,60 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
 
       {/* Progress Steps */}
       <div className="flex items-center justify-center py-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Date Step */}
           <div 
-            className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm font-medium ${
+            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
               currentStep === 'date' || isCompleted('date') 
                 ? 'bg-primary text-white' 
                 : 'bg-gray-100 text-gray-500'
             } ${canGoBackTo('date') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
             onClick={() => canGoBackTo('date') && onStepClick?.('date')}
           >
-            <Calendar size={16} />
-            <span>
+            <Calendar size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">
               {isCompleted('date') ? formatDate(selectedDate!) : getStepLabel('date')}
             </span>
           </div>
 
           {/* Guests Step */}
           <div 
-            className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm font-medium ${
+            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
               currentStep === 'guests' || isCompleted('guests')
                 ? 'bg-primary text-white' 
                 : 'bg-gray-100 text-gray-500'
             } ${canGoBackTo('guests') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
             onClick={() => canGoBackTo('guests') && onStepClick?.('guests')}
           >
-            <Users size={16} />
-            <span>
+            <Users size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">
               {isCompleted('guests') ? selectedGuests : getStepLabel('guests')}
             </span>
           </div>
 
           {/* Time Step */}
           <div 
-            className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm font-medium ${
+            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
               currentStep === 'time' || isCompleted('time')
                 ? 'bg-primary text-white' 
                 : 'bg-gray-100 text-gray-500'
             } ${canGoBackTo('time') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
             onClick={() => canGoBackTo('time') && onStepClick?.('time')}
           >
-            <Clock size={16} />
-            <span>
+            <Clock size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">
               {isCompleted('time') ? formatTime(selectedTime!) : getStepLabel('time')}
             </span>
           </div>
 
           {/* Info Step */}
-          <div className={`flex items-center space-x-2 px-3 py-2 rounded-full text-sm font-medium ${
+          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
             currentStep === 'info' || currentStep === 'confirmation'
               ? 'bg-primary text-white' 
               : 'bg-gray-100 text-gray-500'
           }`}>
-            {currentStep === 'confirmation' ? <Check size={16} /> : <User size={16} />}
-            <span>{currentStep === 'confirmation' ? 'Confirmado' : getStepLabel('info')}</span>
+            {currentStep === 'confirmation' ? <Check size={14} className="sm:w-4 sm:h-4" /> : <User size={14} className="sm:w-4 sm:h-4" />}
+            <span className="hidden sm:inline">{currentStep === 'confirmation' ? 'Confirmado' : getStepLabel('info')}</span>
           </div>
         </div>
       </div>
