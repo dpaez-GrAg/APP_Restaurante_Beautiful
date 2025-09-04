@@ -58,9 +58,9 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
     <div className="bg-white rounded-lg shadow-sm mb-6">
       {/* Restaurant Logo/Name */}
       <div className="flex items-center justify-center py-6 border-b">
-        <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center">
-          <span className="text-white font-bold text-sm">
-            {config?.restaurant_name?.slice(0, 2).toUpperCase() || 'RE'}
+        <div className="flex items-center justify-center">
+          <span className="text-primary font-bold text-lg">
+            RESERVAS {config?.restaurant_name?.toUpperCase() || 'RESTAURANTE ÉLITE'}
           </span>
         </div>
       </div>
