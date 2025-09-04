@@ -20,7 +20,7 @@ const HeroSection = () => {
       <div className="relative z-10 text-center text-white px-4 max-w-4xl mx-auto animate-fade-in">
         <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
           {config?.hero_title || "Reserva tu Mesa"}
-          <span className="block text-restaurant-gold">Perfecta</span>
+
         </h1>
         <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto leading-relaxed">
           {config?.hero_subtitle || "Vive una experiencia gastronómica única en nuestro restaurante. Reserva ahora y disfruta de sabores excepcionales."}
