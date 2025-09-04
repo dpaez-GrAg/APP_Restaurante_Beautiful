@@ -1,73 +1,172 @@
-# Welcome to your Lovable project
+# Sistema de Reservas para Restaurantes
 
-## Project info
+Un sistema completo de gestión de reservas para restaurantes desarrollado con React, TypeScript y Supabase.
 
-**URL**: https://lovable.dev/projects/42d83d89-e7e9-4134-9050-036d91e2deea
+## 🚀 Características Principales
 
-## How can I edit this code?
+### Para Clientes
+- **Reservas Online**: Proceso de reserva en 4 pasos intuitivos
+- **Selección de Fecha y Hora**: Calendario interactivo con disponibilidad en tiempo real
+- **Gestión de Comensales**: Selección del número de personas
+- **Información Personal**: Formulario de contacto con validación
+- **Confirmación Instantánea**: Confirmación inmediata de la reserva
 
-There are several ways of editing your application.
+### Para Administradores
+- **Panel de Administración**: Dashboard completo para gestionar el restaurante
+- **Gestión de Reservas**: Crear, editar y eliminar reservas
+- **Configuración de Mesas**: Gestión del layout y capacidad del restaurante
+- **Horarios y Disponibilidad**: Configuración de horarios de apertura
+- **Combinaciones de Mesa**: Optimización automática de asignación de mesas
 
-**Use Lovable**
+## 🛠️ Tecnologías Utilizadas
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/42d83d89-e7e9-4134-9050-036d91e2deea) and start prompting.
+- **Frontend**: React 18 con TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Backend**: Supabase (Base de datos, Autenticación, Edge Functions)
+- **Routing**: React Router DOM
+- **Forms**: React Hook Form con Zod validation
+- **UI Components**: Radix UI primitives
+- **Build Tool**: Vite
+- **Estado**: TanStack Query para gestión de datos
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📁 Estructura del Proyecto
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```
+src/
+├── components/          # Componentes reutilizables
+│   ├── ui/             # Componentes base (shadcn/ui)
+│   ├── admin/          # Componentes del panel de administración
+│   └── reservation/    # Componentes del proceso de reserva
+├── pages/              # Páginas principales
+│   ├── admin/          # Páginas del panel de administración
+│   └── Index.tsx       # Página principal
+├── contexts/           # Contextos de React (Auth, Config)
+├── hooks/              # Hooks personalizados
+├── lib/                # Utilidades y configuración
+└── integrations/       # Configuración de Supabase
 ```
 
-**Edit a file directly in GitHub**
+## 🚀 Instalación y Configuración
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Requisitos Previos
+- Node.js (versión 18 o superior)
+- npm o yarn
+- Cuenta de Supabase
 
-**Use GitHub Codespaces**
+### Instalación
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Clonar el repositorio**
+   ```bash
+   git clone <URL_DEL_REPOSITORIO>
+   cd sistema-reservas-restaurante
+   ```
 
-## What technologies are used for this project?
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
 
-This project is built with:
+3. **Configurar variables de entorno**
+   
+   Crear un archivo `.env` en la raíz del proyecto:
+   ```env
+   VITE_SUPABASE_URL=tu_url_de_supabase
+   VITE_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
+   ```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+4. **Configurar la base de datos**
+   
+   Ejecutar las migraciones de Supabase incluidas en el directorio `supabase/migrations/`
 
-## How can I deploy this project?
+5. **Iniciar el servidor de desarrollo**
+   ```bash
+   npm run dev
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/42d83d89-e7e9-4134-9050-036d91e2deea) and click on Share -> Publish.
+## 🗄️ Base de Datos
 
-## Can I connect a custom domain to my Lovable project?
+### Tablas Principales
 
-Yes, you can!
+- **restaurants**: Configuración del restaurante
+- **tables**: Mesas y su capacidad
+- **schedules**: Horarios de apertura
+- **reservations**: Reservas de clientes
+- **customers**: Información de clientes
+- **table_combinations**: Combinaciones de mesas para grupos grandes
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Edge Functions
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- **agent-availability**: Verificación de disponibilidad
+- **agent-create-reservation**: Creación de reservas con asignación automática
+
+## 👥 Roles y Permisos
+
+### Cliente
+- Crear reservas
+- Ver confirmación de reserva
+
+### Administrador
+- Acceso completo al panel de administración
+- Gestión de todas las reservas
+- Configuración del restaurante
+- Gestión de mesas y horarios
+
+## 🔒 Seguridad
+
+- **Row Level Security (RLS)** habilitado en todas las tablas
+- **Autenticación** mediante Supabase Auth
+- **Validación** de datos en frontend y backend
+- **Sanitización** de inputs del usuario
+
+## 📱 Responsive Design
+
+El sistema está completamente optimizado para:
+- 📱 Dispositivos móviles
+- 💻 Tablets
+- 🖥️ Escritorio
+
+## 🚀 Despliegue
+
+### Usando Lovable
+1. Abrir el proyecto en [Lovable](https://lovable.dev)
+2. Hacer clic en "Share" → "Publish"
+
+### Despliegue Manual
+1. **Build del proyecto**
+   ```bash
+   npm run build
+   ```
+
+2. **Desplegar en tu plataforma preferida**
+   - Vercel
+   - Netlify
+   - Supabase Hosting
+
+## 🤝 Contribución
+
+1. Fork el repositorio
+2. Crear una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit tus cambios (`git commit -m 'Agregar nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Abrir un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 🆘 Soporte
+
+Para soporte técnico o preguntas sobre el proyecto:
+
+1. Revisar la [documentación de Lovable](https://docs.lovable.dev/)
+2. Unirse a la [comunidad de Discord](https://discord.com/channels/1119885301872070706/1280461670979993613)
+3. Crear un issue en este repositorio
+
+## 🔄 Actualizaciones
+
+Este proyecto se mantiene activamente. Para obtener las últimas actualizaciones:
+
+```bash
+git pull origin main
+npm install
+```
