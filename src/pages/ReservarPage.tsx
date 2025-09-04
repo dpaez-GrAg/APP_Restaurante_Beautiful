@@ -1,20 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import DateStep from "./reservation/DateStep";
-import GuestsStep from "./reservation/GuestsStep";
-import TimeStep from "./reservation/TimeStep";
-import InfoStep from "./reservation/InfoStep";
-import ConfirmationStep from "./reservation/ConfirmationStep";
-import { format } from "date-fns";
-
-interface ReservationData {
-  date: Date;
-  time: string;
-  guests: number;
-}
+import { supabase } from "@/integrations/supabase/client";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import DateStep from "@/components/reservation/DateStep";
+import GuestsStep from "@/components/reservation/GuestsStep";
+import TimeStep from "@/components/reservation/TimeStep";
+import InfoStep from "@/components/reservation/InfoStep";
+import ConfirmationStep from "@/components/reservation/ConfirmationStep";
+import { ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface CustomerData {
   firstName: string;
@@ -24,18 +19,15 @@ interface CustomerData {
   comments: string;
 }
 
-const ReservationForm = () => {
-  const [currentStep, setCurrentStep] = useState<'initial' | 'date' | 'guests' | 'time' | 'info' | 'confirmation'>('initial');
+const ReservarPage = () => {
+  const [currentStep, setCurrentStep] = useState<'date' | 'guests' | 'time' | 'info' | 'confirmation'>('date');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedGuests, setSelectedGuests] = useState<number>(0);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
   const { toast } = useToast();
-
-  const handleStartReservation = () => {
-    setCurrentStep('date');
-  };
+  const { config } = useRestaurantConfig();
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
@@ -54,7 +46,6 @@ const ReservationForm = () => {
 
   const handleInfoComplete = (data: CustomerData) => {
     setCustomerData(data);
-    // Here we'd make the reservation
     createReservation(data);
   };
 
@@ -142,15 +133,6 @@ const ReservationForm = () => {
     }
   };
 
-  const handleBackToInitial = () => {
-    setCurrentStep('initial');
-    setSelectedDate(null);
-    setSelectedGuests(0);
-    setSelectedTime('');
-    setCustomerData(null);
-    setConfirmedReservation(null);
-  };
-
   const handleBack = () => {
     switch (currentStep) {
       case 'guests':
@@ -163,7 +145,7 @@ const ReservationForm = () => {
         setCurrentStep('time');
         break;
       default:
-        setCurrentStep('initial');
+        setCurrentStep('date');
     }
   };
 
@@ -177,76 +159,86 @@ const ReservationForm = () => {
     }
   };
 
+  const handleBackToStart = () => {
+    setCurrentStep('date');
+    setSelectedDate(null);
+    setSelectedGuests(0);
+    setSelectedTime('');
+    setCustomerData(null);
+    setConfirmedReservation(null);
+  };
+
   return (
-    <section id="reservation" className="py-20 bg-gradient-subtle">
-      <div className="container mx-auto px-4">
-        {currentStep === 'initial' && (
-          <>
-            <div className="text-center mb-12 animate-fade-in">
-              <h2 className="text-4xl font-bold text-restaurant-brown mb-4">
-                Reserva tu Mesa
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Completa el formulario y asegura tu lugar en una experiencia culinaria inolvidable
-              </p>
-            </div>
+    <div className="min-h-screen bg-gradient-subtle">
+      {/* Header */}
+      <header className="py-6 border-b border-border bg-background/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver al inicio</span>
+          </Link>
+          <h1 className="text-2xl font-bold text-primary">
+            {config?.restaurant_name || "Restaurante Élite"}
+          </h1>
+        </div>
+      </header>
 
-            <div className="max-w-2xl mx-auto text-center animate-slide-up">
-              <Button 
-                onClick={handleStartReservation}
-                data-start-reservation
-                className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-lg text-lg font-medium transition-colors shadow-elegant"
-                size="lg"
-              >
-                Comenzar Reserva
-              </Button>
-            </div>
-          </>
-        )}
+      {/* Main Content */}
+      <main className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-restaurant-brown mb-4">
+              Reserva tu Mesa
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Completa el formulario y asegura tu lugar en una experiencia culinaria inolvidable
+            </p>
+          </div>
 
-        {currentStep === 'date' && (
-          <DateStep onNext={handleDateSelect} onBack={handleBackToInitial} />
-        )}
+          {currentStep === 'date' && (
+            <DateStep onNext={handleDateSelect} onBack={() => window.history.back()} />
+          )}
 
-        {currentStep === 'guests' && (
-          <GuestsStep 
-            onNext={handleGuestsSelect} 
-            onBack={handleBack}
-            onStepClick={handleStepClick}
-            selectedDate={selectedDate || undefined}
-          />
-        )}
+          {currentStep === 'guests' && (
+            <GuestsStep 
+              onNext={handleGuestsSelect} 
+              onBack={handleBack}
+              onStepClick={handleStepClick}
+              selectedDate={selectedDate || undefined}
+            />
+          )}
 
-        {currentStep === 'time' && (
-          <TimeStep 
-            date={selectedDate!} 
-            guests={selectedGuests} 
-            onNext={handleTimeSelect} 
-            onBack={handleBack}
-            onStepClick={handleStepClick}
-          />
-        )}
+          {currentStep === 'time' && (
+            <TimeStep 
+              date={selectedDate!} 
+              guests={selectedGuests} 
+              onNext={handleTimeSelect} 
+              onBack={handleBack}
+              onStepClick={handleStepClick}
+            />
+          )}
 
-        {currentStep === 'info' && (
-          <InfoStep 
-            onNext={handleInfoComplete} 
-            onBack={handleBack}
-            selectedDate={selectedDate}
-            selectedGuests={selectedGuests}
-            selectedTime={selectedTime}
-            onStepClick={handleStepClick}
-          />
-        )}
+          {currentStep === 'info' && (
+            <InfoStep 
+              onNext={handleInfoComplete} 
+              onBack={handleBack}
+              selectedDate={selectedDate}
+              selectedGuests={selectedGuests}
+              selectedTime={selectedTime}
+              onStepClick={handleStepClick}
+            />
+          )}
 
-        {currentStep === 'confirmation' && confirmedReservation && (
-          <ConfirmationStep 
-            reservation={confirmedReservation}
-            onBack={handleBackToInitial}
-          />
-        )}
-      </div>
-    </section>
+          {currentStep === 'confirmation' && confirmedReservation && (
+            <ConfirmationStep 
+              reservation={confirmedReservation}
+              onBack={handleBackToStart}
+            />
+          )}
+        </div>
+      </main>
+    </div>
   );
 };
 
-export default ReservationForm;
+export default ReservarPage;

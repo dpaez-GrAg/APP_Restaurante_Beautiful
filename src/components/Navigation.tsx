@@ -23,7 +23,7 @@ const Navigation = () => {
 
   const navItems = [
     { label: "Inicio", href: "#hero" },
-    { label: "Reservar", href: "#reservation" },
+    { label: "Reservar", href: "/reservar" },
     { label: "Sobre Nosotros", href: "#about" },
     { label: "Contacto", href: "#contact" },
     { label: "Admin", href: "/admin/auth" }
@@ -54,7 +54,7 @@ const Navigation = () => {
             ))}
             <Button 
               variant="elegant"
-              onClick={() => scrollToSection('reservation')}
+              onClick={() => scrollToSection('/reservar')}
             >
               Reservar Mesa
             </Button>
@@ -90,7 +90,7 @@ const Navigation = () => {
               <div className="pt-2">
                 <Button 
                   variant="elegant"
-                  onClick={() => scrollToSection('reservation')}
+                  onClick={() => scrollToSection('/reservar')}
                   className="w-full"
                 >
                   Reservar Mesa

@@ -17,6 +17,7 @@ import CombinationsManager from "./pages/admin/CombinationsManager";
 import ScheduleManager from "./pages/admin/ScheduleManager";
 import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
+import ReservarPage from "./pages/ReservarPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ function App() {
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/reservar" element={<ReservarPage />} />
                 <Route path="/admin/auth" element={<AdminAuth />} />
                 
                 {/* Admin Routes */}

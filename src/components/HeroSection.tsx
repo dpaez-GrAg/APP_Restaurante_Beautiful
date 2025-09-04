@@ -7,12 +7,12 @@ const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <img 
-          src={config?.hero_image_url || heroImage} 
-          alt="Elegant restaurant interior with warm lighting and sophisticated dining atmosphere"
-          className="w-full h-full object-cover"
-        />
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${config?.hero_image_url || heroImage})`
+        }}
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-restaurant-brown/80 via-restaurant-brown/50 to-transparent"></div>
       </div>
       
@@ -30,8 +30,18 @@ const HeroSection = () => {
           size="lg"
           className="animate-slide-up"
           onClick={() => {
+            // Trigger the start of reservation directly
             const reservationSection = document.getElementById('reservation');
-            reservationSection?.scrollIntoView({ behavior: 'smooth' });
+            if (reservationSection) {
+              reservationSection.scrollIntoView({ behavior: 'smooth' });
+              // Wait for scroll then trigger the start button
+              setTimeout(() => {
+                const startButton = document.querySelector('[data-start-reservation]') as HTMLButtonElement;
+                if (startButton) {
+                  startButton.click();
+                }
+              }, 500);
+            }
           }}
         >
           Hacer Reserva
