@@ -28,91 +28,6 @@ const RestaurantInfo = () => {
     return days[dayOfWeek];
   };
 
-  const formatTime = (time: string) => {
-    return time.substring(0, 5); // Convert HH:MM:SS to HH:MM
-  };
-
-  const groupSchedulesByTime = () => {
-    // Ordenar por día de la semana empezando en lunes (1)
-    const sortedSchedules = schedules.sort((a, b) => {
-      const dayA = a.day_of_week === 0 ? 7 : a.day_of_week; // Domingo al final
-      const dayB = b.day_of_week === 0 ? 7 : b.day_of_week;
-      if (dayA !== dayB) return dayA - dayB;
-      // Si es el mismo día, ordenar por hora de apertura
-      return a.opening_time.localeCompare(b.opening_time);
-    });
-
-    // Agrupar horarios por día
-    const dayGroups: { [key: number]: string[] } = {};
-    sortedSchedules.forEach(schedule => {
-      const day = schedule.day_of_week;
-      const timeRange = `${formatTime(schedule.opening_time)} - ${formatTime(schedule.closing_time)}`;
-      
-      if (!dayGroups[day]) {
-        dayGroups[day] = [];
-      }
-      dayGroups[day].push(timeRange);
-    });
-
-    // Crear la clave única para cada combinación de días y horarios
-    const scheduleGroups: { [key: string]: number[] } = {};
-    
-    Object.entries(dayGroups).forEach(([day, timeRanges]) => {
-      const scheduleKey = timeRanges.join(' y ');
-      const dayNum = parseInt(day);
-      
-      if (!scheduleGroups[scheduleKey]) {
-        scheduleGroups[scheduleKey] = [];
-      }
-      scheduleGroups[scheduleKey].push(dayNum);
-    });
-
-    return Object.entries(scheduleGroups).map(([schedule, days]) => {
-      const dayNames = days.map(day => getDayName(day));
-      let dayRange = '';
-      
-      if (days.length === 1) {
-        dayRange = dayNames[0];
-      } else {
-        // Ordenar días para detectar secuencias
-        const sortedDays = days.sort((a, b) => {
-          const dayA = a === 0 ? 7 : a;
-          const dayB = b === 0 ? 7 : b;
-          return dayA - dayB;
-        });
-        
-        // Agrupar días consecutivos
-        const consecutiveGroups = [];
-        let currentGroup = [sortedDays[0]];
-        
-        for (let i = 1; i < sortedDays.length; i++) {
-          const prevDay = sortedDays[i - 1] === 0 ? 7 : sortedDays[i - 1];
-          const currentDay = sortedDays[i] === 0 ? 7 : sortedDays[i];
-          
-          if (currentDay === prevDay + 1) {
-            currentGroup.push(sortedDays[i]);
-          } else {
-            consecutiveGroups.push(currentGroup);
-            currentGroup = [sortedDays[i]];
-          }
-        }
-        consecutiveGroups.push(currentGroup);
-        
-        dayRange = consecutiveGroups.map(group => {
-          if (group.length === 1) {
-            return getDayName(group[0]);
-          } else if (group.length === 2) {
-            return `${getDayName(group[0])} y ${getDayName(group[1])}`;
-          } else {
-            return `${getDayName(group[0])} a ${getDayName(group[group.length - 1])}`;
-          }
-        }).join(', ');
-      }
-      
-      return { dayRange, timeRange: schedule };
-    });
-  };
-
   const features = [{
     icon: <Star className="w-6 h-6 text-restaurant-gold" />,
     title: "Cocina de Autor",
@@ -159,7 +74,7 @@ const RestaurantInfo = () => {
             <CardHeader>
               <CardTitle className="text-restaurant-brown flex items-center gap-2">
                 <MapPin className="w-5 h-5" />
-                Ubicación y contacto
+                Ubicación
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -171,7 +86,30 @@ const RestaurantInfo = () => {
                   <p className="text-muted-foreground">Dirección no disponible</p>
                 )}
               </div>
-                            <div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-elegant animate-slide-up">
+            <CardHeader>
+              <CardTitle className="text-restaurant-brown flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Horarios y Contacto
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="font-semibold">Horarios de Servicio:</p>
+                {schedules.length > 0 ? (
+                  schedules.map((schedule) => (
+                    <p key={schedule.id} className="text-sm text-muted-foreground">
+                      {getDayName(schedule.day_of_week)}: {schedule.opening_time} - {schedule.closing_time}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
+                )}
+              </div>
+              <div>
                 <p className="font-semibold flex items-center gap-2">
                   <Phone className="w-4 h-4" />
                   Contacto:
@@ -186,30 +124,6 @@ const RestaurantInfo = () => {
                   <p className="text-sm text-muted-foreground">Información de contacto no disponible</p>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-elegant animate-slide-up">
-            <CardHeader>
-              <CardTitle className="text-restaurant-brown flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Horarios
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="font-semibold">Horarios de Servicio:</p>
-                {schedules.length > 0 ? (
-                  groupSchedulesByTime().map((group, index) => (
-                    <p key={index} className="text-sm text-muted-foreground">
-                      {group.dayRange}: {group.timeRange}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
-                )}
-              </div>
-
             </CardContent>
           </Card>
         </div>
