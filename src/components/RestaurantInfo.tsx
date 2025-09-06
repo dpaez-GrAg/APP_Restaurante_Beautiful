@@ -109,8 +109,8 @@ const RestaurantInfo = () => {
         }).join(', ');
       }
       
-      return { dayRange, timeRange: schedule };
-    });
+      return { dayRange, timeRange: schedule, sortOrder: Math.min(...days.map(d => d === 0 ? 7 : d)) };
+    }).sort((a, b) => a.sortOrder - b.sortOrder);
   };
 
   const features = [{
