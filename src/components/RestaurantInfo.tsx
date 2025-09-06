@@ -74,7 +74,7 @@ const RestaurantInfo = () => {
             <CardHeader>
               <CardTitle className="text-restaurant-brown flex items-center gap-2">
                 <MapPin className="w-5 h-5" />
-                Ubicación
+                Ubicación y contacto
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -86,6 +86,21 @@ const RestaurantInfo = () => {
                   <p className="text-muted-foreground">Dirección no disponible</p>
                 )}
               </div>
+                            <div>
+                <p className="font-semibold flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Contacto:
+                </p>
+                {config?.contact_phone && (
+                  <p className="text-sm text-muted-foreground">{config.contact_phone}</p>
+                )}
+                {config?.contact_email && (
+                  <p className="text-sm text-muted-foreground">{config.contact_email}</p>
+                )}
+                {!config?.contact_phone && !config?.contact_email && (
+                  <p className="text-sm text-muted-foreground">Información de contacto no disponible</p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -93,7 +108,7 @@ const RestaurantInfo = () => {
             <CardHeader>
               <CardTitle className="text-restaurant-brown flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                Horarios y Contacto
+                Horarios
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -109,21 +124,7 @@ const RestaurantInfo = () => {
                   <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
                 )}
               </div>
-              <div>
-                <p className="font-semibold flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  Contacto:
-                </p>
-                {config?.contact_phone && (
-                  <p className="text-sm text-muted-foreground">{config.contact_phone}</p>
-                )}
-                {config?.contact_email && (
-                  <p className="text-sm text-muted-foreground">{config.contact_email}</p>
-                )}
-                {!config?.contact_phone && !config?.contact_email && (
-                  <p className="text-sm text-muted-foreground">Información de contacto no disponible</p>
-                )}
-              </div>
+
             </CardContent>
           </Card>
         </div>
