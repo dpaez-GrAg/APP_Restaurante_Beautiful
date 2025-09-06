@@ -1,6 +1,33 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Phone, Clock, Star } from "lucide-react";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 const RestaurantInfo = () => {
+  const { config } = useRestaurantConfig();
+  const [schedules, setSchedules] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      const { data } = await supabase
+        .from('restaurant_schedules')
+        .select('*')
+        .eq('is_active', true)
+        .order('day_of_week');
+      
+      if (data) {
+        setSchedules(data);
+      }
+    };
+
+    fetchSchedules();
+  }, []);
+
+  const getDayName = (dayOfWeek: number) => {
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return days[dayOfWeek];
+  };
+
   const features = [{
     icon: <Star className="w-6 h-6 text-restaurant-gold" />,
     title: "Cocina de Autor",
@@ -53,13 +80,11 @@ const RestaurantInfo = () => {
             <CardContent className="space-y-4">
               <div>
                 <p className="font-semibold">Dirección:</p>
-                <p className="text-muted-foreground">Calle Gourmet 123, Centro Histórico</p>
-                <p className="text-muted-foreground">28001 Madrid, España</p>
-              </div>
-              <div>
-                
-                
-                
+                {config?.contact_address ? (
+                  <p className="text-muted-foreground">{config.contact_address}</p>
+                ) : (
+                  <p className="text-muted-foreground">Dirección no disponible</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -74,17 +99,30 @@ const RestaurantInfo = () => {
             <CardContent className="space-y-4">
               <div>
                 <p className="font-semibold">Horarios de Servicio:</p>
-                <p className="text-sm text-muted-foreground">Almuerzo: 12:00 - 16:00</p>
-                <p className="text-sm text-muted-foreground">Cena: 19:00 - 23:00</p>
-                <p className="text-sm text-muted-foreground">Todos los días</p>
+                {schedules.length > 0 ? (
+                  schedules.map((schedule) => (
+                    <p key={schedule.id} className="text-sm text-muted-foreground">
+                      {getDayName(schedule.day_of_week)}: {schedule.opening_time} - {schedule.closing_time}
+                    </p>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
+                )}
               </div>
               <div>
                 <p className="font-semibold flex items-center gap-2">
                   <Phone className="w-4 h-4" />
                   Contacto:
                 </p>
-                <p className="text-sm text-muted-foreground">+34 91 123 4567</p>
-                <p className="text-sm text-muted-foreground">reservas@restaurante.com</p>
+                {config?.contact_phone && (
+                  <p className="text-sm text-muted-foreground">{config.contact_phone}</p>
+                )}
+                {config?.contact_email && (
+                  <p className="text-sm text-muted-foreground">{config.contact_email}</p>
+                )}
+                {!config?.contact_phone && !config?.contact_email && (
+                  <p className="text-sm text-muted-foreground">Información de contacto no disponible</p>
+                )}
               </div>
             </CardContent>
           </Card>
