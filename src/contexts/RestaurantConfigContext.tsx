@@ -7,6 +7,7 @@ export interface RestaurantConfig {
   hero_title: string;
   hero_subtitle: string;
   hero_image_url: string;
+  logo_url?: string;
   contact_phone: string;
   contact_email: string;
   contact_address: string;

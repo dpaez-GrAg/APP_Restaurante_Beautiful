@@ -35,7 +35,15 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <Utensils className="w-8 h-8 text-restaurant-gold" />
+            {config?.logo_url ? (
+              <img 
+                src={config.logo_url} 
+                alt="Logo" 
+                className="w-8 h-8 object-contain rounded"
+              />
+            ) : (
+              <Utensils className="w-8 h-8 text-restaurant-gold" />
+            )}
             <span className="text-xl font-bold text-restaurant-brown">
               {config?.restaurant_name || "Restaurante Élite"}
             </span>
