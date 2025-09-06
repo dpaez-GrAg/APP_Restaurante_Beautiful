@@ -1,27 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Phone, Clock, Star } from "lucide-react";
-
 const RestaurantInfo = () => {
-  const features = [
-    {
-      icon: <Star className="w-6 h-6 text-restaurant-gold" />,
-      title: "Cocina de Autor",
-      description: "Platos únicos creados por nuestro chef con ingredientes frescos y locales"
-    },
-    {
-      icon: <MapPin className="w-6 h-6 text-restaurant-gold" />,
-      title: "Ubicación Privilegiada",
-      description: "En el corazón de la ciudad, con vistas espectaculares y fácil acceso"
-    },
-    {
-      icon: <Clock className="w-6 h-6 text-restaurant-gold" />,
-      title: "Horarios Flexibles",
-      description: "Abierto todos los días con horarios de almuerzo y cena adaptados a ti"
-    }
-  ];
-
-  return (
-    <section className="py-20 bg-background">
+  const features = [{
+    icon: <Star className="w-6 h-6 text-restaurant-gold" />,
+    title: "Cocina de Autor",
+    description: "Platos únicos creados por nuestro chef con ingredientes frescos y locales"
+  }, {
+    icon: <MapPin className="w-6 h-6 text-restaurant-gold" />,
+    title: "Ubicación Privilegiada",
+    description: "En el corazón de la ciudad, con vistas espectaculares y fácil acceso"
+  }, {
+    icon: <Clock className="w-6 h-6 text-restaurant-gold" />,
+    title: "Horarios Flexibles",
+    description: "Abierto todos los días con horarios de almuerzo y cena adaptados a ti"
+  }];
+  return <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12 animate-fade-in">
           <h2 className="text-4xl font-bold text-restaurant-brown mb-4">
@@ -35,8 +28,7 @@ const RestaurantInfo = () => {
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {features.map((feature, index) => (
-            <Card key={index} className="text-center shadow-elegant hover:shadow-glow transition-all duration-300 animate-slide-up">
+          {features.map((feature, index) => <Card key={index} className="text-center shadow-elegant hover:shadow-glow transition-all duration-300 animate-slide-up">
               <CardHeader>
                 <div className="flex justify-center mb-4">
                   {feature.icon}
@@ -46,8 +38,7 @@ const RestaurantInfo = () => {
               <CardContent>
                 <p className="text-muted-foreground">{feature.description}</p>
               </CardContent>
-            </Card>
-          ))}
+            </Card>)}
         </div>
 
         {/* Contact Information */}
@@ -66,9 +57,9 @@ const RestaurantInfo = () => {
                 <p className="text-muted-foreground">28001 Madrid, España</p>
               </div>
               <div>
-                <p className="font-semibold">Transporte:</p>
-                <p className="text-sm text-muted-foreground">Metro: Línea 1, 2 y 3 - Estación Sol</p>
-                <p className="text-sm text-muted-foreground">Parking público disponible</p>
+                
+                
+                
               </div>
             </CardContent>
           </Card>
@@ -99,8 +90,6 @@ const RestaurantInfo = () => {
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default RestaurantInfo;
