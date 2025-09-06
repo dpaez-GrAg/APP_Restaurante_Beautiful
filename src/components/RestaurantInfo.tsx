@@ -37,41 +37,63 @@ const RestaurantInfo = () => {
     const sortedSchedules = schedules.sort((a, b) => {
       const dayA = a.day_of_week === 0 ? 7 : a.day_of_week; // Domingo al final
       const dayB = b.day_of_week === 0 ? 7 : b.day_of_week;
-      return dayA - dayB;
+      if (dayA !== dayB) return dayA - dayB;
+      // Si es el mismo día, ordenar por hora de apertura
+      return a.opening_time.localeCompare(b.opening_time);
     });
 
-    const groups: { [key: string]: number[] } = {};
-    
+    // Agrupar horarios por día
+    const dayGroups: { [key: number]: string[] } = {};
     sortedSchedules.forEach(schedule => {
-      const timeKey = `${formatTime(schedule.opening_time)} - ${formatTime(schedule.closing_time)}`;
-      if (!groups[timeKey]) {
-        groups[timeKey] = [];
+      const day = schedule.day_of_week;
+      const timeRange = `${formatTime(schedule.opening_time)} - ${formatTime(schedule.closing_time)}`;
+      
+      if (!dayGroups[day]) {
+        dayGroups[day] = [];
       }
-      groups[timeKey].push(schedule.day_of_week);
+      dayGroups[day].push(timeRange);
     });
 
-    return Object.entries(groups).map(([timeRange, days]) => {
+    // Crear la clave única para cada combinación de días y horarios
+    const scheduleGroups: { [key: string]: number[] } = {};
+    
+    Object.entries(dayGroups).forEach(([day, timeRanges]) => {
+      const scheduleKey = timeRanges.join(' y ');
+      const dayNum = parseInt(day);
+      
+      if (!scheduleGroups[scheduleKey]) {
+        scheduleGroups[scheduleKey] = [];
+      }
+      scheduleGroups[scheduleKey].push(dayNum);
+    });
+
+    return Object.entries(scheduleGroups).map(([schedule, days]) => {
       const dayNames = days.map(day => getDayName(day));
       let dayRange = '';
       
       if (days.length === 1) {
         dayRange = dayNames[0];
-      } else if (days.length === 2 && Math.abs(days[1] - days[0]) === 1) {
-        dayRange = `${dayNames[0]} y ${dayNames[1]}`;
       } else {
-        // Check for consecutive days
-        const consecutiveGroups = [];
-        let currentGroup = [days[0]];
+        // Ordenar días para detectar secuencias
+        const sortedDays = days.sort((a, b) => {
+          const dayA = a === 0 ? 7 : a;
+          const dayB = b === 0 ? 7 : b;
+          return dayA - dayB;
+        });
         
-        for (let i = 1; i < days.length; i++) {
-          const prevDay = days[i - 1] === 0 ? 7 : days[i - 1];
-          const currentDay = days[i] === 0 ? 7 : days[i];
+        // Agrupar días consecutivos
+        const consecutiveGroups = [];
+        let currentGroup = [sortedDays[0]];
+        
+        for (let i = 1; i < sortedDays.length; i++) {
+          const prevDay = sortedDays[i - 1] === 0 ? 7 : sortedDays[i - 1];
+          const currentDay = sortedDays[i] === 0 ? 7 : sortedDays[i];
           
           if (currentDay === prevDay + 1) {
-            currentGroup.push(days[i]);
+            currentGroup.push(sortedDays[i]);
           } else {
             consecutiveGroups.push(currentGroup);
-            currentGroup = [days[i]];
+            currentGroup = [sortedDays[i]];
           }
         }
         consecutiveGroups.push(currentGroup);
@@ -79,13 +101,15 @@ const RestaurantInfo = () => {
         dayRange = consecutiveGroups.map(group => {
           if (group.length === 1) {
             return getDayName(group[0]);
+          } else if (group.length === 2) {
+            return `${getDayName(group[0])} y ${getDayName(group[1])}`;
           } else {
             return `${getDayName(group[0])} a ${getDayName(group[group.length - 1])}`;
           }
         }).join(', ');
       }
       
-      return { dayRange, timeRange };
+      return { dayRange, timeRange: schedule };
     });
   };
 
