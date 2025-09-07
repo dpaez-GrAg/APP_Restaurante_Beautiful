@@ -70,7 +70,6 @@ const RestaurantSettings = () => {
       }
     }
   };
-
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && config) {
@@ -157,57 +156,31 @@ const RestaurantSettings = () => {
             <div>
               <Label htmlFor="hero-image">Imagen de Fondo</Label>
               <div className="flex items-center space-x-4">
-                <Input 
-                  id="hero-image" 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleHeroImageUpload} 
-                  className="flex-1" 
-                  style={{ display: 'none' }}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => document.getElementById('hero-image')?.click()}
-                  className="w-full"
-                >
+                <Input id="hero-image" type="file" accept="image/*" onChange={handleHeroImageUpload} className="flex-1" style={{
+                display: 'none'
+              }} />
+                <Button variant="outline" size="sm" onClick={() => document.getElementById('hero-image')?.click()} className="w-full">
                   <Upload className="w-4 h-4 mr-2" />
                   Subir Imagen de Fondo
                 </Button>
               </div>
-              {config.hero_image_url && (
-                <div className="mt-2">
-                  <img src={config.hero_image_url} alt="Vista previa" className="w-32 h-20 object-cover rounded border" />
-                </div>
-              )}
+              {config.hero_image_url}
             </div>
 
             <div>
               <Label htmlFor="logo-image">Logo del Restaurante</Label>
               <div className="flex items-center space-x-4">
-                <Input 
-                  id="logo-image" 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleLogoUpload} 
-                  className="flex-1" 
-                  style={{ display: 'none' }}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => document.getElementById('logo-image')?.click()}
-                  className="w-full"
-                >
+                <Input id="logo-image" type="file" accept="image/*" onChange={handleLogoUpload} className="flex-1" style={{
+                display: 'none'
+              }} />
+                <Button variant="outline" size="sm" onClick={() => document.getElementById('logo-image')?.click()} className="w-full">
                   <Upload className="w-4 h-4 mr-2" />
                   Subir Logo
                 </Button>
               </div>
-              {config.logo_url && (
-                <div className="mt-2">
+              {config.logo_url && <div className="mt-2">
                   <img src={config.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded border" />
-                </div>
-              )}
+                </div>}
             </div>
           </CardContent>
         </Card>
