@@ -1,3 +1,37 @@
+# Base de Datos para Sistema de Reservas de Restaurante - LEGACY
+
+**⚠️ ARCHIVO LEGACY - USAR NUEVOS ARCHIVOS SQL**
+
+Este archivo ha sido reemplazado por una nueva estructura SQL más completa y organizada.
+
+## 📁 Nuevos Archivos Recomendados
+
+### Para crear la base de datos completa:
+- **`docs/sql/bootstrap_full.sql`** - Esquema completo de la base de datos
+- **`docs/sql/seed_full.sql`** - Datos de ejemplo y prueba
+
+### Ventajas de los nuevos archivos:
+- ✅ Estructura más organizada y comentada
+- ✅ Incluye todas las funciones RPC actualizadas
+- ✅ Políticas RLS completas y seguras
+- ✅ Datos de ejemplo más realistas
+- ✅ Indexes para mejor rendimiento
+- ✅ Triggers opcionales para `updated_at`
+
+## 🚀 Cómo usar los nuevos archivos
+
+```sql
+-- 1. Ejecutar primero el bootstrap (esquema)
+\i docs/sql/bootstrap_full.sql
+
+-- 2. Ejecutar después el seed (datos)
+\i docs/sql/seed_full.sql
+```
+
+---
+
+## 📋 Contenido Legacy Original
+
 -- =========================================================
 -- Bootstrap Tu Mesa Ideal (tablas + políticas + RPC + seed)
 -- Seguro de re-ejecutar (idempotente)

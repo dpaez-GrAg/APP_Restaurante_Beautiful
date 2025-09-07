@@ -74,14 +74,52 @@ src/
    VITE_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
    ```
 
-4. **Configurar la base de datos**
-   
-   Ejecutar las migraciones de Supabase incluidas en el directorio `supabase/migrations/`
+4. **Configurar la base de datos** (ver [Database Setup](#database-setup))
 
 5. **Iniciar el servidor de desarrollo**
    ```bash
    npm run dev
    ```
+
+## 🗄️ Database Setup
+
+Este proyecto usa Supabase como backend. Para configurar la base de datos:
+
+### Opción 1: Usando los Archivos SQL Completos (Recomendado)
+
+1. **Bootstrap del esquema de la base de datos:**
+   ```sql
+   -- Ejecutar en el Editor SQL de Supabase
+   \i docs/sql/bootstrap_full.sql
+   ```
+
+2. **Agregar datos de ejemplo:**
+   ```sql
+   -- Ejecutar en el Editor SQL de Supabase  
+   \i docs/sql/seed_full.sql
+   ```
+
+### Opción 2: Configuración Manual
+
+Si prefieres entender cada paso, puedes usar el archivo legacy:
+- Ver `query-crear-db.md` para explicaciones detalladas
+- Nota: El archivo legacy puede no incluir las últimas funcionalidades
+
+### Qué Incluye
+
+El bootstrap crea:
+- ✅ Todas las tablas con relaciones apropiadas
+- ✅ Políticas de Row Level Security (RLS)
+- ✅ Funciones de base de datos para reservas
+- ✅ Índices para rendimiento
+- ✅ Datos de ejemplo para pruebas
+
+Los datos de ejemplo incluyen:
+- 🏪 Configuración del restaurante
+- 📅 Horarios semanales y slots de tiempo
+- 🪑 Mesas y combinaciones de mesas
+- 👥 Clientes y reservas de ejemplo
+- 🎯 Horarios especiales y días cerrados
 
 ## 🗄️ Base de Datos
 
