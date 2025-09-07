@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { formatDateLocal } from '@/lib/dateUtils';
+import React, { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { formatDateLocal } from "@/lib/dateUtils";
 
 interface CreateReservationDialogProps {
   open: boolean;
@@ -21,27 +21,27 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
   open,
   onOpenChange,
   defaultDate = formatDateLocal(new Date()),
-  defaultTime = '20:00',
+  defaultTime = "20:00",
   defaultTableId,
-  onSuccess
+  onSuccess,
 }) => {
   const [formData, setFormData] = useState({
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
     date: defaultDate,
     time: defaultTime,
     guests: 2,
-    special_requests: ''
+    special_requests: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
   // Update form data when props change (for slot clicking)
   React.useEffect(() => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       date: defaultDate || prev.date,
-      time: defaultTime || prev.time
+      time: defaultTime || prev.time,
     }));
   }, [defaultDate, defaultTime]);
 
@@ -50,7 +50,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.rpc('admin_create_reservation', {
+      const { data, error } = await supabase.rpc("admin_create_reservation", {
         p_customer_name: formData.customerName,
         p_customer_email: formData.customerEmail,
         p_customer_phone: formData.customerPhone || null,
@@ -59,29 +59,29 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
         p_guests: formData.guests,
         p_special_requests: formData.special_requests || null,
         p_table_ids: defaultTableId ? [defaultTableId] : null,
-        p_duration_minutes: 90
+        p_duration_minutes: 90,
       });
 
       if (error) throw error;
       const result = data as { success: boolean; error?: string };
       if (!result.success) throw new Error(result.error);
 
-      toast.success('Reserva creada correctamente');
+      toast.success("Reserva creada correctamente");
       onSuccess();
       onOpenChange(false);
-      
+
       // Reset form
       setFormData({
-        customerName: '',
-        customerEmail: '',
-        customerPhone: '',
+        customerName: "",
+        customerEmail: "",
+        customerPhone: "",
         date: defaultDate,
         time: defaultTime,
         guests: 2,
-        special_requests: ''
+        special_requests: "",
       });
     } catch (error: any) {
-      console.error('Error creating reservation:', error);
+      console.error("Error creating reservation:", error);
       toast.error(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -99,7 +99,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <Label>Nombre</Label>
             <Input
               value={formData.customerName}
-              onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, customerName: e.target.value }))}
               placeholder="Nombre del cliente"
               required
             />
@@ -110,7 +110,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <Input
               type="email"
               value={formData.customerEmail}
-              onChange={(e) => setFormData(prev => ({ ...prev, customerEmail: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, customerEmail: e.target.value }))}
               placeholder="email@ejemplo.com"
               required
             />
@@ -121,7 +121,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <Input
               type="tel"
               value={formData.customerPhone}
-              onChange={(e) => setFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, customerPhone: e.target.value }))}
               placeholder="Teléfono (opcional)"
             />
           </div>
@@ -132,7 +132,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
                 required
               />
             </div>
@@ -141,7 +141,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               <Input
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))}
                 required
               />
             </div>
@@ -154,7 +154,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               min="1"
               max="20"
               value={formData.guests}
-              onChange={(e) => setFormData(prev => ({ ...prev, guests: parseInt(e.target.value) }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, guests: parseInt(e.target.value) }))}
               required
             />
           </div>
@@ -163,7 +163,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <Label>Comentarios</Label>
             <Textarea
               value={formData.special_requests}
-              onChange={(e) => setFormData(prev => ({ ...prev, special_requests: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, special_requests: e.target.value }))}
               placeholder="Comentarios especiales..."
               rows={3}
             />
@@ -174,7 +174,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Creando...' : 'Crear Reserva'}
+              {isLoading ? "Creando..." : "Crear Reserva"}
             </Button>
           </div>
         </form>
