@@ -31,7 +31,7 @@ const Index = () => {
             <p className="text-gray-300">Una experiencia gastronómica única</p>
           </div>
           <div className="text-sm text-gray-400">
-            <p>&copy; 2024 {config?.restaurant_name || "Restaurante Élite"}. Todos los derechos reservados.</p>
+            <p>&copy; 2025 {config?.restaurant_name || "Restaurante Élite"}. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
