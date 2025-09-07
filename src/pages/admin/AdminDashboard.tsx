@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Users, TrendingUp, AlertCircle, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,18 @@ const AdminDashboard = () => {
     loadDashboardData();
   }, [selectedDate]);
 
+  const goToPreviousDay = () => {
+    const currentDate = new Date(selectedDate);
+    currentDate.setDate(currentDate.getDate() - 1);
+    setSelectedDate(currentDate.toISOString().split('T')[0]);
+  };
+
+  const goToNextDay = () => {
+    const currentDate = new Date(selectedDate);
+    currentDate.setDate(currentDate.getDate() + 1);
+    setSelectedDate(currentDate.toISOString().split('T')[0]);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "confirmed":
@@ -111,13 +123,31 @@ const AdminDashboard = () => {
             <Label htmlFor="date" className="text-sm text-muted-foreground">
               Seleccionar fecha
             </Label>
-            <Input
-              id="date"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-40"
-            />
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToPreviousDay}
+                className="h-10 w-10"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Input
+                id="date"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-40"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToNextDay}
+                className="h-10 w-10"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
