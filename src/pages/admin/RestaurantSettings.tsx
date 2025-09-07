@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, Save, Upload } from "lucide-react";
 import { useRestaurantConfig, RestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import { uploadFile } from "@/lib/storageUtils";
 const RestaurantSettings = () => {
   const {
     toast
@@ -45,15 +46,53 @@ const RestaurantSettings = () => {
       setIsSaving(false);
     }
   };
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeroImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && config) {
-      // TODO: Upload to Supabase Storage and get URL
-      const imageUrl = URL.createObjectURL(file);
-      setConfig({
-        ...config,
-        hero_image_url: imageUrl
-      });
+      try {
+        const filePath = `hero/${Date.now()}-${file.name}`;
+        const imageUrl = await uploadFile('restaurant-images', filePath, file);
+        setConfig({
+          ...config,
+          hero_image_url: imageUrl
+        });
+        toast({
+          title: "Imagen subida",
+          description: "La imagen de fondo se ha subido correctamente"
+        });
+      } catch (error) {
+        console.error("Error uploading hero image:", error);
+        toast({
+          title: "Error",
+          description: "No se pudo subir la imagen",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && config) {
+      try {
+        const filePath = `logos/${Date.now()}-${file.name}`;
+        const imageUrl = await uploadFile('restaurant-images', filePath, file);
+        setConfig({
+          ...config,
+          logo_url: imageUrl
+        });
+        toast({
+          title: "Logo subido",
+          description: "El logo se ha subido correctamente"
+        });
+      } catch (error) {
+        console.error("Error uploading logo:", error);
+        toast({
+          title: "Error",
+          description: "No se pudo subir el logo",
+          variant: "destructive"
+        });
+      }
     }
   };
   if (contextLoading || !config) {
@@ -118,15 +157,57 @@ const RestaurantSettings = () => {
             <div>
               <Label htmlFor="hero-image">Imagen de Fondo</Label>
               <div className="flex items-center space-x-4">
-                <Input id="hero-image" type="file" accept="image/*" onChange={handleImageUpload} className="flex-1" />
-                <Button variant="outline" size="sm">
+                <Input 
+                  id="hero-image" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleHeroImageUpload} 
+                  className="flex-1" 
+                  style={{ display: 'none' }}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => document.getElementById('hero-image')?.click()}
+                  className="w-full"
+                >
                   <Upload className="w-4 h-4 mr-2" />
-                  Subir Imagen
+                  Subir Imagen de Fondo
                 </Button>
               </div>
-              {config.hero_image_url && <div className="mt-2">
+              {config.hero_image_url && (
+                <div className="mt-2">
                   <img src={config.hero_image_url} alt="Vista previa" className="w-32 h-20 object-cover rounded border" />
-                </div>}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="logo-image">Logo del Restaurante</Label>
+              <div className="flex items-center space-x-4">
+                <Input 
+                  id="logo-image" 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleLogoUpload} 
+                  className="flex-1" 
+                  style={{ display: 'none' }}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => document.getElementById('logo-image')?.click()}
+                  className="w-full"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Subir Logo
+                </Button>
+              </div>
+              {config.logo_url && (
+                <div className="mt-2">
+                  <img src={config.logo_url} alt="Logo" className="w-16 h-16 object-contain rounded border" />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
