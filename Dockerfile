@@ -14,10 +14,13 @@ RUN if [ -f pnpm-lock.yaml ]; then pnpm i --frozen-lockfile; \
 
 # Copia el resto y construye
 COPY . .
-# Variables Vite en build (Coolify -> Build arguments)
+
+# (3) RECIBE build args y los EXPONE como ENV para Vite
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
-ARG VITE_APP_NAME
+ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+ENV VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+
 RUN npm run build
 
 # ---- Run ----
