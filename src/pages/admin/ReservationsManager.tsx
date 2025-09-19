@@ -7,6 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Calendar,
   Clock,
   Users,
@@ -19,6 +29,7 @@ import {
   Grid3X3,
   CalendarIcon,
   Plus,
+  UserCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +40,7 @@ import { EditReservationDialog } from "@/components/admin/EditReservationDialog"
 import { Edit } from "lucide-react";
 import { formatDateLocal } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
+
 interface Reservation {
   id: string;
   name: string;
@@ -38,7 +50,7 @@ interface Reservation {
   time: string;
   guests: number;
   message?: string;
-  status: "pending" | "confirmed" | "cancelled";
+  status: "pending" | "confirmed" | "cancelled" | "arrived";
   table_assignments?: Array<{
     table_id: string;
     table_name?: string;
@@ -48,6 +60,7 @@ interface Reservation {
   start_at?: string;
   end_at?: string;
 }
+
 const ReservationsManager = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +72,10 @@ const ReservationsManager = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [gridRefreshKey, setGridRefreshKey] = useState(0);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const { toast } = useToast();
+
   useEffect(() => {
     loadReservations();
 
@@ -124,7 +140,7 @@ const ReservationsManager = () => {
           time: reservation.time,
           guests: reservation.guests,
           message: reservation.special_requests || undefined,
-          status: reservation.status as "pending" | "confirmed" | "cancelled",
+          status: reservation.status as "pending" | "confirmed" | "cancelled" | "arrived",
           table_assignments:
             reservation.reservation_table_assignments?.map((assignment) => ({
               table_id: assignment.table_id,
@@ -171,7 +187,7 @@ const ReservationsManager = () => {
     }
     setFilteredReservations(filtered);
   };
-  const updateReservationStatus = async (id: string, newStatus: "confirmed" | "cancelled") => {
+  const updateReservationStatus = async (id: string, newStatus: "confirmed" | "cancelled" | "arrived") => {
     try {
       const { error } = await supabase
         .from("reservations")
@@ -190,15 +206,53 @@ const ReservationsManager = () => {
             : reservation
         )
       );
+      // Actualizar el grid para que se refleje el cambio inmediatamente
+      setGridRefreshKey((prev) => prev + 1);
       toast({
         title: "Estado actualizado",
-        description: `Reserva ${newStatus === "confirmed" ? "confirmada" : "cancelada"} correctamente.`,
+        description: `Reserva ${
+          newStatus === "confirmed" ? "confirmada" : newStatus === "cancelled" ? "cancelada" : "llegada"
+        } correctamente.`,
       });
     } catch (error) {
       console.error("Error updating reservation:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado de la reserva.",
+        variant: "destructive",
+      });
+    }
+  };
+  const confirmArrival = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .update({
+          status: "arrived",
+        })
+        .eq("id", id);
+      if (error) throw error;
+      setReservations((prev) =>
+        prev.map((reservation) =>
+          reservation.id === id
+            ? {
+                ...reservation,
+                status: "arrived",
+              }
+            : reservation
+        )
+      );
+      // Actualizar el grid para que se refleje el cambio inmediatamente
+      setGridRefreshKey((prev) => prev + 1);
+      toast({
+        title: "Llegada confirmada",
+        description: `Reserva marcada como llegada correctamente.`,
+      });
+    } catch (error) {
+      console.error("Error updating reservation arrived:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la llegada de la reserva.",
         variant: "destructive",
       });
     }
@@ -211,6 +265,8 @@ const ReservationsManager = () => {
         return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendiente</Badge>;
       case "cancelled":
         return <Badge className="bg-red-100 text-red-800 border-red-200">Cancelada</Badge>;
+      case "arrived":
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Llegada</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -283,52 +339,40 @@ const ReservationsManager = () => {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="shadow-elegant">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
-              </div>
-              <Calendar className="w-8 h-8 text-restaurant-gold" />
+      {/* Stats - Minimalista */}
+      <div className="grid grid-cols-4 gap-3">
+        <Card className="shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
+              <p className="text-xs text-muted-foreground">Total</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-yellow-600">{getStatusCount("pending")}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
+        <Card className="shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
+              <p className="text-xs text-muted-foreground">Pendientes</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Reservas</p>
-                <p className="text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
-              </div>
-              <Check className="w-8 h-8 text-green-500" />
+        <Card className="shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-600">{getStatusCount("arrived")}</p>
+              <p className="text-xs text-muted-foreground">Recepcionadas</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-elegant">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Canceladas</p>
-                <p className="text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
-              </div>
-              <X className="w-8 h-8 text-red-500" />
+        <Card className="shadow-sm">
+          <CardContent className="pt-4 pb-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
+              <p className="text-xs text-muted-foreground">Canceladas</p>
             </div>
           </CardContent>
         </Card>
@@ -350,7 +394,7 @@ const ReservationsManager = () => {
               date: gridReservation.date,
               time: gridReservation.time,
               guests: gridReservation.guests,
-              status: gridReservation.status as "pending" | "confirmed" | "cancelled",
+              status: gridReservation.status as "pending" | "confirmed" | "cancelled" | "arrived",
               message: gridReservation.special_requests,
               table_assignments: gridReservation.tableAssignments?.map((ta) => ({
                 table_id: ta.table_id,
@@ -405,6 +449,7 @@ const ReservationsManager = () => {
                     <SelectItem value="pending">Pendientes</SelectItem>
                     <SelectItem value="confirmed">Confirmadas</SelectItem>
                     <SelectItem value="cancelled">Canceladas</SelectItem>
+                    <SelectItem value="arrived">Llegadas</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -497,26 +542,42 @@ const ReservationsManager = () => {
                       </Button>
 
                       {reservation.status === "pending" && (
-                        <>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => updateReservationStatus(reservation.id, "confirmed")}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <Check className="w-4 h-4 mr-1" />
-                            Confirmar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateReservationStatus(reservation.id, "cancelled")}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                          >
-                            <X className="w-4 h-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        </>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Confirmar
+                        </Button>
+                      )}
+
+                      {reservation.status === "confirmed" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => confirmArrival(reservation.id)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <UserCheck className="w-4 h-4 mr-1" />
+                          Confirmar llegada
+                        </Button>
+                      )}
+
+                      {reservation.status !== "cancelled" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setReservationToCancel(reservation);
+                            setCancelDialogOpen(true);
+                          }}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4 mr-1" />
+                          Cancelar
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -580,6 +641,33 @@ const ReservationsManager = () => {
           setGridRefreshKey((prev) => prev + 1);
         }}
       />
+
+      <AlertDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onClose={() => setReservationToCancel(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            ¿Estás seguro de que deseas cancelar la reserva de {reservationToCancel?.name}?
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCancelDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                updateReservationStatus(reservationToCancel?.id, "cancelled");
+                setCancelDialogOpen(false);
+              }}
+              variant="destructive"
+            >
+              Confirmar cancelación
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

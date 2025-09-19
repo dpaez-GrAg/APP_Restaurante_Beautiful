@@ -8,7 +8,9 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:functions": "npx supabase functions deploy agent-create-reservation && npx supabase functions deploy agent-availability",
+    "link:project": "npx supabase link --project-ref TU_PROJECT_REF"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

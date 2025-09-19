@@ -17,6 +17,7 @@ import CombinationsManager from "./pages/admin/CombinationsManager";
 import ScheduleManager from "./pages/admin/ScheduleManager";
 import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
+import CustomersManager from "./pages/admin/CustomersManager";
 import ReservarPage from "./pages/ReservarPage";
 
 const queryClient = new QueryClient({
@@ -28,11 +29,11 @@ const queryClient = new QueryClient({
   },
 });
 
-console.log('QueryClient created:', queryClient);
+console.log("QueryClient created:", queryClient);
 
 function App() {
-  console.log('App component rendering...');
-  
+  console.log("App component rendering...");
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -45,18 +46,19 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/reservar" element={<ReservarPage />} />
                 <Route path="/admin/auth" element={<AdminAuth />} />
-                
+
                 {/* Admin Routes */}
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="reservations" element={<ReservationsManager />} />
+                  <Route path="customers" element={<CustomersManager />} />
                   <Route path="tables" element={<TablesManager />} />
                   <Route path="layout" element={<RestaurantLayout />} />
                   <Route path="combinations" element={<CombinationsManager />} />
                   <Route path="schedules" element={<ScheduleManager />} />
                   <Route path="settings" element={<RestaurantSettings />} />
                 </Route>
-                
+
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

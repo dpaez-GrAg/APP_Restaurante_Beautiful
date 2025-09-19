@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -74,65 +75,232 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  .dark {
-    --background: 25 20% 8%;
-    --foreground: 35 12% 95%;
-
-    --card: 25 25% 12%;
-    --card-foreground: 35 12% 95%;
-
-    --popover: 25 25% 12%;
-    --popover-foreground: 35 12% 95%;
-
-    --primary: 45 90% 65%;
-    --primary-foreground: 25 20% 8%;
-
-    --secondary: 25 15% 18%;
-    --secondary-foreground: 35 12% 95%;
-
-    --muted: 25 15% 18%;
-    --muted-foreground: 35 8% 65%;
-
-    --accent: 35 85% 55%;
-    --accent-foreground: 35 12% 95%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 35 12% 95%;
-
-    --border: 25 15% 18%;
-    --input: 25 15% 18%;
-    --ring: 45 90% 65%;
-
-    /* Dark mode restaurant colors */
-    --restaurant-gold: 45 85% 70%;
-    --restaurant-gold-dark: 35 80% 60%;
-    --restaurant-brown: 25 30% 15%;
-    --restaurant-cream: 25 15% 18%;
-    --restaurant-warm: 25 20% 25%;
-
-    --gradient-hero: linear-gradient(135deg, hsl(var(--restaurant-brown)), hsl(var(--restaurant-gold-dark)));
-    --gradient-accent: linear-gradient(180deg, hsl(var(--restaurant-gold)), hsl(var(--restaurant-gold-dark)));
-    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--restaurant-cream)));
-
-    --shadow-elegant: 0 10px 30px -10px hsl(var(--restaurant-gold) / 0.2);
-    --shadow-glow: 0 0 40px hsl(var(--restaurant-gold) / 0.3);
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Inter", sans-serif;
   }
+}
+
+@layer components {
+  .animate-fade-in {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out;
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.6s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.6s ease-out;
+  }
+
+  /* Animaciones optimizadas para la carga de configuración */
+  .config-fade-in {
+    animation: configFadeIn 0.5s ease-out forwards;
+  }
+
+  .config-slide-up {
+    animation: configSlideUp 0.6s ease-out forwards;
+  }
+
+  /* Skeleton loading animation mejorada */
+  .skeleton-pulse {
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+  }
+
+  /* Transición suave para cambios de imagen de fondo */
+  .bg-transition {
+    transition: background-image 0.8s ease-in-out, opacity 0.8s ease-in-out;
+  }
+
+  /* Efecto de shimmer para elementos de carga */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0.1) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes configFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes configSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Mejoras para la experiencia de carga */
+.loading-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Transiciones suaves para elementos de configuración */
+.config-element {
+  transition: all 0.3s ease-in-out;
+}
+
+.config-element.loading {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+.config-element.loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Preload de imágenes para evitar parpadeo */
+.preload-image {
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dark {
+  --background: 25 20% 8%;
+  --foreground: 35 12% 95%;
+
+  --card: 25 25% 12%;
+  --card-foreground: 35 12% 95%;
+
+  --popover: 25 25% 12%;
+  --popover-foreground: 35 12% 95%;
+
+  --primary: 45 90% 65%;
+  --primary-foreground: 25 20% 8%;
+
+  --secondary: 25 15% 18%;
+  --secondary-foreground: 35 12% 95%;
+
+  --muted: 25 15% 18%;
+  --muted-foreground: 35 8% 65%;
+
+  --accent: 35 85% 55%;
+  --accent-foreground: 35 12% 95%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 35 12% 95%;
+
+  --border: 25 15% 18%;
+  --input: 25 15% 18%;
+  --ring: 45 90% 65%;
+
+  /* Dark mode restaurant colors */
+  --restaurant-gold: 45 85% 70%;
+  --restaurant-gold-dark: 35 80% 60%;
+  --restaurant-brown: 25 30% 15%;
+  --restaurant-cream: 25 15% 18%;
+  --restaurant-warm: 25 20% 25%;
+
+  --gradient-hero: linear-gradient(135deg, hsl(var(--restaurant-brown)), hsl(var(--restaurant-gold-dark)));
+  --gradient-accent: linear-gradient(180deg, hsl(var(--restaurant-gold)), hsl(var(--restaurant-gold-dark)));
+  --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--restaurant-cream)));
+
+  --shadow-elegant: 0 10px 30px -10px hsl(var(--restaurant-gold) / 0.2);
+  --shadow-glow: 0 0 40px hsl(var(--restaurant-gold) / 0.3);
+  --sidebar-background: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
 }
