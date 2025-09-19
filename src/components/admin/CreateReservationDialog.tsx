@@ -151,12 +151,15 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <Label>Comensales</Label>
             <Input
               type="number"
-              min="1"
-              max="20"
+              min="2"
+              max="7"
               value={formData.guests}
               onChange={(e) => setFormData((prev) => ({ ...prev, guests: parseInt(e.target.value) }))}
               required
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Para grupos de más de 7 personas, usar el email de contacto del restaurante
+            </p>
           </div>
 
           <div>

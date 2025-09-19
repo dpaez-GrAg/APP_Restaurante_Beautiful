@@ -7,73 +7,54 @@ import { Link } from "react-router-dom";
 import StepHeader from "./StepHeader";
 
 interface InfoStepProps {
-  onNext: (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    comments: string;
-  }) => void;
+  onNext: (data: { firstName: string; lastName: string; phone: string; comments: string }) => void;
   onBack: () => void;
   selectedDate?: Date;
   selectedGuests?: number;
   selectedTime?: string;
-  onStepClick?: (step: 'date' | 'guests' | 'time') => void;
+  onStepClick?: (step: "date" | "guests" | "time") => void;
 }
 
 const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, onStepClick }: InfoStepProps) => {
   const [formData, setFormData] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    comments: '',
-    privacyAccepted: false
+    firstName: "",
+    lastName: "",
+    phone: "",
+    comments: "",
+    privacyAccepted: false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.email || !formData.firstName || !formData.lastName || !formData.phone || !formData.privacyAccepted) {
+
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.privacyAccepted) {
       return;
     }
 
     onNext({
       firstName: formData.firstName,
       lastName: formData.lastName,
-      email: formData.email,
       phone: formData.phone,
-      comments: formData.comments
+      comments: formData.comments,
     });
   };
 
-  const isFormValid = formData.email && formData.firstName && formData.lastName && formData.phone && formData.privacyAccepted;
+  const isFormValid = formData.firstName && formData.lastName && formData.phone && formData.privacyAccepted;
 
   return (
     <div className="max-w-lg mx-auto">
-      <StepHeader 
-        currentStep="info" 
+      <StepHeader
+        currentStep="info"
         selectedDate={selectedDate}
         selectedGuests={selectedGuests}
         selectedTime={selectedTime}
         onStepClick={onStepClick}
       />
-      
+
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-primary mb-6">Datos de contacto</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Correo electrónico</label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full"
-              required
-            />
-          </div>
 
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2">Nombre</label>
             <Input
@@ -114,7 +95,8 @@ const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, 
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Observaciones (¿Necesidades especiales? ¿Vienes con carrito? Cuéntanos toda la información que sea útil para hacer tu experiencia lo mejor posible.)
+              Observaciones (¿Necesidades especiales? ¿Vienes con carrito? Cuéntanos toda la información que sea útil
+              para hacer tu experiencia lo mejor posible.)
             </label>
             <Textarea
               value={formData.comments}
@@ -128,12 +110,10 @@ const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, 
             <Checkbox
               id="privacy"
               checked={formData.privacyAccepted}
-              onCheckedChange={(checked) => 
-                setFormData({ ...formData, privacyAccepted: checked as boolean })
-              }
+              onCheckedChange={(checked) => setFormData({ ...formData, privacyAccepted: checked as boolean })}
             />
             <label htmlFor="privacy" className="text-sm leading-relaxed">
-              Acepto la{' '}
+              Acepto la{" "}
               <Link to="/politica-privacidad" className="text-primary underline">
                 política de privacidad
               </Link>
@@ -144,14 +124,14 @@ const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, 
             <Button type="button" variant="ghost" onClick={onBack} className="text-primary">
               ← Volver
             </Button>
-            
+
             <Button
               type="submit"
               disabled={!isFormValid}
               className={`px-8 ${
-                isFormValid 
-                  ? 'bg-primary hover:bg-primary/90 text-white' 
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                isFormValid
+                  ? "bg-primary hover:bg-primary/90 text-white"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
             >
               OK

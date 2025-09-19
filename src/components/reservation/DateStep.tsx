@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,20 +9,36 @@ import StepHeader from "./StepHeader";
 interface DateStepProps {
   onNext: (date: Date) => void;
   onBack: () => void;
+  initialShowCancelForm?: boolean;
 }
 
-const DateStep = ({ onNext, onBack }: DateStepProps) => {
+const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showCancelForm, setShowCancelForm] = useState(false);
-  const [cancelEmail, setCancelEmail] = useState('');
+  const [showCancelForm, setShowCancelForm] = useState(initialShowCancelForm);
+  const [cancelPhone, setCancelPhone] = useState("");
   const [foundReservations, setFoundReservations] = useState<any[]>([]);
   const { toast } = useToast();
 
-  const daysOfWeek = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  // Si initialShowCancelForm cambia, actualizar showCancelForm
+  useEffect(() => {
+    setShowCancelForm(initialShowCancelForm);
+  }, [initialShowCancelForm]);
+
+  const daysOfWeek = ["L", "M", "X", "J", "V", "S", "D"];
   const monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   const getDaysInMonth = (date: Date) => {
@@ -34,17 +50,17 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
     const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Monday = 0
 
     const days = [];
-    
+
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
+
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    
+
     return days;
   };
 
@@ -52,82 +68,141 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     date.setHours(0, 0, 0, 0);
-    
-    if (date >= today) {
+
+    // Calcular fecha máxima (2 semanas = 14 días desde hoy)
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 14);
+
+    if (date >= today && date <= maxDate) {
       setSelectedDate(date);
       onNext(date);
     }
   };
 
-  const navigateMonth = (direction: 'prev' | 'next') => {
+  const navigateMonth = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);
-    if (direction === 'prev') {
-      newDate.setMonth(currentDate.getMonth() - 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Calcular fecha máxima (2 semanas desde hoy)
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 14);
+
+    if (direction === "prev") {
+      const prevMonth = new Date(currentDate);
+      prevMonth.setMonth(currentDate.getMonth() - 1);
+
+      // No permitir navegar a meses anteriores al actual
+      if (prevMonth.getMonth() >= today.getMonth() && prevMonth.getFullYear() >= today.getFullYear()) {
+        setCurrentDate(prevMonth);
+      }
     } else {
-      newDate.setMonth(currentDate.getMonth() + 1);
+      const nextMonth = new Date(currentDate);
+      nextMonth.setMonth(currentDate.getMonth() + 1);
+
+      // Solo permitir navegar si el próximo mes contiene fechas dentro del límite de 2 semanas
+      const firstDayOfNextMonth = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
+      if (firstDayOfNextMonth <= maxDate) {
+        setCurrentDate(nextMonth);
+      }
     }
-    setCurrentDate(newDate);
   };
 
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     date.setHours(0, 0, 0, 0);
-    return date < today;
+
+    // Calcular fecha máxima (2 semanas = 14 días desde hoy)
+    const maxDate = new Date(today);
+    maxDate.setDate(today.getDate() + 14);
+
+    // Deshabilitar fechas anteriores a hoy o posteriores a 2 semanas
+    return date < today || date > maxDate;
   };
 
   const handleCancelSearch = async () => {
-    if (!cancelEmail) {
+    if (!cancelPhone) {
       toast({
         title: "Error",
-        description: "Por favor ingresa tu correo electrónico",
+        description: "Por favor ingresa tu número de teléfono",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // Find customer by email
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('email', cancelEmail)
-        .maybeSingle();
+      // Normalizar el número de teléfono (eliminar espacios y otros caracteres no numéricos)
+      const normalizedPhone = cancelPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
+      console.log("Buscando reservas para el número normalizado:", normalizedPhone);
 
-      if (customerError) throw customerError;
+      // Método 1: Buscar cliente por teléfono
+      const { data: customers, error: customerError } = await supabase
+        .from("customers")
+        .select("id, name, phone")
+        .or(`phone.eq.${normalizedPhone},phone.ilike.%${normalizedPhone}%,phone.ilike.%${normalizedPhone.slice(-9)}%`);
 
-      if (!customer) {
+      if (customerError) {
+        console.error("Error al buscar clientes:", customerError);
+        throw customerError;
+      }
+
+      console.log("Clientes encontrados:", customers);
+
+      // Recopilar todos los IDs de clientes que coincidan
+      const customerIds = customers?.map((c) => c.id) || [];
+
+      // Método 2: Buscar directamente todas las reservas futuras
+      const today = new Date().toISOString().split("T")[0];
+
+      // Consulta para obtener todas las reservas futuras
+      const { data: allFutureReservations, error: allReservationsError } = await supabase
+        .from("reservations")
+        .select("*, customers(id, name, phone, email)")
+        .gte("date", today)
+        .in("status", ["pending", "confirmed"]);
+
+      if (allReservationsError) {
+        console.error("Error al buscar todas las reservas:", allReservationsError);
+        throw allReservationsError;
+      }
+
+      console.log("Todas las reservas futuras:", allFutureReservations);
+
+      // Filtrar reservas que coincidan con el número de teléfono (ya sea por ID de cliente o por teléfono en la tabla de clientes)
+      const matchingReservations = allFutureReservations?.filter((reservation) => {
+        // Si tenemos IDs de clientes que coinciden, verificar si esta reserva pertenece a alguno de ellos
+        if (customerIds.length > 0 && customerIds.includes(reservation.customer_id)) {
+          return true;
+        }
+
+        // También verificar si el teléfono del cliente asociado a la reserva coincide
+        const customerPhone = reservation.customers?.phone || "";
+        const normalizedCustomerPhone = customerPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
+
+        return (
+          normalizedCustomerPhone.includes(normalizedPhone) ||
+          normalizedPhone.includes(normalizedCustomerPhone) ||
+          normalizedCustomerPhone.includes(normalizedPhone.slice(-9)) ||
+          normalizedPhone.slice(-9).includes(normalizedCustomerPhone)
+        );
+      });
+
+      console.log("Reservas coincidentes:", matchingReservations);
+
+      if (!matchingReservations || matchingReservations.length === 0) {
         toast({
           title: "No encontrado",
-          description: "No se encontraron reservas con ese correo electrónico",
+          description: "No se encontraron reservas futuras para este número de teléfono",
           variant: "destructive",
         });
         return;
       }
 
-      // Find future reservations for this customer
-      const today = new Date().toISOString().split('T')[0];
-      const { data: reservations, error: reservationsError } = await supabase
-        .from('reservations')
-        .select('*')
-        .eq('customer_id', customer.id)
-        .eq('status', 'pending')
-        .gte('date', today);
-
-      if (reservationsError) throw reservationsError;
-
-      if (!reservations || reservations.length === 0) {
-        toast({
-          title: "No encontrado",
-          description: "No se encontraron reservas futuras para este correo",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setFoundReservations(reservations);
+      // Usar las reservas encontradas
+      setFoundReservations(matchingReservations);
     } catch (error) {
-      console.error('Error searching reservations:', error);
+      console.error("Error searching reservations:", error);
       toast({
         title: "Error",
         description: "Error al buscar reservas. Intenta de nuevo.",
@@ -138,10 +213,7 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
 
   const handleCancelReservation = async (reservationId: string) => {
     try {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ status: 'cancelled' })
-        .eq('id', reservationId);
+      const { error } = await supabase.from("reservations").update({ status: "cancelled" }).eq("id", reservationId);
 
       if (error) throw error;
 
@@ -151,9 +223,9 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
       });
 
       // Remove the cancelled reservation from the list
-      setFoundReservations(prev => prev.filter(r => r.id !== reservationId));
+      setFoundReservations((prev) => prev.filter((r) => r.id !== reservationId));
     } catch (error) {
-      console.error('Error canceling reservation:', error);
+      console.error("Error canceling reservation:", error);
       toast({
         title: "Error",
         description: "No se pudo cancelar la reserva. Intenta de nuevo.",
@@ -164,10 +236,10 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -181,41 +253,43 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
     return (
       <div className="max-w-lg mx-auto">
         <StepHeader currentStep="date" />
-        
+
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-medium text-primary mb-6">Cancelar Reserva</h2>
-          
+
           {foundReservations.length === 0 ? (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Ingresa tu correo electrónico para buscar tus reservas:
+                  Ingresa tu número de teléfono para buscar tus reservas:
                 </label>
-                <Input
-                  type="email"
-                  value={cancelEmail}
-                  onChange={(e) => setCancelEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  className="w-full"
-                />
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-md">
+                    +34
+                  </span>
+                  <Input
+                    type="tel"
+                    value={cancelPhone}
+                    onChange={(e) => setCancelPhone(e.target.value)}
+                    placeholder="Ej. 612345678"
+                    className="rounded-l-none w-full"
+                  />
+                </div>
               </div>
 
               <div className="flex space-x-4">
                 <Button
                   onClick={() => {
                     setShowCancelForm(false);
-                    setCancelEmail('');
+                    setCancelPhone("");
                   }}
                   variant="ghost"
                   className="flex-1"
                 >
                   Volver
                 </Button>
-                
-                <Button
-                  onClick={handleCancelSearch}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-white"
-                >
+
+                <Button onClick={handleCancelSearch} className="flex-1 bg-primary hover:bg-primary/90 text-white">
                   Buscar
                 </Button>
               </div>
@@ -223,13 +297,19 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
           ) : (
             <div className="space-y-4">
               <h3 className="font-medium">Reservas encontradas:</h3>
-              
+
               {foundReservations.map((reservation) => (
                 <div key={reservation.id} className="border rounded-lg p-4 space-y-2">
                   <div className="text-sm">
-                    <p><strong>Fecha:</strong> {formatDate(reservation.date)}</p>
-                    <p><strong>Hora:</strong> {formatTime(reservation.time)}</p>
-                    <p><strong>Personas:</strong> {reservation.guests}</p>
+                    <p>
+                      <strong>Fecha:</strong> {formatDate(reservation.date)}
+                    </p>
+                    <p>
+                      <strong>Hora:</strong> {formatTime(reservation.time)}
+                    </p>
+                    <p>
+                      <strong>Personas:</strong> {reservation.guests}
+                    </p>
                   </div>
                   <Button
                     onClick={() => handleCancelReservation(reservation.id)}
@@ -241,11 +321,11 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
                   </Button>
                 </div>
               ))}
-              
+
               <Button
                 onClick={() => {
                   setShowCancelForm(false);
-                  setCancelEmail('');
+                  setCancelPhone("");
                   setFoundReservations([]);
                 }}
                 variant="ghost"
@@ -263,31 +343,21 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
   return (
     <div className="max-w-lg mx-auto">
       <StepHeader currentStep="date" />
-      
+
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-primary mb-6">Selecciona una fecha</h2>
-        
+
         {/* Calendar Header */}
         <div className="flex items-center justify-between mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth('prev')}
-            className="p-2"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth("prev")} className="p-2">
             <ChevronLeft size={16} />
           </Button>
-          
+
           <h3 className="font-medium">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h3>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth('next')}
-            className="p-2"
-          >
+
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth("next")} className="p-2">
             <ChevronRight size={16} />
           </Button>
         </div>
@@ -309,11 +379,11 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
                 <Button
                   variant={selectedDate?.toDateString() === date.toDateString() ? "default" : "ghost"}
                   className={`w-full h-full text-sm ${
-                    isDateDisabled(date) 
-                      ? 'opacity-30 cursor-not-allowed' 
+                    isDateDisabled(date)
+                      ? "opacity-30 cursor-not-allowed text-gray-400"
                       : selectedDate?.toDateString() === date.toDateString()
-                      ? 'bg-black text-white'
-                      : 'hover:bg-gray-100'
+                      ? "bg-black text-white"
+                      : "hover:bg-gray-100"
                   }`}
                   disabled={isDateDisabled(date)}
                   onClick={() => handleDateClick(date)}
@@ -325,14 +395,22 @@ const DateStep = ({ onNext, onBack }: DateStepProps) => {
           ))}
         </div>
 
-        <div className="mt-6 text-center">
-          <Button 
-            variant="ghost" 
-            onClick={() => setShowCancelForm(true)} 
-            className="text-primary"
-          >
-            Cancelar reserva
-          </Button>
+        <div className="mt-6">
+          <p className="text-xs text-gray-500 text-center mb-4">
+            Solo puedes reservar con hasta 2 semanas de antelación
+          </p>
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowCancelForm(true);
+              }}
+              className="text-primary"
+            >
+              Cancelar reserva
+            </Button>
+          </div>
         </div>
       </div>
     </div>

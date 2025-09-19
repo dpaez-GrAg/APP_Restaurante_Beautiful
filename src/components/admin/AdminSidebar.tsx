@@ -1,4 +1,4 @@
-import { Calendar, Clock, Layout, Settings, Users, BarChart3, TableProperties, Link } from "lucide-react";
+import { Calendar, Clock, Layout, Settings, Users, BarChart3, TableProperties, Link, UserCheck } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -16,6 +16,7 @@ import {
 const adminItems = [
   { title: "Dashboard", url: "/admin", icon: BarChart3 },
   { title: "Reservas", url: "/admin/reservations", icon: Calendar },
+  { title: "Clientes", url: "/admin/customers", icon: UserCheck },
   { title: "Mesas", url: "/admin/tables", icon: TableProperties },
   { title: "Combinaciones", url: "/admin/combinations", icon: Link },
   { title: "Horarios", url: "/admin/schedules", icon: Clock },
@@ -36,12 +37,12 @@ export function AdminSidebar() {
   };
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive ? "bg-restaurant-gold/20 text-restaurant-brown font-medium border-r-2 border-restaurant-gold" : "hover:bg-restaurant-warm/50 text-muted-foreground hover:text-restaurant-brown";
+    isActive
+      ? "bg-restaurant-gold/20 text-restaurant-brown font-medium border-r-2 border-restaurant-gold"
+      : "hover:bg-restaurant-warm/50 text-muted-foreground hover:text-restaurant-brown";
 
   return (
-    <Sidebar
-      className={`${collapsed ? "w-14" : "w-64"} border-r border-border bg-background`}
-    >
+    <Sidebar className={`${collapsed ? "w-14" : "w-64"} border-r border-border bg-background`}>
       <SidebarTrigger className="m-2 self-end" />
 
       <SidebarContent>
@@ -58,9 +59,7 @@ export function AdminSidebar() {
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-restaurant-brown">
-            Gestión Principal
-          </SidebarGroupLabel>
+          <SidebarGroupLabel className="text-restaurant-brown">Gestión Principal</SidebarGroupLabel>
 
           <SidebarGroupContent>
             <SidebarMenu>
