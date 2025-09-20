@@ -1,4 +1,10 @@
 -- ========================================
+-- DATOS INICIALES DEL SISTEMA
+-- ========================================
+-- Este archivo contiene todos los datos iniciales necesarios
+-- para el funcionamiento básico del sistema.
+
+-- ========================================
 -- RESTAURANT RESERVATION SYSTEM - SEED DATA
 -- ========================================
 -- This file contains comprehensive seed data for the restaurant system
