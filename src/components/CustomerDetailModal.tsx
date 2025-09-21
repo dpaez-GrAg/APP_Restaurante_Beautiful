@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Phone, Mail, Calendar, Clock, Users, MessageSquare, History, Save } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { CustomerDetail, CustomerClassification, CustomerClassificationHistory } from "@/types/customer";
 import CustomerClassificationBadge from "./CustomerClassificationBadge";
 import { useToast } from "@/hooks/use-toast";

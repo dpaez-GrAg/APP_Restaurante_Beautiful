@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Phone, Clock, Star } from "lucide-react";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 const RestaurantInfo = () => {
   const { config } = useRestaurantConfig();
@@ -10,11 +10,11 @@ const RestaurantInfo = () => {
   useEffect(() => {
     const fetchSchedules = async () => {
       const { data } = await supabase
-        .from('restaurant_schedules')
-        .select('*')
-        .eq('is_active', true)
-        .order('day_of_week');
-      
+        .from("restaurant_schedules")
+        .select("*")
+        .eq("is_active", true)
+        .order("day_of_week");
+
       if (data) {
         setSchedules(data);
       }
@@ -24,30 +24,36 @@ const RestaurantInfo = () => {
   }, []);
 
   const getDayName = (dayOfWeek: number) => {
-    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     return days[dayOfWeek];
   };
 
-  const formatTime = (time: string) => {
+  const formatTime = (time: string | null | undefined) => {
+    if (!time) return "N/A";
     return time.substring(0, 5); // Convert HH:MM:SS to HH:MM
   };
 
   const groupSchedulesByTime = () => {
-    // Ordenar por día de la semana empezando en lunes (1)
-    const sortedSchedules = schedules.sort((a, b) => {
-      const dayA = a.day_of_week === 0 ? 7 : a.day_of_week; // Domingo al final
-      const dayB = b.day_of_week === 0 ? 7 : b.day_of_week;
+    if (!schedules || schedules.length === 0) return [];
+
+    // Filtrar solo horarios abiertos y con horarios válidos
+    const openSchedules = schedules.filter((schedule) => schedule.is_open && schedule.open_time && schedule.close_time);
+
+    // Ordenar por día de la semana y luego por hora de apertura
+    const sortedSchedules = openSchedules.sort((a, b) => {
+      const dayA = a.day_of_week;
+      const dayB = b.day_of_week;
       if (dayA !== dayB) return dayA - dayB;
       // Si es el mismo día, ordenar por hora de apertura
-      return a.opening_time.localeCompare(b.opening_time);
+      return (a.open_time || "").localeCompare(b.open_time || "");
     });
 
     // Agrupar horarios por día
     const dayGroups: { [key: number]: string[] } = {};
-    sortedSchedules.forEach(schedule => {
+    sortedSchedules.forEach((schedule) => {
       const day = schedule.day_of_week;
-      const timeRange = `${formatTime(schedule.opening_time)} - ${formatTime(schedule.closing_time)}`;
-      
+      const timeRange = `${formatTime(schedule.open_time)} - ${formatTime(schedule.close_time)}`;
+
       if (!dayGroups[day]) {
         dayGroups[day] = [];
       }
@@ -56,101 +62,111 @@ const RestaurantInfo = () => {
 
     // Crear la clave única para cada combinación de días y horarios
     const scheduleGroups: { [key: string]: number[] } = {};
-    
+
     Object.entries(dayGroups).forEach(([day, timeRanges]) => {
-      const scheduleKey = timeRanges.join(' y ');
+      const scheduleKey = timeRanges.join(" y ");
       const dayNum = parseInt(day);
-      
+
       if (!scheduleGroups[scheduleKey]) {
         scheduleGroups[scheduleKey] = [];
       }
       scheduleGroups[scheduleKey].push(dayNum);
     });
 
-    return Object.entries(scheduleGroups).map(([schedule, days]) => {
-      const dayNames = days.map(day => getDayName(day));
-      let dayRange = '';
-      
-      if (days.length === 1) {
-        dayRange = dayNames[0];
-      } else {
-        // Ordenar días para detectar secuencias
-        const sortedDays = days.sort((a, b) => {
-          const dayA = a === 0 ? 7 : a;
-          const dayB = b === 0 ? 7 : b;
-          return dayA - dayB;
-        });
-        
-        // Agrupar días consecutivos
-        const consecutiveGroups = [];
-        let currentGroup = [sortedDays[0]];
-        
-        for (let i = 1; i < sortedDays.length; i++) {
-          const prevDay = sortedDays[i - 1] === 0 ? 7 : sortedDays[i - 1];
-          const currentDay = sortedDays[i] === 0 ? 7 : sortedDays[i];
-          
-          if (currentDay === prevDay + 1) {
-            currentGroup.push(sortedDays[i]);
-          } else {
-            consecutiveGroups.push(currentGroup);
-            currentGroup = [sortedDays[i]];
+    return Object.entries(scheduleGroups)
+      .map(([schedule, days]) => {
+        const dayNames = days.map((day) => getDayName(day));
+        let dayRange = "";
+
+        if (days.length === 1) {
+          dayRange = dayNames[0];
+        } else {
+          // Ordenar días para detectar secuencias
+          const sortedDays = days.sort((a, b) => {
+            const dayA = a === 0 ? 7 : a;
+            const dayB = b === 0 ? 7 : b;
+            return dayA - dayB;
+          });
+
+          // Agrupar días consecutivos
+          const consecutiveGroups = [];
+          let currentGroup = [sortedDays[0]];
+
+          for (let i = 1; i < sortedDays.length; i++) {
+            const prevDay = sortedDays[i - 1] === 0 ? 7 : sortedDays[i - 1];
+            const currentDay = sortedDays[i] === 0 ? 7 : sortedDays[i];
+
+            if (currentDay === prevDay + 1) {
+              currentGroup.push(sortedDays[i]);
+            } else {
+              consecutiveGroups.push(currentGroup);
+              currentGroup = [sortedDays[i]];
+            }
           }
+          consecutiveGroups.push(currentGroup);
+
+          dayRange = consecutiveGroups
+            .map((group) => {
+              if (group.length === 1) {
+                return getDayName(group[0]);
+              } else if (group.length === 2) {
+                return `${getDayName(group[0])} y ${getDayName(group[1])}`;
+              } else {
+                return `${getDayName(group[0])} a ${getDayName(group[group.length - 1])}`;
+              }
+            })
+            .join(", ");
         }
-        consecutiveGroups.push(currentGroup);
-        
-        dayRange = consecutiveGroups.map(group => {
-          if (group.length === 1) {
-            return getDayName(group[0]);
-          } else if (group.length === 2) {
-            return `${getDayName(group[0])} y ${getDayName(group[1])}`;
-          } else {
-            return `${getDayName(group[0])} a ${getDayName(group[group.length - 1])}`;
-          }
-        }).join(', ');
-      }
-      
-      return { dayRange, timeRange: schedule, sortOrder: Math.min(...days.map(d => d === 0 ? 7 : d)) };
-    }).sort((a, b) => a.sortOrder - b.sortOrder);
+
+        return { dayRange, timeRange: schedule, sortOrder: Math.min(...days.map((d) => (d === 0 ? 7 : d))) };
+      })
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   };
 
-  const features = [{
-    icon: <Star className="w-6 h-6 text-restaurant-gold" />,
-    title: "Cocina de Autor",
-    description: "Platos únicos creados por nuestro chef con ingredientes frescos y locales"
-  }, {
-    icon: <MapPin className="w-6 h-6 text-restaurant-gold" />,
-    title: "Ubicación Privilegiada",
-    description: "En el corazón de la ciudad, con vistas espectaculares y fácil acceso"
-  }, {
-    icon: <Clock className="w-6 h-6 text-restaurant-gold" />,
-    title: "Horarios Flexibles",
-    description: "Abierto todos los días con horarios de almuerzo y cena adaptados a ti"
-  }];
-  return <section className="py-20 bg-background">
+  const features = [
+    {
+      icon: <Star className="w-6 h-6 text-restaurant-gold" />,
+      title: "Cocina de Autor",
+      description: "Platos únicos creados por nuestro chef con ingredientes frescos y locales",
+    },
+    {
+      icon: <MapPin className="w-6 h-6 text-restaurant-gold" />,
+      title: "Ubicación Privilegiada",
+      description: "En el corazón de la ciudad, con vistas espectaculares y fácil acceso",
+    },
+    {
+      icon: <Clock className="w-6 h-6 text-restaurant-gold" />,
+      title: "Horarios Flexibles",
+      description: "Abierto todos los días con horarios de almuerzo y cena adaptados a ti",
+    },
+  ];
+  return (
+    <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12 animate-fade-in">
-          <h2 className="text-4xl font-bold text-restaurant-brown mb-4">
-            Sobre Nuestro Restaurante
-          </h2>
+          <h2 className="text-4xl font-bold text-restaurant-brown mb-4">Sobre Nuestro Restaurante</h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Más de 20 años creando experiencias gastronómicas únicas, combinando tradición culinaria 
-            con innovación moderna en cada plato que servimos.
+            Más de 20 años creando experiencias gastronómicas únicas, combinando tradición culinaria con innovación
+            moderna en cada plato que servimos.
           </p>
         </div>
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-          {features.map((feature, index) => <Card key={index} className="text-center shadow-elegant hover:shadow-glow transition-all duration-300 animate-slide-up">
+          {features.map((feature, index) => (
+            <Card
+              key={index}
+              className="text-center shadow-elegant hover:shadow-glow transition-all duration-300 animate-slide-up"
+            >
               <CardHeader>
-                <div className="flex justify-center mb-4">
-                  {feature.icon}
-                </div>
+                <div className="flex justify-center mb-4">{feature.icon}</div>
                 <CardTitle className="text-restaurant-brown">{feature.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">{feature.description}</p>
               </CardContent>
-            </Card>)}
+            </Card>
+          ))}
         </div>
 
         {/* Contact Information */}
@@ -171,17 +187,13 @@ const RestaurantInfo = () => {
                   <p className="text-muted-foreground">Dirección no disponible</p>
                 )}
               </div>
-                            <div>
+              <div>
                 <p className="font-semibold flex items-center gap-2">
                   <Phone className="w-4 h-4" />
                   Contacto:
                 </p>
-                {config?.contact_phone && (
-                  <p className="text-sm text-muted-foreground">{config.contact_phone}</p>
-                )}
-                {config?.contact_email && (
-                  <p className="text-sm text-muted-foreground">{config.contact_email}</p>
-                )}
+                {config?.contact_phone && <p className="text-sm text-muted-foreground">{config.contact_phone}</p>}
+                {config?.contact_email && <p className="text-sm text-muted-foreground">{config.contact_email}</p>}
                 {!config?.contact_phone && !config?.contact_email && (
                   <p className="text-sm text-muted-foreground">Información de contacto no disponible</p>
                 )}
@@ -209,11 +221,11 @@ const RestaurantInfo = () => {
                   <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
                 )}
               </div>
-
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 };
 export default RestaurantInfo;

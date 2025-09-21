@@ -1,8 +1,63 @@
 -- Basic seed data for local development
 -- This file will be loaded when running `supabase db reset`
 
+-- Create admin user first
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  'admin000-0000-0000-0000-000000000001',
+  'authenticated',
+  'authenticated',
+  'admin@admin.es',
+  '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  NOW(),
+  NOW(),
+  NOW(),
+  '{"provider": "email", "providers": ["email"]}',
+  '{}',
+  false
+) ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  updated_at = NOW();
+
+-- Create admin profile
+INSERT INTO public.profiles (
+  id,
+  email,
+  full_name,
+  role,
+  is_active,
+  created_at,
+  updated_at
+) VALUES (
+  'admin000-0000-0000-0000-000000000001',
+  'admin@admin.es',
+  'Administrador Principal',
+  'admin',
+  true,
+  NOW(),
+  NOW()
+) ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  full_name = EXCLUDED.full_name,
+  role = EXCLUDED.role,
+  is_active = EXCLUDED.is_active,
+  updated_at = NOW();
+
 -- Insert sample restaurant configuration
-INSERT INTO restaurants (id, name, description, address, phone, email, capacity, created_at, updated_at) 
+INSERT INTO restaurant_config (id, name, description, address, phone, email, capacity, created_at, updated_at) 
 VALUES (
   '00000000-0000-0000-0000-000000000001',
   'Tu Mesa Ideal - Local Dev',
@@ -30,8 +85,8 @@ ON CONFLICT (id) DO UPDATE SET
   is_active = EXCLUDED.is_active,
   updated_at = NOW();
 
--- Insert sample schedules (Monday to Sunday)
-INSERT INTO schedules (id, restaurant_id, day_of_week, open_time, close_time, is_active, created_at, updated_at)
+-- Insert sample schedules
+INSERT INTO restaurant_schedules (id, restaurant_id, day_of_week, open_time, close_time, is_active, created_at, updated_at)
 VALUES 
   ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 1, '12:00', '23:00', true, NOW(), NOW()),
   ('00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 2, '12:00', '23:00', true, NOW(), NOW()),

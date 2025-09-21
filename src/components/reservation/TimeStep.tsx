@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import StepHeader from "./StepHeader";
 import { format } from "date-fns";
@@ -33,7 +33,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
 
   const checkAvailability = async () => {
     setLoading(true);
-    console.log('🔍 Checking availability for:', { date, guests });
+    // console.log('🔍 Checking availability for:', { date, guests });
     try {
       // Helper function to format date as YYYY-MM-DD in local timezone
       const formatDateLocal = (date: Date) => {
@@ -44,7 +44,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       };
 
       const dateStr = formatDateLocal(date);
-      console.log('📅 Formatted date:', dateStr);
+      // console.log('📅 Formatted date:', dateStr);
 
       // Use supabase.rpc instead of fetch
       const { data: rpcData, error } = await supabase.rpc('get_available_time_slots' as any, {
@@ -58,7 +58,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         throw new Error(`RPC call failed: ${error.message}`);
       }
 
-      console.log('📋 Available time slots from RPC:', rpcData);
+      // console.log('📋 Available time slots from RPC:', rpcData);
 
       // Transform the data to match the expected format
       const slots = Array.isArray(rpcData) ? rpcData.map((slot: any) => ({
@@ -68,7 +68,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         capacity: slot.capacity
       })) : [];
 
-      console.log('🔄 Transformed slots:', slots);
+      // console.log('🔄 Transformed slots:', slots);
 
       // Filter out past times for today
       const now = new Date();
@@ -82,7 +82,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
         return true;
       });
 
-      console.log('✅ Available slots after filtering past times:', filteredSlots.length);
+      // console.log('✅ Available slots after filtering past times:', filteredSlots.length);
       setAvailableSlots(filteredSlots);
     } catch (error) {
       console.error('Error checking availability:', error);

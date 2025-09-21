@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, Users, Filter } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { CustomerWithStats, CustomerClassification } from "@/types/customer";
 import CustomerClassificationBadge from "@/components/CustomerClassificationBadge";
 import { useToast } from "@/hooks/use-toast";

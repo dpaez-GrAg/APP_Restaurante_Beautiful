@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 import StepHeader from "./StepHeader";
@@ -51,7 +51,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
     try {
       // Normalizar el número de teléfono (eliminar espacios y otros caracteres no numéricos)
       const normalizedPhone = cancelPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
-      console.log("Buscando reservas para el número normalizado:", normalizedPhone);
+      // console.log("Buscando reservas para el número normalizado:", normalizedPhone);
 
       // Método 1: Buscar cliente por teléfono
       const { data: customers, error: customerError } = await supabase
@@ -64,7 +64,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
         throw customerError;
       }
 
-      console.log("Clientes encontrados:", customers);
+      // console.log("Clientes encontrados:", customers);
 
       // Recopilar todos los IDs de clientes que coincidan
       const customerIds = customers?.map((c) => c.id) || [];
@@ -83,19 +83,18 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
           guests, 
           status,
           customer_id,
-          restaurants(name),
           customers(id, name, phone, email)
         `
         )
         .gte("date", today)
-        .in("status", ["pending", "confirmed"]);
+        .in("status", ["pending", "confirmed", "seated"]);
 
       if (allReservationsError) {
         console.error("Error al buscar todas las reservas:", allReservationsError);
         throw allReservationsError;
       }
 
-      console.log("Todas las reservas futuras:", allFutureReservations);
+      // console.log("Todas las reservas futuras:", allFutureReservations);
 
       // Filtrar reservas que coincidan con el número de teléfono (ya sea por ID de cliente o por teléfono en la tabla de clientes)
       const matchingReservations = allFutureReservations?.filter((reservation) => {
@@ -116,7 +115,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
         );
       });
 
-      console.log("Reservas coincidentes:", matchingReservations);
+      // console.log("Reservas coincidentes:", matchingReservations);
 
       if (!matchingReservations || matchingReservations.length === 0) {
         toast({
@@ -179,7 +178,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
 
   const handleConsultarCarta = () => {
     // TODO: Implementar navegación a la página de carta
-    console.log("Navegando a la carta del restaurante...");
+    // console.log("Navegando a la carta del restaurante...");
     toast({
       title: "Próximamente",
       description: "La página de la carta estará disponible pronto",
@@ -291,11 +290,6 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
                 <p>
                   <strong>Personas:</strong> {foundReservation.guests}
                 </p>
-                {foundReservation.restaurants && (
-                  <p>
-                    <strong>Restaurante:</strong> {foundReservation.restaurants.name}
-                  </p>
-                )}
               </div>
               <p className="text-red-500 text-sm mb-4">
                 ¿Estás seguro de que deseas cancelar esta reserva? Esta acción no se puede deshacer.

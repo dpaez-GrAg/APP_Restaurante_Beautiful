@@ -68,29 +68,19 @@ BEGIN
 END;
 $$;
 
--- Verificar que la función se creó correctamente
-SELECT 'FUNCIÓN CORREGIDA' as status,
-       proname,
-       pg_get_function_arguments(oid) as arguments
-FROM pg_proc 
-WHERE proname = 'create_customer_optional_email';
+-- ========================================
+-- COMENTARIOS PARA DOCUMENTACIÓN
+-- ========================================
+COMMENT ON FUNCTION create_customer_optional_email IS 'Crea o actualiza un cliente con email opcional';
 
--- Probar la función
-SELECT 'TEST FUNCIÓN CORREGIDA' as test_type,
-       create_customer_optional_email('Diego Test', '777666555', null) as customer_id;
+-- NOTA: Para probar la función, usar después de ejecutar este script:
+-- SELECT create_customer_optional_email('Diego Test', '777666555', null) as customer_id;
+-- 
+-- Verificar que el customer se creó:
+-- SELECT id, name, email, phone FROM public.customers WHERE name = 'Diego Test';
 
--- Verificar que el customer se creó
-SELECT 'CUSTOMER CREADO' as test_type,
-       id, name, email, phone
-FROM public.customers 
-WHERE name = 'Diego Test'
-ORDER BY created_at DESC
-LIMIT 1;
-
--- Limpiar el customer de prueba
-DELETE FROM public.customers WHERE name = 'Diego Test';
-
-COMMENT ON FUNCTION create_customer_optional_email IS 'Crear customer con email opcional, busca por teléfono para evitar duplicados';
+-- Limpiar cache de PostgREST
+NOTIFY pgrst, 'reload schema';
 
 -- Funciones de: add_customer_classification_system.sql
 -- ========================================
@@ -99,8 +89,8 @@ COMMENT ON FUNCTION create_customer_optional_email IS 'Crear customer con email 
 -- ========================================
 -- Añade clasificación de clientes con historial de cambios
 
--- 1. Crear enum para las clasificaciones
-CREATE TYPE customer_classification AS ENUM ('VIP', 'NEUTRO', 'ALERTA', 'RED_FLAG');
+-- 1. El enum customer_classification ya existe en 01_database_structure.sql
+-- No necesitamos crearlo de nuevo
 
 -- 2. Añadir campos a la tabla customers
 ALTER TABLE customers 

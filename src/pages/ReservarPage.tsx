@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 import DateStep from "@/components/reservation/DateStep";
 import GuestsStep from "@/components/reservation/GuestsStep";

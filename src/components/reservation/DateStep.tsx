@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import StepHeader from "./StepHeader";
 
@@ -134,7 +134,7 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
     try {
       // Normalizar el número de teléfono (eliminar espacios y otros caracteres no numéricos)
       const normalizedPhone = cancelPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
-      console.log("Buscando reservas para el número normalizado:", normalizedPhone);
+      // console.log("Buscando reservas para el número normalizado:", normalizedPhone);
 
       // Método 1: Buscar cliente por teléfono
       const { data: customers, error: customerError } = await supabase
@@ -147,7 +147,7 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
         throw customerError;
       }
 
-      console.log("Clientes encontrados:", customers);
+      // console.log("Clientes encontrados:", customers);
 
       // Recopilar todos los IDs de clientes que coincidan
       const customerIds = customers?.map((c) => c.id) || [];
@@ -167,7 +167,7 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
         throw allReservationsError;
       }
 
-      console.log("Todas las reservas futuras:", allFutureReservations);
+      // console.log("Todas las reservas futuras:", allFutureReservations);
 
       // Filtrar reservas que coincidan con el número de teléfono (ya sea por ID de cliente o por teléfono en la tabla de clientes)
       const matchingReservations = allFutureReservations?.filter((reservation) => {
@@ -188,7 +188,7 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
         );
       });
 
-      console.log("Reservas coincidentes:", matchingReservations);
+      // console.log("Reservas coincidentes:", matchingReservations);
 
       if (!matchingReservations || matchingReservations.length === 0) {
         toast({
