@@ -9,7 +9,12 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "citext";
 
+-- Crear tipos ENUM de forma segura
+DO $$ 
+BEGIN
     CREATE TYPE reservation_status AS ENUM ('pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show');
+    CREATE TYPE customer_classification AS ENUM ('NEUTRO', 'VIP', 'ALERTA', 'RED_FLAG');
+    CREATE TYPE user_role AS ENUM ('admin', 'user');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;

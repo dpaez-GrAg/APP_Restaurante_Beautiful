@@ -1,16 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { formatDateLocal } from '@/lib/dateUtils';
-import { Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { formatDateLocal } from "@/lib/dateUtils";
+import { Trash2 } from "lucide-react";
 
 interface EditReservation {
   id: string;
@@ -41,18 +51,18 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
   open,
   onOpenChange,
   reservation,
-  onUpdate
+  onUpdate,
 }) => {
   const [formData, setFormData] = useState({
-    date: '',
-    time: '',
+    date: "",
+    time: "",
     guests: 2,
-    special_requests: '',
-    status: 'confirmed',
-    duration_minutes: 90
+    special_requests: "",
+    status: "confirmed",
+    duration_minutes: 90,
   });
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
-  const [availableTables, setAvailableTables] = useState<Array<{id: string, name: string, capacity: number}>>([]);
+  const [availableTables, setAvailableTables] = useState<Array<{ id: string; name: string; capacity: number }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -60,7 +70,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     if (reservation) {
       // Get duration from reservation data if available
       let duration = 90; // default
-      
+
       // Try to get from database field first
       if (reservation.duration_minutes) {
         duration = reservation.duration_minutes;
@@ -70,21 +80,23 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         const end = new Date(reservation.end_at);
         duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
       }
-      
+
       setFormData({
         date: reservation.date,
         time: reservation.time,
         guests: reservation.guests,
-        special_requests: reservation.special_requests || '',
+        special_requests: reservation.special_requests || "",
         status: reservation.status,
-        duration_minutes: duration
+        duration_minutes: duration,
       });
 
       // Set currently assigned tables
-      const currentTableIds = reservation.tableAssignments?.map(t => t.table_id) || 
-                              reservation.table_assignments?.map(t => t.table.id) || [];
+      const currentTableIds =
+        reservation.tableAssignments?.map((t) => t.table_id) ||
+        reservation.table_assignments?.map((t) => t.table.id) ||
+        [];
       setSelectedTableIds(currentTableIds);
-      
+
       // Load available tables
       loadAvailableTables();
     }
@@ -93,15 +105,15 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
   const loadAvailableTables = async () => {
     try {
       const { data, error } = await supabase
-        .from('tables')
-        .select('id, name, capacity')
-        .eq('is_active', true)
-        .order('name');
+        .from("tables")
+        .select("id, name, capacity")
+        .eq("is_active", true)
+        .order("name");
 
       if (error) throw error;
       setAvailableTables(data || []);
     } catch (error) {
-      console.error('Error loading tables:', error);
+      console.error("Error loading tables:", error);
     }
   };
 
@@ -112,17 +124,24 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     setIsLoading(true);
     try {
       // Check if tables changed
-      const currentTableIds = reservation.tableAssignments?.map(t => t.table_id) || 
-                              reservation.table_assignments?.map(t => t.table.id) || [];
+      const currentTableIds =
+        reservation.tableAssignments?.map((t) => t.table_id) ||
+        reservation.table_assignments?.map((t) => t.table.id) ||
+        [];
       const tablesChanged = JSON.stringify(selectedTableIds.sort()) !== JSON.stringify(currentTableIds.sort());
 
       // Check if date/time/duration changed, use move function with specific tables if changed
-      if (formData.date !== reservation.date || formData.time !== reservation.time || formData.duration_minutes !== (reservation.duration_minutes || 90) || tablesChanged) {
+      if (
+        formData.date !== reservation.date ||
+        formData.time !== reservation.time ||
+        formData.duration_minutes !== (reservation.duration_minutes || 90) ||
+        tablesChanged
+      ) {
         const moveParams: any = {
           p_reservation_id: reservation.id,
           p_new_date: formData.date,
           p_new_time: formData.time,
-          p_duration_minutes: formData.duration_minutes
+          p_duration_minutes: formData.duration_minutes,
         };
 
         // Include specific tables if manually selected
@@ -130,7 +149,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           moveParams.p_new_table_ids = selectedTableIds;
         }
 
-        const { data, error } = await supabase.rpc('move_reservation_with_validation', moveParams);
+        const { data, error } = await supabase.rpc("move_reservation_with_validation", moveParams);
 
         if (error) throw error;
         const result = data as { success: boolean; error?: string };
@@ -139,10 +158,13 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
       // Update guest count with automatic table reassignment if needed (only if tables weren't manually changed)
       if (formData.guests !== reservation.guests && !tablesChanged) {
-        const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc('update_reservation_guests_with_reassignment', {
-          p_reservation_id: reservation.id,
-          p_new_guests: formData.guests
-        });
+        const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc(
+          "update_reservation_guests_with_reassignment",
+          {
+            p_reservation_id: reservation.id,
+            p_new_guests: formData.guests,
+          }
+        );
 
         if (guestUpdateError) throw guestUpdateError;
         const guestUpdateResult = guestUpdateData as { success: boolean; error?: string };
@@ -150,22 +172,22 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
       }
 
       // Update other details (excluding guests if already handled above)
-      const { data: updateData, error: updateError } = await supabase.rpc('update_reservation_details', {
+      const { data: updateData, error: updateError } = await supabase.rpc("update_reservation_details", {
         p_reservation_id: reservation.id,
         p_guests: tablesChanged ? formData.guests : null, // Update guests if tables were manually changed
         p_special_requests: formData.special_requests,
-        p_status: formData.status
+        p_status: formData.status,
       });
 
       if (updateError) throw updateError;
       const updateResult = updateData as { success: boolean; error?: string };
       if (!updateResult.success) throw new Error(updateResult.error);
 
-      toast.success('Reserva actualizada correctamente');
+      toast.success("Reserva actualizada correctamente");
       onUpdate();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error updating reservation:', error);
+      console.error("Error updating reservation:", error);
       toast.error(`Error: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -179,25 +201,22 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     try {
       // Delete table assignments first
       const { error: assignmentError } = await supabase
-        .from('reservation_table_assignments')
+        .from("reservation_table_assignments")
         .delete()
-        .eq('reservation_id', reservation.id);
+        .eq("reservation_id", reservation.id);
 
       if (assignmentError) throw assignmentError;
 
       // Delete the reservation
-      const { error: reservationError } = await supabase
-        .from('reservations')
-        .delete()
-        .eq('id', reservation.id);
+      const { error: reservationError } = await supabase.from("reservations").delete().eq("id", reservation.id);
 
       if (reservationError) throw reservationError;
 
-      toast.success('Reserva eliminada correctamente');
+      toast.success("Reserva eliminada correctamente");
       onUpdate();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error deleting reservation:', error);
+      console.error("Error deleting reservation:", error);
       toast.error(`Error al eliminar: ${error.message}`);
     } finally {
       setIsDeleting(false);
@@ -214,7 +233,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           <div className="text-sm text-muted-foreground space-y-2">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <strong>Cliente:</strong> {reservation.customer_name || reservation.name || 'Sin nombre'}
+                <strong>Cliente:</strong> {reservation.customer_name || reservation.name || "Sin nombre"}
               </div>
               <div>
                 <strong>Email:</strong> {reservation.email}
@@ -227,10 +246,12 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             )}
             {(reservation.tableAssignments?.length || reservation.table_assignments?.length) && (
               <div>
-                <strong>Mesas:</strong> {
-                  (reservation.tableAssignments?.map(t => t.table_name) || 
-                   reservation.table_assignments?.map(t => t.table.name) || []).join(', ')
-                }
+                <strong>Mesas:</strong>{" "}
+                {(
+                  reservation.tableAssignments?.map((t) => t.table_name) ||
+                  reservation.table_assignments?.map((t) => t.table.name) ||
+                  []
+                ).join(", ")}
               </div>
             )}
           </div>
@@ -242,7 +263,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
                 required
               />
             </div>
@@ -251,7 +272,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               <Input
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))}
                 required
               />
             </div>
@@ -265,7 +286,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 min="1"
                 max="20"
                 value={formData.guests}
-                onChange={(e) => setFormData(prev => ({ ...prev, guests: parseInt(e.target.value) }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, guests: parseInt(e.target.value) }))}
                 required
               />
             </div>
@@ -277,7 +298,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 max="240"
                 step="15"
                 value={formData.duration_minutes}
-                onChange={(e) => setFormData(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) }))}
+                onChange={(e) => setFormData((prev) => ({ ...prev, duration_minutes: parseInt(e.target.value) }))}
                 required
               />
             </div>
@@ -285,7 +306,10 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
           <div>
             <Label>Estado</Label>
-            <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <Select
+              value={formData.status}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -300,16 +324,16 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           <div>
             <Label>Mesas Asignadas</Label>
             <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-              {availableTables.map(table => (
+              {availableTables.map((table) => (
                 <div key={table.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={`table-${table.id}`}
                     checked={selectedTableIds.includes(table.id)}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        setSelectedTableIds(prev => [...prev, table.id]);
+                        setSelectedTableIds((prev) => [...prev, table.id]);
                       } else {
-                        setSelectedTableIds(prev => prev.filter(id => id !== table.id));
+                        setSelectedTableIds((prev) => prev.filter((id) => id !== table.id));
                       }
                     }}
                   />
@@ -320,9 +344,8 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               ))}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Capacidad total: {availableTables
-                .filter(t => selectedTableIds.includes(t.id))
-                .reduce((sum, t) => sum + t.capacity, 0)}p
+              Capacidad total:{" "}
+              {availableTables.filter((t) => selectedTableIds.includes(t.id)).reduce((sum, t) => sum + t.capacity, 0)}p
             </div>
           </div>
 
@@ -330,7 +353,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             <Label>Comentarios</Label>
             <Textarea
               value={formData.special_requests}
-              onChange={(e) => setFormData(prev => ({ ...prev, special_requests: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, special_requests: e.target.value }))}
               placeholder="Comentarios especiales..."
               rows={3}
             />
@@ -344,7 +367,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               <AlertDialogTrigger asChild>
                 <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                  {isDeleting ? "Eliminando..." : "Eliminar"}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -356,7 +379,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction 
+                  <AlertDialogAction
                     onClick={handleDelete}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
@@ -366,7 +389,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               </AlertDialogContent>
             </AlertDialog>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Guardando...' : 'Guardar'}
+              {isLoading ? "Guardando..." : "Guardar"}
             </Button>
           </div>
         </form>

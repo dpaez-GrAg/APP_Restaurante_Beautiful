@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug Acceso de Emergencia</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #1a1a1a;
+        color: #00ff00;
+        padding: 20px;
+        margin: 0;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      button {
+        background: #333;
+        color: #00ff00;
+        border: 1px solid #00ff00;
+        padding: 10px 20px;
+        margin: 10px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      button:hover {
+        background: #00ff00;
+        color: #1a1a1a;
+      }
+      .log {
+        background: #000;
+        border: 1px solid #333;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+        min-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+      .success {
+        color: #00ff00;
+      }
+      .error {
+        color: #ff0000;
+      }
+      .warning {
+        color: #ffaa00;
+      }
+      .info {
+        color: #00aaff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚨 Debug Acceso de Emergencia</h1>
+
+      <div>
+        <button onclick="debugLocalStorage()">🔍 Debug localStorage</button>
+        <button onclick="setLocalAdmin()">🔑 Activar Admin Local</button>
+        <button onclick="clearAll()">🧹 Limpiar Todo</button>
+        <button onclick="goToAdmin()">🚀 Ir a /admin</button>
+        <button onclick="goToAuth()">👤 Ir a /admin/auth</button>
+      </div>
+
+      <div id="log" class="log">=== LOG DE DEBUG === Usa los botones para diagnosticar el problema...</div>
+    </div>
+
+    <script>
+      const log = document.getElementById("log");
+
+      function addLog(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const className = type;
+        log.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function debugLocalStorage() {
+        addLog("=== DEBUG LOCALSTORAGE ===", "info");
+
+        try {
+          // Ver todo el localStorage
+          addLog(`localStorage length: ${localStorage.length}`, "info");
+
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const value = localStorage.getItem(key);
+            addLog(`${key}: ${value}`, "info");
+          }
+
+          // Verificar específicamente local_admin
+          const localAdmin = localStorage.getItem("local_admin");
+          addLog(`local_admin value: "${localAdmin}"`, localAdmin === "true" ? "success" : "warning");
+          addLog(`local_admin type: ${typeof localAdmin}`, "info");
+
+          // Verificar sessionStorage
+          addLog(`sessionStorage length: ${sessionStorage.length}`, "info");
+
+          addLog("=== FIN DEBUG LOCALSTORAGE ===", "info");
+        } catch (error) {
+          addLog(`ERROR en localStorage: ${error.message}`, "error");
+        }
+      }
+
+      function setLocalAdmin() {
+        try {
+          addLog("=== ACTIVANDO ADMIN LOCAL ===", "info");
+
+          // Limpiar primero
+          localStorage.removeItem("local_admin");
+          sessionStorage.clear();
+
+          // Establecer admin local
+          localStorage.setItem("local_admin", "true");
+
+          // Verificar
+          const check = localStorage.getItem("local_admin");
+          addLog(`local_admin establecido: "${check}"`, check === "true" ? "success" : "error");
+
+          // Simular el perfil que crearía el AuthContext
+          const mockProfile = {
+            id: "local-admin",
+            email: "admin@admin.es",
+            full_name: "Local Admin",
+            role: "admin",
+            is_active: true,
+          };
+
+          addLog(`Perfil simulado: ${JSON.stringify(mockProfile, null, 2)}`, "success");
+          addLog("=== ADMIN LOCAL ACTIVADO ===", "success");
+        } catch (error) {
+          addLog(`ERROR activando admin: ${error.message}`, "error");
+        }
+      }
+
+      function clearAll() {
+        try {
+          addLog("=== LIMPIANDO TODO ===", "warning");
+
+          localStorage.clear();
+          sessionStorage.clear();
+
+          // Limpiar cookies
+          document.cookie.split(";").forEach((c) => {
+            const eqPos = c.indexOf("=");
+            const name = eqPos > -1 ? c.substr(0, eqPos) : c;
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+          });
+
+          addLog("Todo limpiado correctamente", "success");
+        } catch (error) {
+          addLog(`ERROR limpiando: ${error.message}`, "error");
+        }
+      }
+
+      function goToAdmin() {
+        addLog("Navegando a /admin...", "info");
+        window.location.href = "/admin";
+      }
+
+      function goToAuth() {
+        addLog("Navegando a /admin/auth...", "info");
+        window.location.href = "/admin/auth";
+      }
+
+      // Auto-debug al cargar
+      window.addEventListener("load", () => {
+        addLog("=== PÁGINA CARGADA ===", "info");
+        addLog("Iniciando debug automático...", "info");
+        debugLocalStorage();
+      });
+    </script>
+  </body>
+</html>

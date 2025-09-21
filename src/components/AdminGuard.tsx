@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminGuardProps {
   children: React.ReactNode;
@@ -8,15 +6,6 @@ interface AdminGuardProps {
 
 const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   const { isAdmin, isLoading } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAdmin) {
-        navigate('/admin/auth');
-      }
-    }
-  }, [isAdmin, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -30,7 +19,15 @@ const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   }
 
   if (!isAdmin) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse">
+            <p className="text-muted-foreground">Sin permisos de administrador</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

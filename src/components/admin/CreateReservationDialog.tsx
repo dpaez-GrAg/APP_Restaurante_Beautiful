@@ -111,8 +111,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               type="email"
               value={formData.customerEmail}
               onChange={(e) => setFormData((prev) => ({ ...prev, customerEmail: e.target.value }))}
-              placeholder="email@ejemplo.com"
-              required
+              placeholder="email@ejemplo.com (opcional)"
             />
           </div>
 
@@ -122,7 +121,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               type="tel"
               value={formData.customerPhone}
               onChange={(e) => setFormData((prev) => ({ ...prev, customerPhone: e.target.value }))}
-              placeholder="Teléfono (opcional)"
+              placeholder="Teléfono"
             />
           </div>
 
