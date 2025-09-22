@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import { useNavigate } from "react-router-dom";
 import StepHeader from "./StepHeader";
 import {
   Dialog,
@@ -30,6 +31,7 @@ interface ConfirmationStepProps {
 
 const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
   const { config } = useRestaurantConfig();
+  const navigate = useNavigate();
   const [cancelPhone, setCancelPhone] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [foundReservation, setFoundReservation] = useState<any>(null);
@@ -177,12 +179,7 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
   };
 
   const handleConsultarCarta = () => {
-    // TODO: Implementar navegación a la página de carta
-    // console.log("Navegando a la carta del restaurante...");
-    toast({
-      title: "Próximamente",
-      description: "La página de la carta estará disponible pronto",
-    });
+    navigate("/carta");
   };
 
   const formatDate = (dateString: string) => {

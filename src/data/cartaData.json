@@ -1,0 +1,251 @@
+{
+  "cartaPrincipal": {
+    "entrantes": [
+      { "name": "Croquetas", "price": "9,80", "description": "" },
+      { "name": "Provolone", "price": "9,80", "description": "" },
+      { "name": "Provolone caprese", "price": "11,90", "description": "" },
+      { "name": "Vieira del Pacífico", "price": "18,00", "description": "" },
+      { "name": "Langostinos ajillo", "price": "17,50", "description": "" },
+      { "name": "Timbal de ensaladilla", "price": "12,00", "description": "" },
+      { "name": "Burrata de búfala", "price": "10,50", "description": "" },
+      { "name": "Sardinas ahumadas sobre queso de vaca", "price": "13,00", "description": "" }
+    ],
+    "verduras": [
+      { "name": "Patatas bravas", "price": "4,00", "price2": "5,90", "description": "" },
+      { "name": "Calabacín brasa", "price": "5,80", "description": "" },
+      { "name": "Boniato brasa", "price": "6,00", "description": "" },
+      { "name": "Tomate brasa", "price": "4,00", "price2": "5,50", "description": "" },
+      { "name": "Patatas fritas", "price": "4,00", "price2": "6,00", "description": "" },
+      { "name": "Patatas rustic", "price": "7,00", "description": "" },
+      { "name": "Pimiento a la brasa", "price": "5,90", "description": "" },
+      {
+        "name": "Parrillada de verduras",
+        "price": "12,50",
+        "description": "Calabacín, zanahoria, boniato, tomate, pimiento italiano y cebolla morada"
+      }
+    ],
+    "carnes": [
+      { "name": "Criollo", "price": "3,30", "description": "" },
+      { "name": "Morcilla", "price": "3,50", "description": "" },
+      { "name": "Chorizo rojo", "price": "3,30", "description": "" },
+      { "name": "Mollejas", "price": "10,50", "price2": "15,90", "description": "" },
+      { "name": "Secreto 'Duroc'", "price": "16,90", "description": "" },
+      { "name": "Asado de tira", "price": "12,50", "price2": "18,50", "description": "" },
+      { "name": "Entraña", "price": "22,50", "description": "" },
+      { "name": "Picaña", "price": "22,50", "description": "" },
+      { "name": "Bife (Ojo de bife)", "price": "26,00", "description": "" },
+      { "name": "Bife de chorizo", "price": "24,50", "description": "" },
+      { "name": "Brocheta de pollo (Contramuslo)", "price": "14,50", "description": "" },
+      { "name": "Chuletón de vaca", "price": "65,00/Kg", "description": "" }
+    ],
+    "burgers": [
+      { "name": "Bacon", "price": "11,00", "description": "Hamburguesa de vacuno 200grs, queso cheddar y bacon" },
+      {
+        "name": "Special",
+        "price": "11,00",
+        "description": "Hamburguesa de vacuno 200grs, queso, tomate, mix de lechuga y cebolla"
+      },
+      {
+        "name": "Doble con Queso",
+        "price": "14,90",
+        "description": "Doble hamburguesa de vacuno 400grs y extra de queso cheddar"
+      }
+    ],
+    "ensaladas": [
+      { "name": "Classic", "price": "5,00", "price2": "8,00", "description": "Tomate, lechuga y cebolla" },
+      {
+        "name": "De bonito del norte",
+        "price": "13,50",
+        "description": "Mix de lechuga, tomates de temporada, cebolla morada, friqueros braseados, aceitunas negras, bonito del norte y huevo"
+      },
+      {
+        "name": "Salmón y queso rulo",
+        "price": "13,90",
+        "description": "Lechuga, tomate, salmón ahumado, rulo de cabra, bacon y vinagreta balsámica"
+      },
+      {
+        "name": "Langostinos y aguacate",
+        "price": "14,90",
+        "description": "Langostinos braseados, aguacate, mix de lechuga, tomates y huevo"
+      }
+    ]
+  },
+  "bodega": {
+    "rioja": [
+      { "name": "Cuatro Varietales", "price": "30,00", "description": "" },
+      { "name": "Dinastía Vivanco [Crianza]", "price": "21,00", "description": "" },
+      { "name": "Dinastía Vivanco [Reserva]", "price": "25,00", "description": "" },
+      { "name": "Muga [Crianza]", "price": "32,00", "description": "" },
+      { "name": "Carlos Serres [Crianza]", "price": "20,00", "description": "" },
+      { "name": "Cosme Palacio [Crianza]", "price": "26,00", "description": "" },
+      { "name": "Ramón Bilbao Edición Limitada", "price": "25,00", "description": "" },
+      { "name": "Luis Cañas", "price": "25,00", "description": "" },
+      { "name": "1008", "price": "20,00", "description": "" }
+    ],
+    "riberaDelDuero": [
+      { "name": "Canta Muda [Parcela]", "price": "26,00", "description": "" },
+      { "name": "Emilio Moro", "price": "29,50", "description": "" },
+      { "name": "Carmelo rodero (9meses)", "price": "27,00", "description": "" },
+      { "name": "Canta Muda [Roble]", "price": "21,00", "description": "" },
+      { "name": "Carramimbre", "price": "20,00", "description": "" },
+      { "name": "Finca Resalso", "price": "22,00", "description": "" },
+      { "name": "Malleolus", "price": "48,00", "description": "" },
+      { "name": "Cillar de Silos", "price": "28,00", "description": "" },
+      { "name": "Pago de Carrovejas", "price": "48,00", "description": "" },
+      { "name": "La Veguilla", "price": "21,00", "description": "" },
+      { "name": "Corimbo", "price": "28,00", "description": "" },
+      { "name": "Bosque de Matasnos", "price": "46,00", "description": "" }
+    ],
+    "valdeorras": [
+      { "name": "Jose Aristegui [Mencía]", "price": "22,00", "description": "" },
+      { "name": "Jose Aristegui Traste [Mencía]", "price": "28,00", "description": "" }
+    ],
+    "monterrei": [
+      { "name": "Crego de Monaguillo [Mencía]", "price": "20,00", "description": "" },
+      { "name": "Crego de Monaguillo [Godello]", "price": "21,00", "description": "" },
+      { "name": "Terra do Gargalo [Mencía]", "price": "24,00", "description": "" }
+    ],
+    "malbecArgentina": [
+      { "name": "Catena (Catena Zapata)", "price": "25,00", "description": "" },
+      { "name": "El Enemigo (Catena Zapata)", "price": "32,00", "description": "" }
+    ],
+    "ribeiraSacra": [
+      { "name": "Ponte da Boga [Mencía]", "price": "20,00", "description": "" },
+      { "name": "Ponte da Boga [Godello]", "price": "20,00", "description": "" },
+      { "name": "Finca de Millara [Mencía]", "price": "30,00", "description": "" }
+    ],
+    "castillaYLeon": [{ "name": "Abadía Retuerta (Tierras de Castilla)", "price": "42,00", "description": "" }],
+    "ribeiro": [
+      { "name": "Gran Cruceiro", "price": "15,00", "description": "" },
+      { "name": "Casal de Armán", "price": "25,00", "description": "" },
+      { "name": "Beade (tinto)", "price": "25,00", "description": "" }
+    ],
+    "riasBaixas": [
+      { "name": "Barallobre", "price": "22,00", "description": "" },
+      { "name": "Puerta Santa", "price": "18,00", "description": "" },
+      { "name": "Terras do Sur", "price": "25,00", "description": "" }
+    ],
+    "cava": [{ "name": "Juvé & Camps", "price": "35,00", "description": "" }],
+    "champan": [
+      { "name": "Moët & Chandon [Rosé]", "price": "78,00", "description": "" },
+      { "name": "Moët & Chandon [Imperial - Brut]", "price": "70,00", "description": "" },
+      { "name": "Veuve Clicquot [Brut]", "price": "75,00", "description": "" }
+    ]
+  },
+  "menuGrupos": [
+    {
+      "id": "menu1",
+      "title": "MENÚ 1",
+      "price": "45€ / persona",
+      "courses": {
+        "primero": {
+          "title": "1 plato:",
+          "options": ["Ensaladilla", "Provolone caprese"]
+        },
+        "segundo": {
+          "title": "2 plato:",
+          "options": [
+            "Chorizos criollos y rojos",
+            "Lomo bajo de novillo Argentino",
+            "Patatas fritas, patatas brasa",
+            "Ensalada clasic"
+          ]
+        },
+        "postre": {
+          "title": "Postre:",
+          "options": ["Helado de vainilla artesanal", "Incluye: Bebidas, café y pan"]
+        }
+      },
+
+      "wine": "Carlos Serres (rioja crianza)"
+    },
+    {
+      "id": "menu2",
+      "title": "MENÚ 2",
+      "price": "50€ / persona",
+      "courses": {
+        "primero": {
+          "title": "1 plato:",
+          "options": ["Croquetas de jamón ibérico", "Provolone caprese"]
+        },
+        "segundo": {
+          "title": "2 plato:",
+          "options": [
+            "Chorizos criollos y rojos",
+            "Lomo bajo de novillo Argentino",
+            "Patatas fritas, patatas brasa",
+            "Ensalada clasic"
+          ]
+        },
+        "postre": {
+          "title": "Postre:",
+          "options": ["Helado de vainilla artesano", "Incluye: Bebidas, café y pan"]
+        }
+      },
+
+      "wine": "Carlos Serres (rioja crianza)"
+    },
+    {
+      "id": "menu3",
+      "title": "MENÚ 3",
+      "price": "60€ / persona",
+      "courses": {
+        "primero": {
+          "title": "1 plato:",
+          "options": ["Salpicón de merluza del pincho y langostinos", "Croquetas de jamón ibérico"]
+        },
+        "segundo": {
+          "title": "2 plato:",
+          "options": [
+            "Chorizos criollos y rojos",
+            "Lomo alto de novillo Argentino",
+            "Patatas brasa, patatas fritas",
+            "Tomate de temporada con sal maldon y aceite extra virgen"
+          ]
+        },
+        "postre": {
+          "title": "Postre:",
+          "options": ["Helado de vainilla", "Incluye: Bebidas, café y pan"]
+        }
+      },
+      "wine": ["Vivanco Crianza (rioja crianza) ", "ó ", "Casal de Arman (ribeiro blanco)"]
+    },
+    {
+      "id": "menu4",
+      "title": "MENÚ 4",
+      "price": "80€ / persona",
+      "courses": {
+        "primero": {
+          "title": "1 plato:",
+          "options": [
+            "Salpicón de merluza de pincho y langostinos",
+            "Anchoa del cantábrico con puré de tomate natural, pan tostado y AOVE"
+          ]
+        },
+        "segundo": {
+          "title": "2 plato:",
+          "options": [
+            "Lomo Alto de novillo Argentino",
+            "Patatas fritas y a la brasa",
+            "Tomate de temporada con sal maldon y aceite virgen extra"
+          ]
+        },
+        "postre": {
+          "title": "Postre:",
+          "options": ["Crème brûlée"]
+        },
+        "incluye": {
+          "title": "Incluye:",
+          "options": ["Bebidas, café y pan", "Copa de Moët & Chandon"]
+        }
+      },
+
+      "wine": ["Vivanco Crianza (rioja crianza) ", "ó ", "Casal de Arman (ribeiro blanco)"]
+    }
+  ],
+  "menuNotes": {
+    "general": "Los menús estarán sujetos a un mínimo de 8 personas",
+    "consumiciones": "Vino a razón de 1 botella cada 3 comensales ó dos consumiciones (agua, cervezas o refresco).",
+    "consumiciones2": "Las consumiciones que excedan el cupo se abonarán a mayores, así como los destilados y/o licores."
+  }
+}
