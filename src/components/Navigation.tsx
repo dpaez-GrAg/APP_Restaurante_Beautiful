@@ -2,15 +2,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Utensils } from "lucide-react";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
+import { useNavigate } from "react-router-dom";
 
 const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { config } = useRestaurantConfig();
+  const navigate = useNavigate();
 
   const scrollToSection = (sectionId: string) => {
     if (sectionId.startsWith("/")) {
-      // Si es una ruta (como /admin), navegar directamente
-      window.location.href = sectionId;
+      // Si es una ruta (como /admin), usar React Router navigate
+      navigate(sectionId);
+      setIsOpen(false);
       return;
     }
 
@@ -36,7 +39,7 @@ const Navigation = () => {
   const navItems = [
     { label: "Gestionar Reserva", href: "/reservar?cancel=true" },
     { label: "Contacto", href: "#contact" },
-    { label: "Admin", href: "/admin/auth" },
+    // { label: "Admin", href: "/admin/auth" },
   ];
 
   return (

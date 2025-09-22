@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import StepHeader from "./StepHeader";
+import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 
 interface DateStepProps {
   onNext: (date: Date) => void;
@@ -13,6 +14,7 @@ interface DateStepProps {
 }
 
 const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepProps) => {
+  const { config } = useRestaurantConfig();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showCancelForm, setShowCancelForm] = useState(initialShowCancelForm);
@@ -397,7 +399,8 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
 
         <div className="mt-6">
           <p className="text-xs text-gray-500 text-center mb-4">
-            Solo puedes reservar con hasta 2 semanas de antelación
+            Para reservas posteriores, por favor contactanos por email{" "}
+            {config?.contact_email || "contacto@restaurante.com"}
           </p>
           <div className="text-center">
             <Button
