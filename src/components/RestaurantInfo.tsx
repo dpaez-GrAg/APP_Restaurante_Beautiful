@@ -178,8 +178,8 @@ const RestaurantInfo = () => {
                 Ubicación y contacto
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
+            <CardContent className="space-y-6">
+              <div className="space-y-1.5">
                 <p className="font-semibold">Dirección:</p>
                 {config?.contact_address ? (
                   <p className="text-muted-foreground">{config.contact_address}</p>
@@ -187,7 +187,7 @@ const RestaurantInfo = () => {
                   <p className="text-muted-foreground">Dirección no disponible</p>
                 )}
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <p className="font-semibold flex items-center gap-2">
                   <Phone className="w-4 h-4" />
                   Contacto:
@@ -208,18 +208,36 @@ const RestaurantInfo = () => {
                 Horarios
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="font-semibold">Horarios de Servicio:</p>
-                {schedules.length > 0 ? (
-                  groupSchedulesByTime().map((group, index) => (
-                    <p key={index} className="text-sm text-muted-foreground">
-                      {group.dayRange}: {group.timeRange}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">Horarios no disponibles</p>
-                )}
+            <CardContent className="space-y-6">
+              <div className="space-y-1.5">
+                <p>
+                  <span className="font-semibold">Lunes:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Martes:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Miércoles:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Jueves:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00 y de 20:30 a 24:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Viernes:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00 y de 20:30 a 24:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Sábado:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00 y de 20:30 a 24:00</span>
+                </p>
+                <p>
+                  <span className="font-semibold">Domingo:</span>{" "}
+                  <span className="text-sm text-muted-foreground">De 13:30 a 17:00</span>
+                </p>
               </div>
             </CardContent>
           </Card>
