@@ -26,7 +26,7 @@ const RestaurantLayout = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const GRID_SIZE = 60; // Size of each grid cell in pixels
+  const GRID_SIZE = 30; // Size of each grid cell in pixels (reduced from 60 for more flexibility)
 
   useEffect(() => {
     loadTables();
@@ -63,7 +63,8 @@ const RestaurantLayout = () => {
   const snapToGrid = (value: number, containerSize: number) => {
     const pixelValue = (value / 100) * containerSize;
     const gridSnappedValue = Math.round(pixelValue / GRID_SIZE) * GRID_SIZE;
-    return (Math.max(GRID_SIZE / 2, Math.min(containerSize - GRID_SIZE / 2, gridSnappedValue)) / containerSize) * 100;
+
+    return (Math.max(0, Math.min(containerSize, gridSnappedValue)) / containerSize) * 100;
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -162,25 +163,32 @@ const RestaurantLayout = () => {
         <CardHeader>
           <CardTitle>Layout del Restaurante</CardTitle>
         </CardHeader>
-        <CardContent className="p-2">
-          <div
-            className="relative w-full h-[600px] bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg overflow-hidden mx-auto"
-            style={{
-              backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
-              backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-              minWidth: "800px",
-              maxWidth: "1200px",
-            }}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          >
-            {tables.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                No hay mesas configuradas. Ve a la gestión de mesas para crear algunas.
-              </div>
-            ) : (
-              tables.map(renderTable)
-            )}
+
+        <CardContent>
+          <div className="relative w-full h-96 overflow-auto">
+            <div
+              className="relative bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg"
+              style={{
+                width: "200%",
+                height: "200%",
+                minWidth: "200%",
+                minHeight: "200%",
+                backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+                backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+                transform: "scale(0.75)",
+                transformOrigin: "top left",
+              }}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              {tables.length === 0 ? (
+                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                  No hay mesas configuradas. Ve a la gestión de mesas para crear algunas.
+                </div>
+              ) : (
+                tables.map(renderTable)
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

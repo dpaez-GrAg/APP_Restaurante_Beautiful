@@ -37,6 +37,7 @@ const Navigation = () => {
   };
 
   const navItems = [
+    { label: "Carta", href: "/carta" },
     { label: "Gestionar Reserva", href: "/reservar?cancel=true" },
     { label: "Contacto", href: "#contact" },
     // { label: "Admin", href: "/admin/auth" },
