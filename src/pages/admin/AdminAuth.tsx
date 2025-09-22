@@ -9,6 +9,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Definir el tipo para el perfil de usuario
+interface UserProfile {
+  role: "admin" | "user";
+  is_active: boolean;
+}
+
 const AdminAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,7 +69,7 @@ const AdminAuth = () => {
           .eq("id", data.user.id)
           .single();
 
-        if (profileError || !profile) {
+        if (profileError) {
           console.error("Error fetching user profile:", profileError);
           await supabase.auth.signOut();
           toast({
@@ -74,8 +80,10 @@ const AdminAuth = () => {
           return;
         }
 
-        if (!profile.is_active || (profile.role !== "admin" && profile.role !== "user")) {
-          console.error("User is inactive or has invalid role:", profile);
+        // Verificar que el perfil existe y tiene las propiedades necesarias
+        const userProfile = profile as UserProfile;
+        if (!userProfile || !userProfile.is_active || (userProfile.role !== "admin" && userProfile.role !== "user")) {
+          console.error("User is inactive or has invalid role:", userProfile);
           await supabase.auth.signOut();
           toast({
             title: "Acceso denegado",
@@ -85,7 +93,7 @@ const AdminAuth = () => {
           return;
         }
 
-        const roleText = profile.role === "admin" ? "administración" : "gestión";
+        const roleText = userProfile.role === "admin" ? "administración" : "gestión";
         toast({
           title: "Acceso autorizado",
           description: `Bienvenido al panel de ${roleText}`,
