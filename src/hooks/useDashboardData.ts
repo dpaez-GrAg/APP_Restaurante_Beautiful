@@ -5,6 +5,7 @@ interface DashboardStats {
   todayReservations: number;
   cancelledReservations: number;
   confirmedReservations: number;
+  completedReservations: number;
   totalTables: number;
   occupancyRate: number;
   totalGuests: number;
@@ -25,6 +26,7 @@ const mockStats: DashboardStats = {
   todayReservations: 0,
   cancelledReservations: 0,
   confirmedReservations: 0,
+  completedReservations: 0,
   totalTables: 0,
   occupancyRate: 0,
   totalGuests: 0,
@@ -63,6 +65,7 @@ export const useDashboardData = (selectedDate: string) => {
 
       const confirmedReservations = reservations?.filter((r) => r.status === "confirmed") || [];
       const cancelledReservations = reservations?.filter((r) => r.status === "cancelled") || [];
+      const completedReservations = reservations?.filter((r) => r.status === "completed") || [];
       const totalGuests = confirmedReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
 
       // Cargar total de mesas
@@ -76,6 +79,7 @@ export const useDashboardData = (selectedDate: string) => {
         todayReservations: reservations?.length || 0,
         confirmedReservations: confirmedReservations.length,
         cancelledReservations: cancelledReservations.length,
+        completedReservations: completedReservations.length,
         totalTables,
         occupancyRate,
         totalGuests,

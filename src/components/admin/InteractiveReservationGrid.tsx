@@ -312,25 +312,25 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
     return (
       <div
-        className="h-full rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all border-2 flex flex-col justify-center"
+        className="h-full rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all border-2 flex items-center justify-between"
         style={getReservationColor(reservation)}
         onClick={handleReservationClick}
         title={`${reservation.customer_name} - ${reservation.guests} personas - ${
           reservation.customer_classification || "NEUTRO"
         }`}
       >
-        {/* Primera línea: Nombre del cliente */}
+        {/* Nombre del cliente */}
         <button
           onClick={handleCustomerClick}
-          className="font-semibold text-foreground text-sm leading-tight truncate hover:underline text-left w-full"
+          className="font-semibold text-foreground text-xs leading-tight truncate hover:underline text-left flex-1 min-w-0"
           title={`Click para ver detalles de ${reservation.customer_name}`}
         >
           {reservation.customer_name.split(" ")[0]}
         </button>
 
-        {/* Segunda línea: Número de personas */}
-        <div className="flex items-center gap-1 text-sm font-medium mt-1">
-          <Users className="w-4 h-4" />
+        {/* Número de personas */}
+        <div className="flex items-center gap-1 text-xs font-medium ml-1 flex-shrink-0">
+          <Users className="w-3 h-3" />
           {reservation.guests}
         </div>
       </div>
@@ -471,14 +471,15 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
                 return (
                   <div key={table.id} className="grid grid-cols-[120px_1fr] border-b hover:bg-muted/50">
-                    <div className="p-3 font-medium flex items-center justify-between border-r">
-                      <span>{table.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {table.capacity}p
-                      </Badge>
+                    <div className="p-2 font-medium flex items-center justify-between border-r">
+                      <span className="text-sm">{table.name}</span>
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        <span className="text-xs">{table.capacity}</span>
+                      </div>
                     </div>
                     <div
-                      className="relative min-h-[60px]"
+                      className="relative min-h-[45px]"
                       style={{
                         display: "grid",
                         gridTemplateColumns: `repeat(${timeSlots.length}, 1fr)`,
