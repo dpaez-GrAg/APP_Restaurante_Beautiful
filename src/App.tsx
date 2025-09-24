@@ -21,6 +21,7 @@ import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
 import CustomersManager from "./pages/admin/CustomersManager";
 import UsersManager from "./pages/admin/UsersManager";
+// import AuditLogManager from "./pages/admin/AuditLogManager";
 import ReservarPage from "./pages/ReservarPage";
 import CartaPage from "./pages/CartaPage";
 
@@ -134,6 +135,14 @@ function App() {
                         </ProtectedRoute>
                       }
                     />
+                    {/* <Route
+                      path="audit"
+                      element={
+                        <ProtectedRoute requiredPermission="audit.view">
+                          <AuditLogManager />
+                        </ProtectedRoute>
+                      }
+                    /> */}
                   </Route>
 
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

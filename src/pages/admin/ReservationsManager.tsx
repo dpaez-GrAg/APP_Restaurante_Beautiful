@@ -500,10 +500,10 @@ const ReservationsManager = () => {
                           <Users className="w-4 h-4" />
                           <span>{reservation.guests} personas</span>
                         </div>
-                        <div className="flex items-center space-x-1">
+                        {/*                         <div className="flex items-center space-x-1">
                           <Mail className="w-4 h-4" />
                           <span>{reservation.email}</span>
-                        </div>
+                        </div> */}
                       </div>
 
                       {reservation.phone && (

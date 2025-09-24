@@ -183,6 +183,7 @@ export const usePermissions = () => {
       canCreateUsers: hasPermission("users.create"),
       canEditUsers: hasPermission("users.edit"),
       canDeleteUsers: hasPermission("users.delete"),
+      // canViewAudit: hasPermission("audit.view"),
       isAdmin,
       isUser,
       userRole: profile?.role,
