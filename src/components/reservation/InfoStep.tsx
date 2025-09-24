@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import StepHeader from "./StepHeader";
 
 interface InfoStepProps {
-  onNext: (data: { firstName: string; lastName: string; phone: string; comments: string }) => void;
+  onNext: (data: { fullName: string; phone: string; comments: string }) => void;
   onBack: () => void;
   selectedDate?: Date;
   selectedGuests?: number;
@@ -17,8 +17,7 @@ interface InfoStepProps {
 
 const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, onStepClick }: InfoStepProps) => {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     phone: "",
     comments: "",
     privacyAccepted: false,
@@ -27,19 +26,18 @@ const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.privacyAccepted) {
+    if (!formData.fullName || !formData.phone || !formData.privacyAccepted) {
       return;
     }
 
     onNext({
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      fullName: formData.fullName,
       phone: formData.phone,
       comments: formData.comments,
     });
   };
 
-  const isFormValid = formData.firstName && formData.lastName && formData.phone && formData.privacyAccepted;
+  const isFormValid = formData.fullName && formData.phone && formData.privacyAccepted;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -56,23 +54,13 @@ const InfoStep = ({ onNext, onBack, selectedDate, selectedGuests, selectedTime, 
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Nombre</label>
+            <label className="block text-sm font-medium mb-2">Nombre completo</label>
             <Input
               type="text"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               className="w-full"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Apellidos</label>
-            <Input
-              type="text"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              className="w-full"
+              placeholder="Nombre y apellidos"
               required
             />
           </div>

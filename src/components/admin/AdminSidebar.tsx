@@ -9,6 +9,7 @@ import {
   Link,
   UserCheck,
   Shield,
+  FileText,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo } from "react";
@@ -81,6 +82,12 @@ const adminItems = [
     icon: Shield,
     permission: "users.view",
   },
+  // {
+  //   title: "Auditoría",
+  //   url: "/admin/audit",
+  //   icon: FileText,
+  //   permission: "audit.view",
+  // },
 ];
 
 export function AdminSidebar() {

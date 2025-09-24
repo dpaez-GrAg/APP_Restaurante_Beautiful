@@ -17,8 +17,7 @@ interface ReservationData {
 }
 
 interface CustomerData {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone: string;
   comments: string;
 }
@@ -61,7 +60,7 @@ const ReservationForm = () => {
 
       // Create customer with optional email using the new helper function
       const { data: customerId, error: customerError } = await supabase.rpc("create_customer_optional_email", {
-        p_name: `${customer.firstName} ${customer.lastName}`,
+        p_name: customer.fullName,
         p_phone: customer.phone,
         p_email: null, // No email provided
       });
@@ -146,7 +145,7 @@ const ReservationForm = () => {
       setConfirmedReservation({
         id: resultObj.reservation_id,
         customer: {
-          name: `${customer.firstName} ${customer.lastName}`,
+          name: customer.fullName,
           phone: customer.phone,
         },
         date: formatDateLocal(selectedDate!),

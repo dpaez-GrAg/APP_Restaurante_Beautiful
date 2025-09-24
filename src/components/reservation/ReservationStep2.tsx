@@ -24,13 +24,12 @@ interface ReservationStep2Props {
 
 const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationStep2Props) => {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     email: "",
     phone: "",
     prefix: "+34",
     comments: "",
-    privacyAccepted: false
+    privacyAccepted: false,
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -38,9 +37,8 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.firstName || !formData.lastName || !formData.email || 
-        !formData.privacyAccepted) {
+
+    if (!formData.fullName || !formData.email || !formData.privacyAccepted) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos obligatorios y acepta la política de privacidad.",
@@ -54,9 +52,9 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
       // First create or get customer
       let customerId;
       const { data: existingCustomer, error: customerCheckError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('email', formData.email)
+        .from("customers")
+        .select("id")
+        .eq("email", formData.email)
         .maybeSingle();
 
       if (customerCheckError) {
@@ -68,33 +66,31 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
       } else {
         // Create new customer
         const { data: newCustomer, error: customerError } = await supabase
-          .from('customers')
+          .from("customers")
           .insert({
-            name: `${formData.firstName} ${formData.lastName}`,
+            name: formData.fullName,
             email: formData.email,
-            phone: formData.phone ? `${formData.prefix} ${formData.phone}` : null
+            phone: formData.phone ? `${formData.prefix} ${formData.phone}` : null,
           })
-          .select('id')
+          .select("id")
           .single();
 
         if (customerError) {
           throw customerError;
         }
-        
+
         customerId = newCustomer.id;
       }
 
       // Create reservation
-      const { error: reservationError } = await supabase
-        .from('reservations')
-        .insert({
-          customer_id: customerId,
-          date: reservationData.date.toISOString().split('T')[0],
-          time: reservationData.time,
-          guests: reservationData.guests,
-          special_requests: formData.comments || null,
-          status: 'pending'
-        });
+      const { error: reservationError } = await supabase.from("reservations").insert({
+        customer_id: customerId,
+        date: reservationData.date.toISOString().split("T")[0],
+        time: reservationData.time,
+        guests: reservationData.guests,
+        special_requests: formData.comments || null,
+        status: "pending",
+      });
 
       if (reservationError) {
         throw reservationError;
@@ -102,13 +98,14 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
 
       toast({
         title: "¡Reserva realizada!",
-        description: `Reserva confirmada para ${reservationData.guests} personas el ${reservationData.date.toLocaleDateString()} a las ${reservationData.time}.`,
+        description: `Reserva confirmada para ${
+          reservationData.guests
+        } personas el ${reservationData.date.toLocaleDateString()} a las ${reservationData.time}.`,
       });
 
       onComplete();
-
     } catch (error) {
-      console.error('Error creating reservation:', error);
+      console.error("Error creating reservation:", error);
       toast({
         title: "Error al crear reserva",
         description: "Ha ocurrido un error. Por favor intenta de nuevo.",
@@ -132,11 +129,11 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
             <span className="sr-only">Volver</span>
           </Button>
           <CardTitle className="text-2xl text-restaurant-brown">
-            {config?.restaurant_name?.toUpperCase() ?? 'RESTAURANTE ÉLITE'}
+            {config?.restaurant_name?.toUpperCase() ?? "RESTAURANTE ÉLITE"}
           </CardTitle>
           <div className="w-10"></div>
         </div>
-        
+
         {/* Progress indicators */}
         <div className="flex justify-center gap-8 mt-6">
           <div className="flex items-center gap-2">
@@ -168,18 +165,19 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-6">
         {/* Reservation summary */}
         <div className="bg-muted p-4 rounded-lg mb-6">
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              {reservationData.date.toLocaleDateString('es-ES', { 
-                day: '2-digit', 
-                month: '2-digit', 
-                year: 'numeric' 
-              })}, {formatTime(reservationData.time)}h
+              {reservationData.date.toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
+              , {formatTime(reservationData.time)}h
             </div>
             <div className="flex items-center gap-1">
               <Users className="w-4 h-4" />
@@ -187,7 +185,7 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-4 h-4" />
-              {config?.contact_address ?? 'Dirección del restaurante'}
+              {config?.contact_address ?? "Dirección del restaurante"}
             </div>
           </div>
           <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
@@ -198,27 +196,15 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Personal information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Nombre</Label>
-              <Input
-                id="firstName"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                placeholder="Nombre"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Apellidos</Label>
-              <Input
-                id="lastName"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                placeholder="Apellidos"
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Nombre completo</Label>
+            <Input
+              id="fullName"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              placeholder="Nombre y apellidos"
+              required
+            />
           </div>
 
           <div className="space-y-2">
@@ -273,20 +259,21 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
               <Checkbox
                 id="privacy"
                 checked={formData.privacyAccepted}
-                onCheckedChange={(checked) => 
-                  setFormData({ ...formData, privacyAccepted: checked as boolean })
-                }
+                onCheckedChange={(checked) => setFormData({ ...formData, privacyAccepted: checked as boolean })}
               />
               <Label htmlFor="privacy" className="text-sm leading-5">
-                Acepto la <a href="/politica-privacidad" className="text-blue-600 underline">política de privacidad</a>
+                Acepto la{" "}
+                <a href="/politica-privacidad" className="text-blue-600 underline">
+                  política de privacidad
+                </a>
               </Label>
             </div>
           </div>
 
           {/* Submit button */}
           <div className="flex justify-center pt-6">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full md:w-auto px-12 py-3 bg-primary hover:bg-primary/90"
               disabled={loading}
             >
@@ -297,11 +284,23 @@ const ReservationStep2 = ({ reservationData, onBack, onComplete }: ReservationSt
 
         {/* Legal text */}
         <div className="mt-6 text-xs text-muted-foreground space-y-2">
-          <p><strong>Información básica sobre protección de datos de carácter personal</strong></p>
-          <p>El cumplimiento del Reglamento General de Protección de Datos de Carácter Personal se informa al cliente que se informa de lo siguiente:</p>
-          <p><strong>Responsable:</strong> {config?.restaurant_name ?? 'El Restaurante'}</p>
-          <p><strong>Finalidad:</strong> La prestación de servicios y la gestión de la relación comercial. Gestión de la publicidad para terceros restaurantes.</p>
-          <p><strong>Legitimación:</strong> Consentimiento del responsable en el que el interesado se presto.</p>
+          <p>
+            <strong>Información básica sobre protección de datos de carácter personal</strong>
+          </p>
+          <p>
+            El cumplimiento del Reglamento General de Protección de Datos de Carácter Personal se informa al cliente que
+            se informa de lo siguiente:
+          </p>
+          <p>
+            <strong>Responsable:</strong> {config?.restaurant_name ?? "El Restaurante"}
+          </p>
+          <p>
+            <strong>Finalidad:</strong> La prestación de servicios y la gestión de la relación comercial. Gestión de la
+            publicidad para terceros restaurantes.
+          </p>
+          <p>
+            <strong>Legitimación:</strong> Consentimiento del responsable en el que el interesado se presto.
+          </p>
         </div>
       </CardContent>
     </Card>

@@ -80,13 +80,12 @@ const RestaurantLayout = () => {
     const y = snapToGrid(rawY, rect.height);
 
     try {
-      const { error } = await supabase
-        .from("tables")
-        .update({
-          position_x: Math.max(0, Math.min(95, x)),
-          position_y: Math.max(0, Math.min(95, y)),
-        })
-        .eq("id", draggedTable);
+      const updateData: Partial<TableData> = {
+        position_x: Math.max(0, Math.min(95, x)),
+        position_y: Math.max(0, Math.min(95, y)),
+      };
+
+      const { error } = await supabase.from("tables").update(updateData).eq("id", draggedTable);
 
       if (error) throw error;
 

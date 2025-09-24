@@ -267,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           "users.create",
           "users.edit",
           "users.delete",
+          // "audit.view",
         ],
         user: [
           "dashboard.view",
