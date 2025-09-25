@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { formatDateLocal } from "@/lib/dateUtils";
 
 interface CreateReservationDialogProps {
   open: boolean;
@@ -20,14 +20,13 @@ interface CreateReservationDialogProps {
 export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = ({
   open,
   onOpenChange,
-  defaultDate = formatDateLocal(new Date()),
+  defaultDate = new Date().toISOString().split("T")[0],
   defaultTime = "20:00",
   defaultTableId,
   onSuccess,
 }) => {
   const [formData, setFormData] = useState({
     customerName: "",
-    customerEmail: "",
     customerPhone: "",
     date: defaultDate,
     time: defaultTime,
@@ -45,6 +44,21 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
     }));
   }, [defaultDate, defaultTime]);
 
+  // Generate 15-minute time slots
+  const generate15MinuteSlots = () => {
+    const slots = [];
+    for (let hour = 12; hour <= 23; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        if (hour === 23 && minute > 45) break;
+        const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+        slots.push(timeString);
+      }
+    }
+    return slots;
+  };
+
+  const timeSlots = generate15MinuteSlots();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -52,14 +66,14 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
     try {
       const { data, error } = await supabase.rpc("admin_create_reservation", {
         p_customer_name: formData.customerName,
-        p_customer_email: formData.customerEmail,
+        p_customer_email: null,
         p_customer_phone: formData.customerPhone || null,
         p_date: formData.date,
         p_time: formData.time,
         p_guests: formData.guests,
-        p_special_requests: formData.special_requests || null,
-        p_table_ids: defaultTableId ? [defaultTableId] : null,
+        p_notes: formData.special_requests || null, // ← CAMBIAR p_special_requests por p_notes
         p_duration_minutes: 90,
+        // ← ELIMINAR p_table_ids completamente
       });
 
       if (error) throw error;
@@ -73,9 +87,8 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
       // Reset form
       setFormData({
         customerName: "",
-        customerEmail: "",
         customerPhone: "",
-        date: defaultDate,
+        date: new Date().toISOString().split("T")[0],
         time: defaultTime,
         guests: 2,
         special_requests: "",
@@ -106,16 +119,6 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
           </div>
 
           <div>
-            <Label>Email</Label>
-            <Input
-              type="email"
-              value={formData.customerEmail}
-              onChange={(e) => setFormData((prev) => ({ ...prev, customerEmail: e.target.value }))}
-              placeholder="email@ejemplo.com (opcional)"
-            />
-          </div>
-
-          <div>
             <Label>Teléfono</Label>
             <Input
               type="tel"
@@ -125,7 +128,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Fecha</Label>
               <Input
@@ -136,17 +139,64 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               />
             </div>
             <div>
-              <Label>Hora</Label>
-              <Input
-                type="time"
+              <Label>Hora *</Label>
+              <Select
                 value={formData.time}
-                onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))}
-                required
-              />
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, time: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar hora" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b">🍽️ COMIDA</div>
+                  {timeSlots
+                    .filter((slot) => {
+                      const hour = parseInt(slot.split(":")[0]);
+                      return hour >= 12 && hour < 17;
+                    })
+                    .map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">
+                    🌙 CENA
+                  </div>
+                  {timeSlots
+                    .filter((slot) => {
+                      const hour = parseInt(slot.split(":")[0]);
+                      return hour >= 19;
+                    })
+                    .map((slot) => (
+                      <SelectItem key={slot} value={slot}>
+                        {slot}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div>
+            <Label>Comensales *</Label>
+            <Select
+              value={formData.guests.toString()}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, guests: parseInt(value) }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Nº" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 7 }, (_, i) => i + 2).map((num) => (
+                  <SelectItem key={num} value={num.toString()}>
+                    {num} {num === 1 ? "persona" : "personas"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/*           <div>
             <Label>Comensales</Label>
             <Input
               type="number"
@@ -159,7 +209,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
             <p className="text-xs text-muted-foreground mt-1">
               Para grupos de más de 7 personas, usar el email de contacto del restaurante
             </p>
-          </div>
+          </div> */}
 
           <div>
             <Label>Comentarios</Label>

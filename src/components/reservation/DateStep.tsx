@@ -398,10 +398,6 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
         </div>
 
         <div className="mt-6">
-          <p className="text-xs text-gray-500 text-center mb-4">
-            Para reservas posteriores, por favor contactanos por email{" "}
-            {config?.contact_email || "contacto@restaurante.com"}
-          </p>
           <div className="text-center">
             <Button
               variant="ghost"
