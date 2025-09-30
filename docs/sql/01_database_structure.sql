@@ -312,3 +312,49 @@ COMMENT ON COLUMN public.special_schedule_days.max_diners IS 'Número máximo de
 -- Actualizar valores por defecto (opcional - puedes ajustar según tus necesidades)
 -- UPDATE public.restaurant_schedules SET max_diners = 50 WHERE max_diners IS NULL;
 -- UPDATE public.special_schedule_days SET max_diners = 50 WHERE max_diners IS NULL;
+
+
+-- ========================================
+-- SISTEMA DE CAPACIDAD POR SLOTS (AÑADIR AL FINAL)
+-- ========================================
+
+-- Tabla de límites de capacidad por slot
+CREATE TABLE IF NOT EXISTS public.slot_capacity_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    schedule_type TEXT NOT NULL CHECK (schedule_type IN ('single', 'morning', 'afternoon')),
+    slot_time TIME NOT NULL,
+    max_diners INTEGER NOT NULL CHECK (max_diners > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(day_of_week, schedule_type, slot_time)
+);
+
+-- Tabla de límites especiales por fecha
+CREATE TABLE IF NOT EXISTS public.special_slot_capacity_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    special_date DATE NOT NULL,
+    slot_time TIME NOT NULL,
+    max_diners INTEGER NOT NULL CHECK (max_diners > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(special_date, slot_time)
+);
+
+-- Índices para mejor rendimiento
+CREATE INDEX IF NOT EXISTS idx_slot_capacity_day_type 
+    ON public.slot_capacity_limits(day_of_week, schedule_type);
+CREATE INDEX IF NOT EXISTS idx_slot_capacity_time 
+    ON public.slot_capacity_limits(slot_time);
+CREATE INDEX IF NOT EXISTS idx_special_slot_capacity_date 
+    ON public.special_slot_capacity_limits(special_date);
+
+-- Políticas RLS
+ALTER TABLE public.slot_capacity_limits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.special_slot_capacity_limits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all for slot limits" ON public.slot_capacity_limits FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for special slot limits" ON public.special_slot_capacity_limits FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE public.slot_capacity_limits IS 'Límites de capacidad por slot de 15 minutos para días regulares';
+COMMENT ON COLUMN public.slot_capacity_limits.schedule_type IS 'Tipo: single (continuo), morning (comida), afternoon (cena)';

@@ -10,6 +10,7 @@ import { Plus, Edit, Trash2, Move, Layout } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch";
 
 interface TableData {
   id: string;
@@ -138,6 +139,27 @@ const TablesManager = () => {
       toast({
         title: "Error",
         description: "No se pudo eliminar la mesa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleActive = async (id: string, currentState: boolean) => {
+    try {
+      const { error } = await supabase.from("tables").update({ is_active: !currentState }).eq("id", id);
+
+      if (error) throw error;
+
+      await loadTables();
+      toast({
+        title: !currentState ? "Mesa activada" : "Mesa desactivada",
+        description: `La mesa ahora está ${!currentState ? "activa" : "inactiva"}`,
+      });
+    } catch (error) {
+      console.error("Error toggling table status:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo cambiar el estado de la mesa",
         variant: "destructive",
       });
     }
@@ -319,36 +341,52 @@ const TablesManager = () => {
               <TableBody>
                 {tables.map((table) => (
                   <TableRow key={table.id}>
+                    {/* COLUMNA 1: NOMBRE */}
                     <TableCell className="font-medium">
                       {table.name}
                       <span className="ml-2 text-xs text-muted-foreground">
                         ({table.shape === "square" ? "⬜" : "⭕"})
                       </span>
                     </TableCell>
+
+                    {/* COLUMNA 2: CAPACIDAD */}
                     <TableCell>
                       <div className="text-sm">
-                        <div>Base: {table.capacity}</div>
-                        <div>
-                          Rango: {table.min_capacity}-{table.max_capacity}
-                        </div>
+                        <div>Max: {table.capacity}</div>
+                        <div>Min: {table.min_capacity}</div>
                         {table.extra_capacity > 0 && (
                           <div className="text-muted-foreground">Extra: +{table.extra_capacity}</div>
                         )}
                       </div>
                     </TableCell>
+
+                    {/* COLUMNA 3: ESTADO (Badge) */}
                     <TableCell>
                       <Badge variant={table.is_active ? "default" : "secondary"}>
                         {table.is_active ? "Activa" : "Inactiva"}
                       </Badge>
                     </TableCell>
+
+                    {/* COLUMNA 4: ACCIONES (Switch + Botones) */}
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => openEditDialog(table)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(table.id)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <div className="flex justify-end items-center gap-3">
+                        {/* Switch para activar/desactivar */}
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={table.is_active}
+                            onCheckedChange={() => handleToggleActive(table.id, table.is_active)}
+                          />
+                        </div>
+
+                        {/* Botones de editar y borrar */}
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditDialog(table)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDelete(table.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>

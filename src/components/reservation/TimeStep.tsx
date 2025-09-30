@@ -132,27 +132,6 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
     return isDinnerTime && isAfterCurrentTime;
   });
 
-  // Debug: Ver qué slots tenemos
-  console.log("=== DEBUG SLOTS ===");
-  console.log("Total slots disponibles:", availableSlots.length);
-  console.log(
-    "Slots disponibles:",
-    availableSlots.map((s) => s.time)
-  );
-  console.log(
-    "Lunch slots:",
-    lunchSlots.map((s) => s.time)
-  );
-  console.log(
-    "Dinner slots:",
-    dinnerSlots.map((s) => s.time)
-  );
-  console.log("==================");
-  console.log("=== DEBUG FECHA ===");
-  console.log("Fecha seleccionada:", date);
-  console.log("Día de la semana (JS):", date.getDay()); // 0=Domingo, 1=Lunes, ..., 4=Jueves
-  console.log("Día de la semana (SQL):", date.getDay()); // PostgreSQL usa mismo formato
-  console.log("==================");
   if (loading) {
     return (
       <div className="max-w-lg mx-auto">

@@ -65,15 +65,14 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
 
     try {
       const { data, error } = await supabase.rpc("admin_create_reservation", {
-        p_customer_name: formData.customerName,
-        p_customer_email: null,
-        p_customer_phone: formData.customerPhone || null,
+        p_name: formData.customerName,
+        p_email: null,
+        p_phone: formData.customerPhone || null,
         p_date: formData.date,
         p_time: formData.time,
         p_guests: formData.guests,
-        p_notes: formData.special_requests || null, // ← CAMBIAR p_special_requests por p_notes
+        p_special_requests: formData.special_requests || "",
         p_duration_minutes: 90,
-        // ← ELIMINAR p_table_ids completamente
       });
 
       if (error) throw error;
