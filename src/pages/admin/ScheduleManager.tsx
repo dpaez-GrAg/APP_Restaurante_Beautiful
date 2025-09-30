@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { SlotCapacityConfig } from "@/components/admin/SlotCapacityConfig";
 
 interface DaySchedule {
   day: number;
@@ -481,14 +482,16 @@ const ScheduleManager = () => {
                             onCheckedChange={(checked) => updateDaySchedule(index, { hasSplit: checked as boolean })}
                           />
                           <Label htmlFor={`split-${daySchedule.day}`} className="text-xs text-muted-foreground">
-                            Horario dividido
+                            Dividir horario
                           </Label>
                         </div>
 
                         {/* Horarios */}
                         {!daySchedule.hasSplit ? (
                           <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
+                            {/* Primer horario disponible */}
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Primer horario disponible</Label>
                               <Select
                                 value={daySchedule.morningStart}
                                 onValueChange={(value) => updateDaySchedule(index, { morningStart: value })}
@@ -504,6 +507,11 @@ const ScheduleManager = () => {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </div>
+
+                            {/* Último horario disponible */}
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Último horario disponible</Label>
                               <Select
                                 value={daySchedule.morningEnd}
                                 onValueChange={(value) => updateDaySchedule(index, { morningEnd: value })}
@@ -520,20 +528,34 @@ const ScheduleManager = () => {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <Input
-                              type="number"
-                              value={daySchedule.maxDinersSingle}
-                              onChange={(e) => updateDaySchedule(index, { maxDinersSingle: parseInt(e.target.value) })}
-                              placeholder="Max. comensales"
-                              className="h-8"
-                            />
+
+                            {/* Máximo de comensales */}
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Máximo de comensales</Label>
+                              <Input
+                                type="number"
+                                value={daySchedule.maxDinersSingle}
+                                onChange={(e) =>
+                                  updateDaySchedule(index, { maxDinersSingle: parseInt(e.target.value) })
+                                }
+                                placeholder="Ej: 50"
+                                className="h-8"
+                              />
+                            </div>
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            {/* Mañana */}
+                            {/* Comida */}
                             <div>
-                              <Label className="text-xs text-muted-foreground">Mañana</Label>
-                              <div className="grid grid-cols-3 gap-1 mt-1">
+                              <Label className="text-xs text-muted-foreground mb-1">Comida</Label>
+                              {/* Headers */}
+                              <div className="grid grid-cols-3 gap-1 mb-1">
+                                <span className="text-[10px] text-muted-foreground text-center">Primero</span>
+                                <span className="text-[10px] text-muted-foreground text-center">Último</span>
+                                <span className="text-[10px] text-muted-foreground text-center">Max</span>
+                              </div>
+                              {/* Inputs */}
+                              <div className="grid grid-cols-3 gap-1">
                                 <Select
                                   value={daySchedule.morningStart}
                                   onValueChange={(value) => updateDaySchedule(index, { morningStart: value })}
@@ -570,15 +592,24 @@ const ScheduleManager = () => {
                                   onChange={(e) =>
                                     updateDaySchedule(index, { maxDinersMorning: parseInt(e.target.value) })
                                   }
-                                  placeholder="Max"
+                                  placeholder="Ej: 30"
                                   className="h-7 text-xs"
+                                  title="Máximo de comensales para comida"
                                 />
                               </div>
                             </div>
-                            {/* Tarde */}
+
+                            {/* Cena */}
                             <div>
-                              <Label className="text-xs text-muted-foreground">Tarde</Label>
-                              <div className="grid grid-cols-3 gap-1 mt-1">
+                              <Label className="text-xs text-muted-foreground mb-1">Cena</Label>
+                              {/* Headers */}
+                              <div className="grid grid-cols-3 gap-1 mb-1">
+                                <span className="text-[10px] text-muted-foreground text-center">Primero</span>
+                                <span className="text-[10px] text-muted-foreground text-center">Último</span>
+                                <span className="text-[10px] text-muted-foreground text-center">Max</span>
+                              </div>
+                              {/* Inputs */}
+                              <div className="grid grid-cols-3 gap-1">
                                 <Select
                                   value={daySchedule.afternoonStart}
                                   onValueChange={(value) => updateDaySchedule(index, { afternoonStart: value })}
@@ -615,14 +646,44 @@ const ScheduleManager = () => {
                                   onChange={(e) =>
                                     updateDaySchedule(index, { maxDinersAfternoon: parseInt(e.target.value) })
                                   }
-                                  placeholder="Max"
+                                  placeholder="Ej: 30"
                                   className="h-7 text-xs"
+                                  title="Máximo de comensales para cena"
                                 />
                               </div>
                             </div>
                           </div>
                         )}
                       </div>
+                    )}
+                    {/* Configuración de límites por slot */}
+                    {daySchedule.enabled && !daySchedule.hasSplit && (
+                      <SlotCapacityConfig
+                        dayOfWeek={daySchedule.day}
+                        scheduleType="single"
+                        scheduleStart={daySchedule.morningStart}
+                        scheduleEnd={daySchedule.morningEnd}
+                        maxDinersGlobal={daySchedule.maxDinersSingle}
+                      />
+                    )}
+
+                    {daySchedule.enabled && daySchedule.hasSplit && (
+                      <>
+                        <SlotCapacityConfig
+                          dayOfWeek={daySchedule.day}
+                          scheduleType="morning"
+                          scheduleStart={daySchedule.morningStart}
+                          scheduleEnd={daySchedule.morningEnd}
+                          maxDinersGlobal={daySchedule.maxDinersMorning}
+                        />
+                        <SlotCapacityConfig
+                          dayOfWeek={daySchedule.day}
+                          scheduleType="afternoon"
+                          scheduleStart={daySchedule.afternoonStart}
+                          scheduleEnd={daySchedule.afternoonEnd}
+                          maxDinersGlobal={daySchedule.maxDinersAfternoon}
+                        />
+                      </>
                     )}
                   </div>
                 ))}

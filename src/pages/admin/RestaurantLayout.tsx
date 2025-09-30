@@ -34,7 +34,7 @@ const RestaurantLayout = () => {
 
   const loadTables = async () => {
     try {
-      const { data, error } = await supabase.from("tables").select("*").eq("is_active", true);
+      const { data, error } = await supabase.from("tables").select("*").order("name");
 
       if (error) throw error;
       setTables((data as TableData[]) || []);
@@ -60,13 +60,13 @@ const RestaurantLayout = () => {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const snapToGrid = (value: number, containerSize: number) => {
+  const snapToGrid = (value: number) => {
+    const containerSize = 1200; // Usar el ancho fijo del contenedor
     const pixelValue = (value / 100) * containerSize;
     const gridSnappedValue = Math.round(pixelValue / GRID_SIZE) * GRID_SIZE;
 
     return (Math.max(0, Math.min(containerSize, gridSnappedValue)) / containerSize) * 100;
   };
-
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     if (!draggedTable) return;
@@ -76,8 +76,8 @@ const RestaurantLayout = () => {
     const rawY = ((e.clientY - rect.top) / rect.height) * 100;
 
     // Snap to grid
-    const x = snapToGrid(rawX, rect.width);
-    const y = snapToGrid(rawY, rect.height);
+    const x = snapToGrid(rawX);
+    const y = snapToGrid(rawY);
 
     try {
       const updateData: Partial<TableData> = {
@@ -108,15 +108,22 @@ const RestaurantLayout = () => {
 
   const renderTable = (table: TableData) => {
     const isSquare = table.shape === "square";
+    const isActive = table.is_active;
 
     return (
       <div
         key={table.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, table.id)}
-        className={`absolute cursor-move transition-all duration-200 hover:scale-105 ${
-          isSquare ? "rounded-lg" : "rounded-full"
-        } bg-restaurant-cream border-2 border-restaurant-gold shadow-lg flex items-center justify-center font-medium text-restaurant-brown select-none`}
+        draggable={isActive} // Solo se pueden arrastrar las activas
+        onDragStart={(e) => isActive && handleDragStart(e, table.id)}
+        className={`absolute transition-all duration-200 ${
+          isActive ? "cursor-move hover:scale-105" : "cursor-not-allowed opacity-50"
+        } ${isSquare ? "rounded-lg" : "rounded-full"} ${
+          isActive
+            ? "bg-restaurant-cream border-2 border-restaurant-gold shadow-lg"
+            : "bg-gray-200 border-2 border-gray-400 shadow-md"
+        } flex items-center justify-center font-medium ${
+          isActive ? "text-restaurant-brown" : "text-gray-500"
+        } select-none`}
         style={{
           left: `${table.position_x}%`,
           top: `${table.position_y}%`,
@@ -131,6 +138,7 @@ const RestaurantLayout = () => {
             {table.min_capacity}-{table.max_capacity}
             {table.extra_capacity > 0 && `(+${table.extra_capacity})`}
           </div>
+          {!isActive && <div className="text-[10px] font-semibold text-red-600">INACTIVA</div>}
         </div>
       </div>
     );
@@ -168,10 +176,10 @@ const RestaurantLayout = () => {
             <div
               className="relative bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg"
               style={{
-                width: "200%",
-                height: "200%",
-                minWidth: "200%",
-                minHeight: "200%",
+                width: "100rem",
+                height: "40rem",
+                /*                 minWidth: "80rem",
+                minHeight: "0rem", */
                 backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
                 backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
                 transform: "scale(0.75)",

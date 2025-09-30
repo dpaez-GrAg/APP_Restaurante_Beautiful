@@ -892,3 +892,265 @@ $$;
 COMMENT ON FUNCTION public_create_reservation IS 'API pública: Crear reserva con gestión automática de clientes';
 COMMENT ON FUNCTION public_find_reservation IS 'API pública: Buscar reservas por teléfono';
 COMMENT ON FUNCTION public_cancel_reservation IS 'API pública: Cancelar reserva por teléfono y fecha';
+
+
+-- Calcular ocupación de un slot específico
+CREATE OR REPLACE FUNCTION public.calculate_slot_occupation(
+    p_date DATE,
+    p_slot_time TIME,
+    p_schedule_start TIME,
+    p_schedule_end TIME,
+    p_excluded_reservation_id UUID DEFAULT NULL
+)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_total_diners INTEGER;
+    v_slot_ts TIMESTAMPTZ;
+    v_slot_end_ts TIMESTAMPTZ;
+BEGIN
+    v_slot_ts := (p_date::TEXT || ' ' || p_slot_time::TEXT)::TIMESTAMP AT TIME ZONE 'Europe/Madrid';
+    v_slot_end_ts := v_slot_ts + INTERVAL '15 minutes';
+    
+    SELECT COALESCE(SUM(r.guests), 0)
+    INTO v_total_diners
+    FROM public.reservations r
+    WHERE r.date = p_date
+      AND r.status IN ('confirmed', 'arrived')
+      AND (p_excluded_reservation_id IS NULL OR r.id != p_excluded_reservation_id)
+      AND (p_date::TEXT || ' ' || r.time::TEXT)::TIMESTAMP AT TIME ZONE 'Europe/Madrid' < v_slot_end_ts
+      AND ((p_date::TEXT || ' ' || r.time::TEXT)::TIMESTAMP AT TIME ZONE 'Europe/Madrid' + 
+           (COALESCE(r.duration_minutes, 90) || ' minutes')::INTERVAL) > v_slot_ts
+      AND r.time >= p_schedule_start
+      AND r.time < p_schedule_end;
+    
+    RETURN v_total_diners;
+END;
+$$;
+
+-- Determinar tipo de horario
+CREATE OR REPLACE FUNCTION public.get_schedule_type(
+    p_day_of_week INTEGER,
+    p_time TIME
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_count INTEGER;
+    v_opening TIME;
+    v_index INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM public.restaurant_schedules
+    WHERE day_of_week = p_day_of_week AND is_active = true;
+    
+    IF v_count = 1 THEN RETURN 'single'; END IF;
+    
+    SELECT opening_time INTO v_opening
+    FROM public.restaurant_schedules
+    WHERE day_of_week = p_day_of_week AND is_active = true
+      AND p_time >= opening_time AND p_time < closing_time
+    ORDER BY opening_time LIMIT 1;
+    
+    IF NOT FOUND THEN RETURN 'single'; END IF;
+    
+    SELECT COUNT(*) INTO v_index
+    FROM public.restaurant_schedules
+    WHERE day_of_week = p_day_of_week AND is_active = true
+      AND opening_time < v_opening;
+    
+    RETURN CASE WHEN v_index = 0 THEN 'morning' ELSE 'afternoon' END;
+END;
+$$;
+
+-- Slots disponibles con sistema de 15 minutos (VERSIÓN FINAL)
+DROP FUNCTION IF EXISTS public.get_available_time_slots_15min(date, integer, integer);
+
+CREATE OR REPLACE FUNCTION public.get_available_time_slots_15min(
+    p_date date,
+    p_guests integer,
+    p_duration_minutes integer DEFAULT 90
+)
+RETURNS TABLE(id uuid, slot_time time, capacity integer)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_day_of_week integer;
+    v_special_closed boolean;
+    v_schedule_record record;
+    v_current_diners integer;
+    v_schedule_type text;
+BEGIN
+    v_day_of_week := EXTRACT(DOW FROM p_date);
+    
+    SELECT COUNT(*) > 0 INTO v_special_closed
+    FROM public.special_closed_days scd
+    WHERE (
+        (NOT scd.is_range AND scd.date = p_date) OR
+        (scd.is_range AND p_date BETWEEN scd.range_start AND scd.range_end)
+    );
+
+    IF v_special_closed THEN
+        RETURN;
+    END IF;
+
+    FOR v_schedule_record IN 
+        SELECT rs.opening_time, rs.closing_time, rs.max_diners
+        FROM public.restaurant_schedules rs
+        WHERE rs.day_of_week = v_day_of_week 
+          AND rs.is_active = true
+        ORDER BY rs.opening_time
+    LOOP
+        v_current_diners := 0;
+        IF v_schedule_record.max_diners IS NOT NULL THEN
+            SELECT COALESCE(SUM(r.guests), 0) INTO v_current_diners
+            FROM public.reservations r
+            WHERE r.date = p_date
+              AND r.status IN ('confirmed', 'arrived')
+              AND r.time >= v_schedule_record.opening_time 
+              AND r.time < v_schedule_record.closing_time;
+        END IF;
+
+        IF v_schedule_record.max_diners IS NOT NULL 
+           AND (v_current_diners + p_guests) > v_schedule_record.max_diners THEN
+            CONTINUE;
+        END IF;
+
+        v_schedule_type := get_schedule_type(v_day_of_week, v_schedule_record.opening_time);
+
+        RETURN QUERY
+        SELECT 
+            ts.id,
+            ts.time as slot_time,
+            LEAST(
+                COALESCE((
+                    SELECT SUM(t.capacity + COALESCE(t.extra_capacity, 0))::integer
+                    FROM public.tables t
+                    WHERE t.is_active = true
+                      AND is_table_available(
+                        t.id, 
+                        p_date, 
+                        ((p_date::text || ' ' || ts.time::text)::timestamp AT TIME ZONE 'Europe/Madrid'),
+                        ((p_date::text || ' ' || ts.time::text)::timestamp AT TIME ZONE 'Europe/Madrid') + (p_duration_minutes || ' minutes')::interval
+                      )
+                ), 0),
+                ts.max_capacity
+            ) as capacity
+        FROM public.time_slots ts
+        WHERE ts.time >= v_schedule_record.opening_time 
+          AND ts.time < v_schedule_record.closing_time
+          AND LEAST(
+                COALESCE((
+                    SELECT SUM(t.capacity + COALESCE(t.extra_capacity, 0))::integer
+                    FROM public.tables t
+                    WHERE t.is_active = true
+                      AND is_table_available(
+                        t.id, 
+                        p_date, 
+                        ((p_date::text || ' ' || ts.time::text)::timestamp AT TIME ZONE 'Europe/Madrid'),
+                        ((p_date::text || ' ' || ts.time::text)::timestamp AT TIME ZONE 'Europe/Madrid') + (p_duration_minutes || ' minutes')::interval
+                      )
+                ), 0),
+                ts.max_capacity
+              ) >= p_guests
+          AND NOT EXISTS (
+              SELECT 1
+              WHERE (
+                  SELECT 
+                      CASE 
+                          WHEN (
+                              SELECT max_diners 
+                              FROM public.slot_capacity_limits scl
+                              WHERE scl.day_of_week = v_day_of_week
+                                AND scl.schedule_type = v_schedule_type
+                                AND scl.slot_time = ts.time
+                          ) IS NOT NULL
+                          THEN (
+                              SELECT (
+                                  calculate_slot_occupation(
+                                      p_date,
+                                      ts.time,
+                                      v_schedule_record.opening_time,
+                                      v_schedule_record.closing_time,
+                                      NULL
+                                  ) + p_guests
+                              ) > (
+                                  SELECT max_diners 
+                                  FROM public.slot_capacity_limits scl
+                                  WHERE scl.day_of_week = v_day_of_week
+                                    AND scl.schedule_type = v_schedule_type
+                                    AND scl.slot_time = ts.time
+                              )
+                          )
+                          ELSE false
+                      END
+              )
+          )
+        ORDER BY ts.time
+        LIMIT 100;
+    END LOOP;
+
+    RETURN;
+END;
+$$;
+
+-- Función para admin_create_reservation (VERSIÓN FINAL)
+DROP FUNCTION IF EXISTS public.admin_create_reservation(text, text, text, date, time, integer, text, uuid[], integer);
+DROP FUNCTION IF EXISTS public.admin_create_reservation(text, text, text, date, time, integer, text, integer);
+
+CREATE OR REPLACE FUNCTION public.admin_create_reservation(
+    p_name text,
+    p_email text,
+    p_phone text,
+    p_date date,
+    p_time time,
+    p_guests integer,
+    p_special_requests text DEFAULT '',
+    p_duration_minutes integer DEFAULT 90
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_customer_id UUID;
+    v_customer_exists BOOLEAN;
+    v_result json;
+BEGIN
+    SELECT id INTO v_customer_id
+    FROM public.customers
+    WHERE phone = p_phone LIMIT 1;
+    
+    v_customer_exists := FOUND;
+    
+    IF v_customer_exists THEN
+        UPDATE public.customers
+        SET name = p_name,
+            email = COALESCE(NULLIF(p_email, ''), email),
+            updated_at = NOW()
+        WHERE id = v_customer_id;
+    ELSE
+        INSERT INTO public.customers (name, email, phone)
+        VALUES (p_name, NULLIF(p_email, ''), p_phone)
+        RETURNING id INTO v_customer_id;
+    END IF;
+    
+    SELECT create_reservation_with_assignment(
+        v_customer_id,
+        p_date,
+        p_time,
+        p_guests,
+        p_special_requests,
+        p_duration_minutes
+    ) INTO v_result;
+    
+    RETURN v_result;
+END;
+$$;
+
+NOTIFY pgrst, 'reload schema';
