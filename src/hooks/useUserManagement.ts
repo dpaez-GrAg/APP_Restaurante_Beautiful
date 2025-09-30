@@ -19,72 +19,74 @@ export interface UpdateUserData {
 export function useUserManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-
   const createUser = async (userData: CreateUserData) => {
     setIsLoading(true);
     try {
-      console.log("🚀 Intentando crear usuario con Admin SDK:", userData.email);
+      console.log("🚀 Intentando crear usuario:", userData.email);
 
-      // Opción 1: Usar Admin SDK (si tienes Service Role Key)
-      try {
-        const result = await createUserWithAdmin(userData.email, userData.password, {
-          full_name: userData.full_name,
-          role: userData.role,
-        });
+      // ✅ VERIFICACIÓN 1: Comprobar en profiles
+      const { data: existingProfile, error: checkError } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("email", userData.email)
+        .maybeSingle();
 
-        if (result.success) {
-          console.log("✅ Usuario creado exitosamente con Admin SDK");
-          toast({
-            title: "Usuario creado",
-            description: `${userData.full_name} ha sido creado exitosamente`,
-          });
-          return { success: true, data: result };
-        } else {
-          console.log("❌ Admin SDK falló:", result.error);
-          throw new Error("Admin SDK failed: " + result.error);
-        }
-      } catch (adminError) {
-        console.warn("⚠️ Admin SDK failed, trying RPC function:", adminError);
-
-        // Opción 2: Fallback a función RPC
-        console.log("🔄 Intentando con función RPC...");
-
-        const { data, error: rpcError } = await supabase.rpc("admin_create_user", {
-          p_email: userData.email,
-          p_password: userData.password,
-          p_full_name: userData.full_name,
-          p_role: userData.role,
-        });
-
-        if (rpcError) {
-          console.error("❌ RPC Error:", rpcError);
-          throw rpcError;
-        }
-
-        const result = data as { success: boolean; error?: string };
-        console.log("📊 RPC Result:", result);
-
-        if (result.success) {
-          console.log("✅ Usuario creado exitosamente con RPC");
-          toast({
-            title: "Usuario creado",
-            description: `${userData.full_name} ha sido creado exitosamente`,
-          });
-          return { success: true, data: result };
-        } else {
-          console.error("❌ RPC returned error:", result.error);
-          throw new Error(result.error || "Error desconocido");
-        }
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error("❌ Error verificando email:", checkError);
+        throw checkError;
       }
-    } catch (error) {
+
+      if (existingProfile) {
+        console.log("❌ Email ya existe en profiles");
+        toast({
+          title: "Error",
+          description: "Email ya existe",
+          variant: "destructive",
+        });
+        return { success: false, error: "Email ya existe" };
+      }
+
+      console.log("✅ Email disponible, usando RPC directamente...");
+
+      // ⭐ USAR SOLO RPC (sin Admin SDK)
+      const { data, error: rpcError } = await supabase.rpc("admin_create_user", {
+        p_email: userData.email,
+        p_password: userData.password,
+        p_full_name: userData.full_name,
+        p_role: userData.role,
+      });
+
+      if (rpcError) {
+        console.error("❌ RPC Error:", rpcError);
+        throw rpcError;
+      }
+
+      const result = data as { success: boolean; error?: string; user_id?: string };
+      console.log("📊 RPC Result:", result);
+
+      if (result.success) {
+        console.log("✅ Usuario creado exitosamente con RPC");
+        toast({
+          title: "Usuario creado",
+          description: `${userData.full_name} ha sido creado exitosamente`,
+        });
+        return { success: true, data: result };
+      } else {
+        console.error("❌ RPC returned error:", result.error);
+        throw new Error(result.error || "Error desconocido");
+      }
+    } catch (error: any) {
       console.error("💥 Error final:", error);
 
-      // Mensaje de error más específico
       let errorMessage = "No se pudo crear el usuario";
-      if (error.message?.includes("duplicate key")) {
-        errorMessage = "Este email ya está registrado. Usa un email diferente.";
+      if (error.message?.includes("Email ya existe")) {
+        errorMessage = "Email ya existe";
+      } else if (error.message?.includes("duplicate key")) {
+        errorMessage = "Email ya existe";
       } else if (error.message?.includes("profiles_pkey")) {
-        errorMessage = "Error de duplicado. Intenta con un email diferente.";
+        errorMessage = "Email ya existe";
+      } else if (error.message?.includes("already exists")) {
+        errorMessage = "Email ya existe";
       } else {
         errorMessage = error.message || "Error desconocido";
       }
