@@ -45,7 +45,7 @@ export const SlotCapacityConfig: React.FC<SlotCapacityConfigProps> = ({
     let currentHour = startHour;
     let currentMin = startMin;
 
-    while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+    while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
       const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
       slots.push(timeString);
 

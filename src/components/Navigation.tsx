@@ -24,15 +24,9 @@ const Navigation = () => {
     setIsOpen(false);
   };
 
-  // Navegar al inicio (hero section)
+  // Navegar a la página de inicio
   const goToHome = () => {
-    const heroElement = document.getElementById("hero");
-    if (heroElement) {
-      heroElement.scrollIntoView({ behavior: "smooth" });
-    } else {
-      // Si no existe la sección hero, ir al inicio de la página
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    navigate("/");
     setIsOpen(false);
   };
 

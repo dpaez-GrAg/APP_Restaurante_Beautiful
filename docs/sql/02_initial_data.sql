@@ -338,6 +338,14 @@ INSERT INTO public.special_closed_days (date, is_range, range_start, range_end, 
 INSERT INTO public.special_closed_days (date, is_range, reason) VALUES
 ('2025-03-15', false, 'Formación del personal - Cerrado');
 
+
+INSERT INTO public.zones (name, color, priority_order) VALUES
+    ('Comedor', '#10B981', 1),
+    ('Cafetería', '#3B82F6', 2),
+    ('Mesas Altas', '#F59E0B', 3),
+    ('Terraza', '#F510B9', 4)
+ON CONFLICT (name) DO NOTHING;
+
 -- ========================================
 -- SAMPLE ADMIN USER PROFILE
 -- ========================================
