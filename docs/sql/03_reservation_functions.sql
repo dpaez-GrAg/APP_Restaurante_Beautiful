@@ -266,9 +266,6 @@ $$;
 -- FUNCIÓN 5: CREAR RESERVA CON ASIGNACIÓN AUTOMÁTICA
 -- ========================================
 -- Soporta selección de zona preferida para priorizar mesas de esa zona
--- ========================================
--- FIX: Buscar combinaciones de mesas incluso sin zona preferida
--- ========================================
 
 -- ========================================
 -- FORZAR ACTUALIZACIÓN: Eliminar y recrear función
