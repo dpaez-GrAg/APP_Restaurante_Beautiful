@@ -98,6 +98,11 @@ const Index = () => {
             <p className={`transition-all duration-300 ${isLoading ? "animate-pulse" : ""}`}>
               &copy; 2025 {config?.restaurant_name || "Gridded Agency"}. Todos los derechos reservados.
             </p>
+            <p className="mt-2">
+              <a href="/politica-privacidad" className="hover:text-gray-300 transition-colors">
+                Política de Privacidad
+              </a>
+            </p>
           </div>
           <div className="pt-4 border-t border-gray-700">
             <div className="flex items-center justify-center gap-2">

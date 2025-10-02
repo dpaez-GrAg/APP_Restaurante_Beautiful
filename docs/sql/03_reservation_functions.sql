@@ -6,9 +6,25 @@
 -- - Tipos corregidos: SUM()::integer (no bigint)
 -- - Función optimizada sin bucles FOR anidados
 -- - Campo max_diners (no max_diners_per_service)
+-- - Soporte para zona preferida (p_preferred_zone_id)
 
 -- ========================================
--- LIMPIAR FUNCIONES EXISTENTES
+-- LIMPIEZA DE FUNCIONES EXISTENTES
+-- ========================================
+-- Ejecutar antes de recrear funciones para evitar conflictos de sobrecarga
+
+-- Funciones de movimiento de reservas (2 versiones con diferente número de parámetros)
+DROP FUNCTION IF EXISTS public.move_reservation_with_validation CASCADE;
+
+-- Funciones de API pública (pueden tener múltiples versiones)
+DROP FUNCTION IF EXISTS public.public_create_reservation CASCADE;
+
+-- Otras funciones que podrían tener conflictos
+DROP FUNCTION IF EXISTS public.create_reservation_with_assignment CASCADE;
+DROP FUNCTION IF EXISTS public.admin_create_reservation CASCADE;
+
+-- ========================================
+-- INICIO DE DEFINICIONES DE FUNCIONES
 -- ========================================
 DROP FUNCTION IF EXISTS get_available_time_slots(date, integer, integer, integer);
 DROP FUNCTION IF EXISTS api_check_availability(date, integer, integer);
@@ -249,13 +265,15 @@ $$;
 -- ========================================
 -- FUNCIÓN 5: CREAR RESERVA CON ASIGNACIÓN AUTOMÁTICA
 -- ========================================
+-- Soporta selección de zona preferida para priorizar mesas de esa zona
 CREATE OR REPLACE FUNCTION create_reservation_with_assignment(
     p_customer_id uuid,
     p_date date,
     p_time time,
     p_guests integer,
     p_special_requests text,
-    p_duration_minutes integer DEFAULT 120
+    p_duration_minutes integer DEFAULT 120,
+    p_preferred_zone_id uuid DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -328,14 +346,19 @@ BEGIN
     v_assigned_tables := ARRAY[]::UUID[];
     v_current_capacity := 0;
 
-    -- PASO 1: Buscar una mesa individual con capacidad suficiente
+ -- PASO 1: Buscar mesa individual RESPETANDO PRIORIDAD DE ZONAS Y ZONA PREFERIDA
     SELECT t.id
     INTO v_table_record
     FROM public.tables t
+    LEFT JOIN public.zones z ON t.zone_id = z.id
     WHERE t.is_active = true
       AND (t.capacity + COALESCE(t.extra_capacity, 0)) >= v_needed_capacity
       AND is_table_available(t.id, p_date, v_start_at, v_end_at)
-    ORDER BY (t.capacity + COALESCE(t.extra_capacity, 0)) ASC
+      AND (p_preferred_zone_id IS NULL OR t.zone_id = p_preferred_zone_id)
+    ORDER BY 
+        CASE WHEN t.zone_id = p_preferred_zone_id THEN 0 ELSE 1 END,  -- Zona preferida primero
+        COALESCE(z.priority_order, 999) ASC,  -- Luego zonas con menor número
+        (t.capacity + COALESCE(t.extra_capacity, 0)) ASC  -- Finalmente por capacidad
     LIMIT 1;
 
     IF FOUND THEN
@@ -345,26 +368,33 @@ BEGIN
         FROM public.tables t WHERE t.id = v_table_record.id;
     ELSE
         -- PASO 2: No hay mesa individual, buscar combinaciones válidas
-        FOR v_combination IN
-            SELECT tc.*, tc.total_capacity + COALESCE(tc.extra_capacity, 0) as effective_capacity
-            FROM public.table_combinations tc
-            WHERE tc.is_active = true
-              AND p_guests >= COALESCE(tc.min_capacity, 1)
-              AND (tc.max_capacity IS NULL OR p_guests <= tc.max_capacity)
-              AND (tc.total_capacity + COALESCE(tc.extra_capacity, 0)) >= p_guests
-            ORDER BY tc.total_capacity + COALESCE(tc.extra_capacity, 0) ASC
-        LOOP
-            -- Check if all tables in this combination are available
-            IF (
-                SELECT bool_and(is_table_available(table_id, p_date, v_start_at, v_end_at))
-                FROM unnest(v_combination.table_ids) AS table_id
-            ) THEN
-                -- This combination is available
-                v_assigned_tables := v_combination.table_ids;
-                v_current_capacity := v_combination.effective_capacity;
-                EXIT;
-            END IF;
-        END LOOP;
+        -- Si hay zona preferida, intentar solo en esa zona primero
+        IF p_preferred_zone_id IS NOT NULL THEN
+            FOR v_combination IN
+                SELECT tc.*, tc.total_capacity + COALESCE(tc.extra_capacity, 0) as effective_capacity
+                FROM public.table_combinations tc
+                WHERE tc.is_active = true
+                  AND p_guests >= COALESCE(tc.min_capacity, 1)
+                  AND (tc.max_capacity IS NULL OR p_guests <= tc.max_capacity)
+                  AND (tc.total_capacity + COALESCE(tc.extra_capacity, 0)) >= p_guests
+                  -- Verificar que todas las mesas estén en la zona preferida
+                  AND (
+                    SELECT bool_and(t.zone_id = p_preferred_zone_id)
+                    FROM unnest(tc.table_ids) AS table_id
+                    JOIN public.tables t ON t.id = table_id
+                  )
+                ORDER BY tc.total_capacity + COALESCE(tc.extra_capacity, 0) ASC
+            LOOP
+                IF (
+                    SELECT bool_and(is_table_available(table_id, p_date, v_start_at, v_end_at))
+                    FROM unnest(v_combination.table_ids) AS table_id
+                ) THEN
+                    v_assigned_tables := v_combination.table_ids;
+                    v_current_capacity := v_combination.effective_capacity;
+                    EXIT;
+                END IF;
+            END LOOP;
+        END IF;
 
         -- Si no encontramos combinación válida, la reserva no se puede realizar
         IF array_length(v_assigned_tables, 1) = 0 OR v_assigned_tables IS NULL THEN
@@ -499,6 +529,7 @@ $$;
 
 -- FUNCIONES CRÍTICAS: move_reservation_with_validation (COMPATIBILIDAD)
 -- Función para cambiar horario (4 parámetros)
+
 CREATE OR REPLACE FUNCTION move_reservation_with_validation(
     p_duration_minutes integer,
     p_new_date date,
@@ -676,8 +707,12 @@ $$;
 -- COMENTARIOS PARA FUNCIONES CRÍTICAS
 -- ========================================
 COMMENT ON FUNCTION update_reservation_details IS 'Actualiza detalles de reserva sin COALESCE problemático';
-COMMENT ON FUNCTION move_reservation_with_validation IS 'Mueve reserva con validación - versiones de compatibilidad';
 COMMENT ON FUNCTION cancel_reservation_by_id IS 'Cancela reserva específica por ID';
+COMMENT ON FUNCTION move_reservation_with_validation(integer, date, time, uuid) 
+IS 'Mueve reserva cambiando solo horario - mantiene mesas asignadas';
+COMMENT ON FUNCTION move_reservation_with_validation(integer, date, uuid[], time, uuid) 
+IS 'Mueve reserva cambiando horario y mesas asignadas';
+
 
 -- ========================================
 -- LIMPIAR CACHE Y COMENTARIOS
@@ -889,7 +924,8 @@ $$;
 -- ========================================
 -- COMENTARIOS PARA API PÚBLICA
 -- ========================================
-COMMENT ON FUNCTION public_create_reservation IS 'API pública: Crear reserva con gestión automática de clientes';
+COMMENT ON FUNCTION public_create_reservation(text, text, date, time, integer, text, integer, text) 
+IS 'API pública: Crear reserva con gestión automática de clientes';
 COMMENT ON FUNCTION public_find_reservation IS 'API pública: Buscar reservas por teléfono';
 COMMENT ON FUNCTION public_cancel_reservation IS 'API pública: Cancelar reserva por teléfono y fecha';
 
@@ -1100,8 +1136,10 @@ END;
 $$;
 
 -- Función para admin_create_reservation (VERSIÓN FINAL)
+-- Soporta zona preferida para creación desde panel de administración
 DROP FUNCTION IF EXISTS public.admin_create_reservation(text, text, text, date, time, integer, text, uuid[], integer);
 DROP FUNCTION IF EXISTS public.admin_create_reservation(text, text, text, date, time, integer, text, integer);
+DROP FUNCTION IF EXISTS public.admin_create_reservation(text, text, text, date, time, integer, text, integer, uuid);
 
 CREATE OR REPLACE FUNCTION public.admin_create_reservation(
     p_name text,
@@ -1111,7 +1149,8 @@ CREATE OR REPLACE FUNCTION public.admin_create_reservation(
     p_time time,
     p_guests integer,
     p_special_requests text DEFAULT '',
-    p_duration_minutes integer DEFAULT 90
+    p_duration_minutes integer DEFAULT 90,
+    p_preferred_zone_id uuid DEFAULT NULL
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -1146,11 +1185,123 @@ BEGIN
         p_time,
         p_guests,
         p_special_requests,
-        p_duration_minutes
+        p_duration_minutes,
+        p_preferred_zone_id
     ) INTO v_result;
     
     RETURN v_result;
 END;
 $$;
+
+
+
+-- ========================================
+-- FUNCIONES DE GESTIÓN DE ZONAS
+-- ========================================
+
+CREATE OR REPLACE FUNCTION get_zones_ordered()
+RETURNS TABLE (
+    id UUID,
+    name TEXT,
+    color TEXT,
+    priority_order INTEGER,
+    is_active BOOLEAN,
+    table_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        z.id,
+        z.name,
+        z.color,
+        z.priority_order,
+        z.is_active,
+        COUNT(t.id) as table_count
+    FROM zones z
+    LEFT JOIN tables t ON t.zone_id = z.id AND t.is_active = true
+    WHERE z.is_active = true
+    GROUP BY z.id, z.name, z.color, z.priority_order, z.is_active
+    ORDER BY z.priority_order ASC, z.name ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION create_zone(
+    p_name TEXT,
+    p_color TEXT DEFAULT '#6B7280',
+    p_priority_order INTEGER DEFAULT NULL
+)
+RETURNS UUID AS $$
+DECLARE
+    v_zone_id UUID;
+    v_max_priority INTEGER;
+BEGIN
+    IF p_priority_order IS NULL THEN
+        SELECT COALESCE(MAX(priority_order), 0) + 1 INTO v_max_priority FROM zones;
+        p_priority_order := v_max_priority;
+    END IF;
+
+    INSERT INTO zones (name, color, priority_order)
+    VALUES (p_name, p_color, p_priority_order)
+    RETURNING id INTO v_zone_id;
+
+    RETURN v_zone_id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_zone(
+    p_zone_id UUID,
+    p_name TEXT DEFAULT NULL,
+    p_color TEXT DEFAULT NULL,
+    p_priority_order INTEGER DEFAULT NULL,
+    p_is_active BOOLEAN DEFAULT NULL
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE zones
+    SET 
+        name = COALESCE(p_name, name),
+        color = COALESCE(p_color, color),
+        priority_order = COALESCE(p_priority_order, priority_order),
+        is_active = COALESCE(p_is_active, is_active)
+    WHERE id = p_zone_id;
+
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION delete_zone(p_zone_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE tables SET zone_id = NULL WHERE zone_id = p_zone_id;
+    UPDATE zones SET is_active = false WHERE id = p_zone_id;
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION reorder_zone_priorities(p_zone_ids UUID[])
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_zone_id UUID;
+    v_index INTEGER := 1;
+BEGIN
+    FOREACH v_zone_id IN ARRAY p_zone_ids
+    LOOP
+        UPDATE zones SET priority_order = v_index WHERE id = v_zone_id;
+        v_index := v_index + 1;
+    END LOOP;
+    RETURN true;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- ========================================
+-- COMENTARIOS ACTUALIZADOS
+-- ========================================
+COMMENT ON FUNCTION create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid) 
+IS 'Crea reserva con asignación automática de mesas. Soporta zona preferida opcional para priorizar mesas de esa zona.';
+
+COMMENT ON FUNCTION admin_create_reservation(text, text, text, date, time, integer, text, integer, uuid) 
+IS 'Crea reserva desde admin con gestión automática de clientes. Soporta zona preferida opcional.';
+
 
 NOTIFY pgrst, 'reload schema';

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,18 @@ interface CreateReservationDialogProps {
   onSuccess: () => void;
 }
 
+interface Schedule {
+  opening_time: string;
+  closing_time: string;
+  is_split?: boolean;
+}
+
+interface Zone {
+  id: string;
+  name: string;
+  color: string;
+  priority_order: number;
+}
 export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = ({
   open,
   onOpenChange,
@@ -32,11 +44,16 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
     time: defaultTime,
     guests: 2,
     special_requests: "",
+    preferred_zone_id: null as string | null,
   });
+
   const [isLoading, setIsLoading] = useState(false);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
 
   // Update form data when props change (for slot clicking)
-  React.useEffect(() => {
+  useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       date: defaultDate || prev.date,
@@ -44,20 +61,136 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
     }));
   }, [defaultDate, defaultTime]);
 
-  // Generate 15-minute time slots
-  const generate15MinuteSlots = () => {
-    const slots = [];
-    for (let hour = 12; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === 23 && minute > 45) break;
-        const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-        slots.push(timeString);
-      }
+  // Load schedules when date changes
+  useEffect(() => {
+    if (formData.date) {
+      loadSchedulesForDate(formData.date);
     }
-    return slots;
+  }, [formData.date]);
+
+  useEffect(() => {
+    loadZones();
+  }, []);
+
+  const loadZones = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_zones_ordered");
+      if (error) throw error;
+      setZones((data as Zone[]) || []);
+    } catch (error) {
+      console.error("Error loading zones:", error);
+    }
   };
 
-  const timeSlots = generate15MinuteSlots();
+  const loadSchedulesForDate = async (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + "T12:00:00");
+      const dayOfWeek = date.getDay();
+
+      const { data, error } = await supabase
+        .from("restaurant_schedules")
+        .select("opening_time, closing_time")
+        .eq("day_of_week", dayOfWeek)
+        .eq("is_active", true)
+        .order("opening_time");
+
+      if (error) throw error;
+
+      setSchedules((data as Schedule[]) || []);
+      generateTimeSlots((data as Schedule[]) || []);
+    } catch (error) {
+      console.error("Error loading schedules:", error);
+      toast.error("Error al cargar horarios");
+      setSchedules([]);
+      setTimeSlots([]);
+    }
+  };
+
+  const generateTimeSlots = (schedules: Schedule[]) => {
+    if (schedules.length === 0) {
+      setTimeSlots([]);
+      return;
+    }
+
+    const allSlots: string[] = [];
+
+    schedules.forEach((schedule) => {
+      const [startHour, startMin] = schedule.opening_time.split(":").map(Number);
+      const [endHour, endMin] = schedule.closing_time.split(":").map(Number);
+
+      let currentHour = startHour;
+      let currentMin = startMin;
+
+      while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+        const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
+        allSlots.push(timeString);
+
+        currentMin += 15;
+        if (currentMin >= 60) {
+          currentMin = 0;
+          currentHour++;
+        }
+      }
+    });
+
+    setTimeSlots(allSlots);
+  };
+
+  const renderTimeSlots = () => {
+    if (timeSlots.length === 0) {
+      return (
+        <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+          No hay horarios disponibles para esta fecha
+        </div>
+      );
+    }
+
+    // Si hay múltiples schedules, mostrar separados
+    if (schedules.length > 1) {
+      return (
+        <>
+          {/* COMIDA */}
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b">🍽️ COMIDA</div>
+          {timeSlots
+            .filter((slot) => {
+              const scheduleIndex = schedules.findIndex((s) => {
+                const slotTime = slot + ":00";
+                return slotTime >= s.opening_time && slotTime <= s.closing_time;
+              });
+              return scheduleIndex === 0;
+            })
+            .map((slot) => (
+              <SelectItem key={slot} value={slot}>
+                {slot}
+              </SelectItem>
+            ))}
+
+          {/* CENA */}
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">🌙 CENA</div>
+          {timeSlots
+            .filter((slot) => {
+              const scheduleIndex = schedules.findIndex((s) => {
+                const slotTime = slot + ":00";
+                return slotTime >= s.opening_time && slotTime <= s.closing_time;
+              });
+              return scheduleIndex === 1;
+            })
+            .map((slot) => (
+              <SelectItem key={slot} value={slot}>
+                {slot}
+              </SelectItem>
+            ))}
+        </>
+      );
+    }
+
+    // Horario simple
+    return timeSlots.map((slot) => (
+      <SelectItem key={slot} value={slot}>
+        {slot}
+      </SelectItem>
+    ));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +206,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
         p_guests: formData.guests,
         p_special_requests: formData.special_requests || "",
         p_duration_minutes: 90,
+        p_preferred_zone_id: formData.preferred_zone_id || null,
       });
 
       if (error) throw error;
@@ -91,6 +225,7 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
         time: defaultTime,
         guests: 2,
         special_requests: "",
+        preferred_zone_id: null,
       });
     } catch (error: any) {
       console.error("Error creating reservation:", error);
@@ -146,36 +281,34 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar hora" />
                 </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b">🍽️ COMIDA</div>
-                  {timeSlots
-                    .filter((slot) => {
-                      const hour = parseInt(slot.split(":")[0]);
-                      return hour >= 12 && hour < 17;
-                    })
-                    .map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">
-                    🌙 CENA
-                  </div>
-                  {timeSlots
-                    .filter((slot) => {
-                      const hour = parseInt(slot.split(":")[0]);
-                      return hour >= 19;
-                    })
-                    .map((slot) => (
-                      <SelectItem key={slot} value={slot}>
-                        {slot}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
+                <SelectContent className="max-h-60">{renderTimeSlots()}</SelectContent>
               </Select>
             </div>
           </div>
-
+          <div>
+            <Label>Zona preferida (opcional)</Label>
+            <Select
+              value={formData.preferred_zone_id || "any"}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, preferred_zone_id: value === "any" ? null : value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Cualquier zona" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Cualquier zona disponible</SelectItem>
+                {zones.map((zone) => (
+                  <SelectItem key={zone.id} value={zone.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: zone.color }} />
+                      {zone.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label>Comensales *</Label>
             <Select
@@ -194,21 +327,6 @@ export const CreateReservationDialog: React.FC<CreateReservationDialogProps> = (
               </SelectContent>
             </Select>
           </div>
-
-          {/*           <div>
-            <Label>Comensales</Label>
-            <Input
-              type="number"
-              min="2"
-              max="7"
-              value={formData.guests}
-              onChange={(e) => setFormData((prev) => ({ ...prev, guests: parseInt(e.target.value) }))}
-              required
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Para grupos de más de 7 personas, usar el email de contacto del restaurante
-            </p>
-          </div> */}
 
           <div>
             <Label>Comentarios</Label>
