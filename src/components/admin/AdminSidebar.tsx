@@ -10,6 +10,7 @@ import {
   UserCheck,
   Shield,
   FileText,
+  MapPin,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo } from "react";
@@ -52,6 +53,7 @@ const adminItems = [
     icon: TableProperties,
     permission: "tables.view",
   },
+
   {
     title: "Distribución",
     url: "/admin/layout",

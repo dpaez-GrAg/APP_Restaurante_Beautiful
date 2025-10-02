@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Edit, Trash2, Move, Layout } from "lucide-react";
@@ -23,10 +24,18 @@ interface TableData {
   position_x?: number;
   position_y?: number;
   is_active: boolean;
+  zone_id?: string | null;
+}
+
+interface Zone {
+  id: string;
+  name: string;
+  color: string;
 }
 
 const TablesManager = () => {
   const [tables, setTables] = useState<TableData[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTable, setEditingTable] = useState<TableData | null>(null);
@@ -39,12 +48,14 @@ const TablesManager = () => {
     shape: "square" as "square" | "round",
     position_x: 0,
     position_y: 0,
+    zone_id: null as string | null,
   });
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadTables();
+    loadZones();
   }, []);
 
   const loadTables = async () => {
@@ -65,6 +76,16 @@ const TablesManager = () => {
     }
   };
 
+  const loadZones = async () => {
+    try {
+      const { data, error } = await supabase.rpc("get_zones_ordered");
+      if (error) throw error;
+      setZones((data as Zone[]) || []);
+    } catch (error) {
+      console.error("Error loading zones:", error);
+    }
+  };
+
   const handleSave = async () => {
     try {
       if (editingTable) {
@@ -79,6 +100,7 @@ const TablesManager = () => {
             shape: formData.shape,
             position_x: formData.position_x,
             position_y: formData.position_y,
+            zone_id: formData.zone_id,
           })
           .eq("id", editingTable.id);
 
@@ -98,6 +120,7 @@ const TablesManager = () => {
             shape: formData.shape,
             position_x: formData.position_x,
             position_y: formData.position_y,
+            zone_id: formData.zone_id,
           },
         ]);
 
@@ -176,6 +199,7 @@ const TablesManager = () => {
       shape: table.shape,
       position_x: table.position_x || 0,
       position_y: table.position_y || 0,
+      zone_id: table.zone_id || null,
     });
     setIsDialogOpen(true);
   };
@@ -268,6 +292,29 @@ const TablesManager = () => {
                     </select>
                   </div>
                 </div>
+                {/* Selector de Zona */}
+                <div className="space-y-2">
+                  <Label htmlFor="zone">Zona (opcional)</Label>
+                  <Select
+                    value={formData.zone_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, zone_id: value === "none" ? null : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar zona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin zona asignada</SelectItem>
+                      {zones.map((zone) => (
+                        <SelectItem key={zone.id} value={zone.id}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: zone.color }} />
+                            {zone.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -334,6 +381,7 @@ const TablesManager = () => {
                 <TableRow>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Capacidad</TableHead>
+                  <TableHead>Zona</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -360,14 +408,33 @@ const TablesManager = () => {
                       </div>
                     </TableCell>
 
-                    {/* COLUMNA 3: ESTADO (Badge) */}
+                    {/* COLUMNA 3: ZONA */}
+                    <TableCell>
+                      {table.zone_id ? (
+                        (() => {
+                          const zone = zones.find((z) => z.id === table.zone_id);
+                          return zone ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: zone.color }} />
+                              <span className="text-sm">{zone.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Sin zona</span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sin zona</span>
+                      )}
+                    </TableCell>
+
+                    {/* COLUMNA 4: ESTADO (Badge) */}
                     <TableCell>
                       <Badge variant={table.is_active ? "default" : "secondary"}>
                         {table.is_active ? "Activa" : "Inactiva"}
                       </Badge>
                     </TableCell>
 
-                    {/* COLUMNA 4: ACCIONES (Switch + Botones) */}
+                    {/* COLUMNA 5: ACCIONES (Switch + Botones) */}
                     <TableCell className="text-right">
                       <div className="flex justify-end items-center gap-3">
                         {/* Switch para activar/desactivar */}

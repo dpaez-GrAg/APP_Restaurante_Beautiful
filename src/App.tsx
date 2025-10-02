@@ -21,9 +21,11 @@ import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
 import CustomersManager from "./pages/admin/CustomersManager";
 import UsersManager from "./pages/admin/UsersManager";
+// import ZonesManager from "./pages/admin/ZonesManager";
 // import AuditLogManager from "./pages/admin/AuditLogManager";
 import ReservarPage from "./pages/ReservarPage";
 import CartaPage from "./pages/CartaPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +61,7 @@ function App() {
                   <Route path="/" element={<Index />} />
                   <Route path="/reservar" element={<ReservarPage />} />
                   <Route path="/carta" element={<CartaPage />} />
+                  <Route path="/politica-privacidad" element={<PrivacyPolicyPage />} />
                   <Route path="/admin/auth" element={<AdminAuth />} />
 
                   {/* Admin Routes - Simplificadas */}

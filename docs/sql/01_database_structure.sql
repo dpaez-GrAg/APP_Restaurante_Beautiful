@@ -169,6 +169,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Crear tabla de zonas
+CREATE TABLE IF NOT EXISTS public.zones (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL DEFAULT '#6B7280',
+    priority_order INTEGER NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+-- Agregar columna zone_id a la tabla tables
+ALTER TABLE public.tables 
+ADD COLUMN IF NOT EXISTS zone_id UUID REFERENCES public.zones(id) ON DELETE SET NULL;
+
+-- Crear índices
+CREATE INDEX IF NOT EXISTS idx_tables_zone_id ON public.tables(zone_id);
+CREATE INDEX IF NOT EXISTS idx_zones_priority ON public.zones(priority_order);
+
 -- ========================================
 -- INDEXES FOR PERFORMANCE
 -- ========================================
@@ -211,6 +230,22 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+
+-- Trigger para updated_at
+CREATE OR REPLACE FUNCTION update_zones_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_update_zones_updated_at ON public.zones;
+CREATE TRIGGER trigger_update_zones_updated_at
+    BEFORE UPDATE ON public.zones
+    FOR EACH ROW
+    EXECUTE FUNCTION update_zones_updated_at();
 
 -- ========================================
 -- TRIGGERS (OPTIONAL - UNCOMMENT IF NEEDED)

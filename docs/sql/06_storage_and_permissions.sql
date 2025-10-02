@@ -82,3 +82,16 @@ SELECT 'TEST BUCKET ACCESS' as test_type,
 
 -- Permisos finales del sistema
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+-- Políticas RLS para zones
+ALTER TABLE public.zones ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Zones are viewable by everyone" ON public.zones
+    FOR SELECT USING (true);
+
+CREATE POLICY "Zones are editable by authenticated users" ON public.zones
+    FOR ALL USING (auth.role() = 'authenticated');
+
+COMMENT ON TABLE zones IS 'Zonas del restaurante para clasificación de mesas';
+COMMENT ON COLUMN zones.priority_order IS 'Orden de prioridad para asignación automática (menor = mayor prioridad)';
+COMMENT ON COLUMN tables.zone_id IS 'Zona a la que pertenece la mesa';

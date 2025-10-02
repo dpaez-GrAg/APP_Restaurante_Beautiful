@@ -16,11 +16,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { formatDateLocal } from "@/lib/dateUtils";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface EditReservation {
   id: string;
@@ -47,6 +46,16 @@ interface EditReservationDialogProps {
   onUpdate: () => void;
 }
 
+interface TableWithZone {
+  id: string;
+  name: string;
+  capacity: number;
+  zone_id: string | null;
+  zone_name: string | null;
+  zone_color: string | null;
+  zone_priority: number | null;
+}
+
 export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
   open,
   onOpenChange,
@@ -58,24 +67,20 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     time: "",
     guests: 2,
     special_requests: "",
-    status: "confirmed",
     duration_minutes: 90,
   });
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
-  const [availableTables, setAvailableTables] = useState<Array<{ id: string; name: string; capacity: number }>>([]);
+  const [availableTables, setAvailableTables] = useState<TableWithZone[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (reservation) {
-      // Get duration from reservation data if available
-      let duration = 90; // default
+      let duration = 90;
 
-      // Try to get from database field first
       if (reservation.duration_minutes) {
         duration = reservation.duration_minutes;
       } else if (reservation.start_at && reservation.end_at) {
-        // Calculate from timestamps as fallback
         const start = new Date(reservation.start_at);
         const end = new Date(reservation.end_at);
         duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
@@ -86,18 +91,15 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         time: reservation.time,
         guests: reservation.guests,
         special_requests: reservation.special_requests || "",
-        status: reservation.status,
         duration_minutes: duration,
       });
 
-      // Set currently assigned tables
       const currentTableIds =
         reservation.tableAssignments?.map((t) => t.table_id) ||
         reservation.table_assignments?.map((t) => t.table.id) ||
         [];
       setSelectedTableIds(currentTableIds);
 
-      // Load available tables
       loadAvailableTables();
     }
   }, [reservation]);
@@ -106,12 +108,43 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     try {
       const { data, error } = await supabase
         .from("tables")
-        .select("id, name, capacity")
+        .select(
+          `
+          id, 
+          name, 
+          capacity,
+          zone_id,
+          zones (
+            name,
+            color,
+            priority_order
+          )
+        `
+        )
         .eq("is_active", true)
         .order("name");
 
       if (error) throw error;
-      setAvailableTables(data || []);
+
+      const tablesWithZone: TableWithZone[] = (data || []).map((table: any) => ({
+        id: table.id,
+        name: table.name,
+        capacity: table.capacity,
+        zone_id: table.zone_id,
+        zone_name: table.zones?.name || null,
+        zone_color: table.zones?.color || null,
+        zone_priority: table.zones?.priority_order || 999,
+      }));
+
+      // Ordenar por zona (prioridad) y luego por nombre
+      tablesWithZone.sort((a, b) => {
+        if (a.zone_priority !== b.zone_priority) {
+          return (a.zone_priority || 999) - (b.zone_priority || 999);
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+      setAvailableTables(tablesWithZone);
     } catch (error) {
       console.error("Error loading tables:", error);
     }
@@ -123,14 +156,12 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
     setIsLoading(true);
     try {
-      // Check if tables changed
       const currentTableIds =
         reservation.tableAssignments?.map((t) => t.table_id) ||
         reservation.table_assignments?.map((t) => t.table.id) ||
         [];
       const tablesChanged = JSON.stringify(selectedTableIds.sort()) !== JSON.stringify(currentTableIds.sort());
 
-      // Check if date/time/duration changed, use move function with specific tables if changed
       if (
         formData.date !== reservation.date ||
         formData.time !== reservation.time ||
@@ -144,7 +175,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           p_duration_minutes: formData.duration_minutes,
         };
 
-        // Include specific tables if manually selected
         if (tablesChanged && selectedTableIds.length > 0) {
           moveParams.p_new_table_ids = selectedTableIds;
         }
@@ -156,7 +186,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         if (!result.success) throw new Error(result.error);
       }
 
-      // Update guest count with automatic table reassignment if needed (only if tables weren't manually changed)
       if (formData.guests !== reservation.guests && !tablesChanged) {
         const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc(
           "update_reservation_guests_with_reassignment",
@@ -171,12 +200,11 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         if (!guestUpdateResult.success) throw new Error(guestUpdateResult.error);
       }
 
-      // Update other details (excluding guests if already handled above)
       const { data: updateData, error: updateError } = await supabase.rpc("update_reservation_details", {
         p_reservation_id: reservation.id,
-        p_guests: tablesChanged ? formData.guests : null, // Update guests if tables were manually changed
+        p_guests: tablesChanged ? formData.guests : null,
         p_special_requests: formData.special_requests,
-        p_status: formData.status,
+        p_status: null, // Ya no actualizamos el estado desde aquí
       });
 
       if (updateError) throw updateError;
@@ -199,7 +227,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
     setIsDeleting(true);
     try {
-      // Delete table assignments first
       const { error: assignmentError } = await supabase
         .from("reservation_table_assignments")
         .delete()
@@ -207,7 +234,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
       if (assignmentError) throw assignmentError;
 
-      // Delete the reservation
       const { error: reservationError } = await supabase.from("reservations").delete().eq("id", reservation.id);
 
       if (reservationError) throw reservationError;
@@ -223,11 +249,39 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     }
   };
 
+  const addTable = (tableId: string) => {
+    if (!selectedTableIds.includes(tableId)) {
+      setSelectedTableIds((prev) => [...prev, tableId]);
+    }
+  };
+
+  const removeTable = (tableId: string) => {
+    setSelectedTableIds((prev) => prev.filter((id) => id !== tableId));
+  };
+
+  const getSelectedTables = () => {
+    return availableTables.filter((t) => selectedTableIds.includes(t.id));
+  };
+
+  const getAvailableTablesForSelect = () => {
+    return availableTables.filter((t) => !selectedTableIds.includes(t.id));
+  };
+
   if (!reservation) return null;
+
+  // Agrupar mesas por zona para el selector
+  const tablesByZone: Record<string, TableWithZone[]> = {};
+  getAvailableTablesForSelect().forEach((table) => {
+    const zoneName = table.zone_name || "Sin zona";
+    if (!tablesByZone[zoneName]) {
+      tablesByZone[zoneName] = [];
+    }
+    tablesByZone[zoneName].push(table);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Reserva</DialogTitle>
           <div className="text-sm text-muted-foreground space-y-2">
@@ -246,7 +300,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             )}
             {(reservation.tableAssignments?.length || reservation.table_assignments?.length) && (
               <div>
-                <strong>Mesas:</strong>{" "}
+                <strong>Mesas actuales:</strong>{" "}
                 {(
                   reservation.tableAssignments?.map((t) => t.table_name) ||
                   reservation.table_assignments?.map((t) => t.table.name) ||
@@ -305,47 +359,70 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           </div>
 
           <div>
-            <Label>Estado</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
-            >
+            <Label>Mesas Asignadas</Label>
+
+            {/* Mesas seleccionadas */}
+            <div className="flex flex-wrap gap-2 mb-2 min-h-[40px] p-2 border rounded bg-muted/30">
+              {getSelectedTables().length === 0 ? (
+                <span className="text-sm text-muted-foreground">Ninguna mesa seleccionada</span>
+              ) : (
+                getSelectedTables().map((table) => (
+                  <Badge
+                    key={table.id}
+                    variant="secondary"
+                    className="flex items-center gap-1 pr-1"
+                    style={{
+                      backgroundColor: table.zone_color || "#94a3b8",
+                      color: "#fff",
+                    }}
+                  >
+                    <div className="w-2 h-2 rounded-full bg-white/30" />
+                    {table.name} ({table.capacity}p)
+                    <button
+                      type="button"
+                      onClick={() => removeTable(table.id)}
+                      className="ml-1 hover:bg-white/20 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))
+              )}
+            </div>
+
+            {/* Selector para agregar mesas */}
+            <Select onValueChange={(value) => addTable(value)} value="">
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="+ Agregar mesa" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">Pendiente</SelectItem>
-                <SelectItem value="confirmed">Confirmada</SelectItem>
-                <SelectItem value="cancelled">Cancelada</SelectItem>
+                {Object.keys(tablesByZone).length === 0 ? (
+                  <div className="px-2 py-3 text-sm text-muted-foreground text-center">
+                    Todas las mesas están seleccionadas
+                  </div>
+                ) : (
+                  Object.entries(tablesByZone).map(([zoneName, tables]) => (
+                    <React.Fragment key={zoneName}>
+                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b">{zoneName}</div>
+                      {tables.map((table) => (
+                        <SelectItem key={table.id} value={table.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: table.zone_color || "#94a3b8" }}
+                            />
+                            {table.name} ({table.capacity}p)
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </React.Fragment>
+                  ))
+                )}
               </SelectContent>
             </Select>
-          </div>
 
-          <div>
-            <Label>Mesas Asignadas</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto border rounded p-2">
-              {availableTables.map((table) => (
-                <div key={table.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`table-${table.id}`}
-                    checked={selectedTableIds.includes(table.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedTableIds((prev) => [...prev, table.id]);
-                      } else {
-                        setSelectedTableIds((prev) => prev.filter((id) => id !== table.id));
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`table-${table.id}`} className="text-sm">
-                    {table.name} ({table.capacity}p)
-                  </Label>
-                </div>
-              ))}
-            </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Capacidad total:{" "}
-              {availableTables.filter((t) => selectedTableIds.includes(t.id)).reduce((sum, t) => sum + t.capacity, 0)}p
+              Capacidad total: {getSelectedTables().reduce((sum, t) => sum + t.capacity, 0)}p
             </div>
           </div>
 
@@ -388,7 +465,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className="ml-auto">
               {isLoading ? "Guardando..." : "Guardar"}
             </Button>
           </div>

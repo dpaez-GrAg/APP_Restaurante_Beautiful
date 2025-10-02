@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin, Layout } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ZonesManager from "./ZonesManager";
 
 interface TableData {
   id: string;
@@ -152,101 +154,123 @@ const RestaurantLayout = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Distribución en Planta</h1>
-          <p className="text-muted-foreground">Arrastra las mesas para reorganizar el layout</p>
+          <h1 className="text-3xl font-bold text-restaurant-brown">Distribución del Restaurante</h1>
+          <p className="text-muted-foreground">Gestiona el layout y las zonas del restaurante</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => navigate("/admin/tables")} variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver a Mesas
-          </Button>
-          <Button onClick={loadTables} variant="outline">
-            Actualizar Layout
-          </Button>
-        </div>
+        <Button onClick={() => navigate("/admin/tables")} variant="outline">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver a Mesas
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Layout del Restaurante</CardTitle>
-        </CardHeader>
 
-        <CardContent>
-          <div className="relative w-full h-96 overflow-auto">
-            <div
-              className="relative bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg"
-              style={{
-                width: "100rem",
-                height: "40rem",
-                /*                 minWidth: "80rem",
-                minHeight: "0rem", */
-                backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
-                backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
-                transform: "scale(0.75)",
-                transformOrigin: "top left",
-              }}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              {tables.length === 0 ? (
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  No hay mesas configuradas. Ve a la gestión de mesas para crear algunas.
-                </div>
-              ) : (
-                tables.map(renderTable)
-              )}
-            </div>
+      <Tabs defaultValue="layout" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="layout" className="flex items-center gap-2">
+            <Layout className="w-4 h-4" />
+            Distribución en Planta
+          </TabsTrigger>
+          <TabsTrigger value="zones" className="flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            Gestión de Zonas
+          </TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: LAYOUT */}
+        <TabsContent value="layout" className="space-y-6 mt-6">
+          <div className="flex justify-end">
+            <Button onClick={loadTables} variant="outline">
+              Actualizar Layout
+            </Button>
+
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Leyenda</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-restaurant-cream border border-restaurant-gold rounded"></div>
-                <span className="text-sm">Mesa cuadrada</span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Layout del Restaurante</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative w-full h-96 overflow-auto">
+                <div
+                  className="relative bg-gradient-to-br from-restaurant-cream/30 to-restaurant-gold/10 border-2 border-dashed border-restaurant-gold/30 rounded-lg"
+                  style={{
+                    width: "100rem",
+                    height: "40rem",
+                    backgroundImage: `radial-gradient(circle at center, rgba(0,0,0,0.1) 1px, transparent 1px)`,
+                    backgroundSize: `${GRID_SIZE}px ${GRID_SIZE}px`,
+                    transform: "scale(0.75)",
+                    transformOrigin: "top left",
+                  }}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  {tables.length === 0 ? (
+                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+                      No hay mesas configuradas. Ve a la gestión de mesas para crear algunas.
+                    </div>
+                  ) : (
+                    tables.map(renderTable)
+                  )}
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-restaurant-cream border border-restaurant-gold rounded-full"></div>
-                <span className="text-sm">Mesa redonda</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Instrucciones</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="text-sm space-y-1 text-muted-foreground">
-              <li>• Arrastra las mesas para moverlas</li>
-              <li>• El número muestra capacidad mín-máx</li>
-              <li>• (+n) indica capacidad extra</li>
-            </ul>
-          </CardContent>
-        </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Leyenda</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-restaurant-cream border border-restaurant-gold rounded"></div>
+                    <span className="text-sm">Mesa cuadrada</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-restaurant-cream border border-restaurant-gold rounded-full"></div>
+                    <span className="text-sm">Mesa redonda</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Estadísticas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm space-y-1">
-              <p>Total mesas: {tables.length}</p>
-              <p>Capacidad total: {tables.reduce((sum, t) => sum + t.max_capacity, 0)} personas</p>
-              <p>
-                Con capacidad extra: {tables.reduce((sum, t) => sum + t.max_capacity + t.extra_capacity, 0)} personas
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Instrucciones</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-sm space-y-1 text-muted-foreground">
+                  <li>• Arrastra las mesas para moverlas</li>
+                  <li>• El número muestra capacidad mín-máx</li>
+                  <li>• (+n) indica capacidad extra</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Estadísticas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm space-y-1">
+                  <p>Total mesas: {tables.length}</p>
+                  <p>Capacidad total: {tables.reduce((sum, t) => sum + t.max_capacity, 0)} personas</p>
+                  <p>
+                    Con capacidad extra: {tables.reduce((sum, t) => sum + t.max_capacity + t.extra_capacity, 0)}{" "}
+                    personas
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: ZONAS */}
+        <TabsContent value="zones" className="mt-6">
+          <ZonesManager />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
