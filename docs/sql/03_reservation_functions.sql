@@ -266,6 +266,18 @@ $$;
 -- FUNCIÓN 5: CREAR RESERVA CON ASIGNACIÓN AUTOMÁTICA
 -- ========================================
 -- Soporta selección de zona preferida para priorizar mesas de esa zona
+-- ========================================
+-- FIX: Buscar combinaciones de mesas incluso sin zona preferida
+-- ========================================
+
+-- ========================================
+-- FORZAR ACTUALIZACIÓN: Eliminar y recrear función
+-- ========================================
+
+-- Paso 1: Eliminar la función existente
+DROP FUNCTION IF EXISTS create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid);
+
+-- Paso 2: Recrear con el código correcto
 CREATE OR REPLACE FUNCTION create_reservation_with_assignment(
     p_customer_id uuid,
     p_date date,
@@ -294,18 +306,14 @@ DECLARE
     v_combination RECORD;
     v_diners_check json;
 BEGIN
-    -- Verificar que el customer_id no sea NULL
     IF p_customer_id IS NULL THEN
         RETURN json_build_object('success', false, 'error', 'Customer ID cannot be null');
     END IF;
 
-    -- Normalize to Europe/Madrid
     v_start_at := ((p_date::TEXT || ' ' || p_time::TEXT)::TIMESTAMP AT TIME ZONE 'Europe/Madrid');
     v_end_at := v_start_at + (p_duration_minutes || ' minutes')::INTERVAL;
-
     v_day_of_week := EXTRACT(DOW FROM p_date);
 
-    -- Check if restaurant is closed
     SELECT COUNT(*) > 0 INTO v_special_closed
     FROM public.special_closed_days 
     WHERE (
@@ -316,27 +324,25 @@ BEGIN
         RETURN json_build_object('success', false, 'error', 'Restaurant is closed on selected date');
     END IF;
 
-    -- Check opening hours
     SELECT opening_time, closing_time INTO v_special_schedule
     FROM public.special_schedule_days 
     WHERE date = p_date AND is_active = true
     LIMIT 1;
 
     IF FOUND THEN
-        IF p_time < v_special_schedule.opening_time OR p_time >= v_special_schedule.closing_time THEN
+        IF p_time < v_special_schedule.opening_time OR p_time > v_special_schedule.closing_time THEN
             RETURN json_build_object('success', false, 'error', 'Restaurant is closed at selected time');
         END IF;
     ELSE
         SELECT COUNT(*) > 0 INTO v_schedule_exists
         FROM public.restaurant_schedules 
         WHERE day_of_week = v_day_of_week AND is_active = true
-          AND p_time >= opening_time AND p_time < closing_time;
+          AND p_time >= opening_time AND p_time <= closing_time;
         IF NOT v_schedule_exists THEN
             RETURN json_build_object('success', false, 'error', 'Restaurant is closed at selected time');
         END IF;
     END IF;
 
-    -- Verificar límites de comensales por turno
     SELECT check_diners_limit(p_date, p_time, p_guests) INTO v_diners_check;
     IF (v_diners_check->>'success')::boolean = false THEN
         RETURN v_diners_check;
@@ -346,7 +352,6 @@ BEGIN
     v_assigned_tables := ARRAY[]::UUID[];
     v_current_capacity := 0;
 
- -- PASO 1: Buscar mesa individual RESPETANDO PRIORIDAD DE ZONAS Y ZONA PREFERIDA
     SELECT t.id
     INTO v_table_record
     FROM public.tables t
@@ -356,19 +361,16 @@ BEGIN
       AND is_table_available(t.id, p_date, v_start_at, v_end_at)
       AND (p_preferred_zone_id IS NULL OR t.zone_id = p_preferred_zone_id)
     ORDER BY 
-        CASE WHEN t.zone_id = p_preferred_zone_id THEN 0 ELSE 1 END,  -- Zona preferida primero
-        COALESCE(z.priority_order, 999) ASC,  -- Luego zonas con menor número
-        (t.capacity + COALESCE(t.extra_capacity, 0)) ASC  -- Finalmente por capacidad
+        CASE WHEN t.zone_id = p_preferred_zone_id THEN 0 ELSE 1 END,
+        COALESCE(z.priority_order, 999) ASC,
+        (t.capacity + COALESCE(t.extra_capacity, 0)) ASC
     LIMIT 1;
 
     IF FOUND THEN
-        -- Encontramos una mesa individual que funciona
         v_assigned_tables := ARRAY[v_table_record.id]::uuid[];
         SELECT (t.capacity + COALESCE(t.extra_capacity, 0)) INTO v_current_capacity
         FROM public.tables t WHERE t.id = v_table_record.id;
     ELSE
-        -- PASO 2: No hay mesa individual, buscar combinaciones válidas
-        -- Si hay zona preferida, intentar solo en esa zona primero
         IF p_preferred_zone_id IS NOT NULL THEN
             FOR v_combination IN
                 SELECT tc.*, tc.total_capacity + COALESCE(tc.extra_capacity, 0) as effective_capacity
@@ -377,7 +379,6 @@ BEGIN
                   AND p_guests >= COALESCE(tc.min_capacity, 1)
                   AND (tc.max_capacity IS NULL OR p_guests <= tc.max_capacity)
                   AND (tc.total_capacity + COALESCE(tc.extra_capacity, 0)) >= p_guests
-                  -- Verificar que todas las mesas estén en la zona preferida
                   AND (
                     SELECT bool_and(t.zone_id = p_preferred_zone_id)
                     FROM unnest(tc.table_ids) AS table_id
@@ -396,13 +397,32 @@ BEGIN
             END LOOP;
         END IF;
 
-        -- Si no encontramos combinación válida, la reserva no se puede realizar
+        IF array_length(v_assigned_tables, 1) = 0 OR v_assigned_tables IS NULL THEN
+            FOR v_combination IN
+                SELECT tc.*, tc.total_capacity + COALESCE(tc.extra_capacity, 0) as effective_capacity
+                FROM public.table_combinations tc
+                WHERE tc.is_active = true
+                  AND p_guests >= COALESCE(tc.min_capacity, 1)
+                  AND (tc.max_capacity IS NULL OR p_guests <= tc.max_capacity)
+                  AND (tc.total_capacity + COALESCE(tc.extra_capacity, 0)) >= p_guests
+                ORDER BY tc.total_capacity + COALESCE(tc.extra_capacity, 0) ASC
+            LOOP
+                IF (
+                    SELECT bool_and(is_table_available(table_id, p_date, v_start_at, v_end_at))
+                    FROM unnest(v_combination.table_ids) AS table_id
+                ) THEN
+                    v_assigned_tables := v_combination.table_ids;
+                    v_current_capacity := v_combination.effective_capacity;
+                    EXIT;
+                END IF;
+            END LOOP;
+        END IF;
+
         IF array_length(v_assigned_tables, 1) = 0 OR v_assigned_tables IS NULL THEN
             RETURN json_build_object('success', false, 'error', 'No hay mesas disponibles para esta capacidad');
         END IF;
     END IF;
 
-    -- Verificar que tenemos capacidad suficiente
     IF v_current_capacity < v_needed_capacity THEN
         RETURN json_build_object('success', false, 'error', 'Not enough table capacity available');
     END IF;
@@ -761,6 +781,8 @@ DECLARE
     v_customer_id uuid;
     v_reservation_result json;
     v_customer_exists boolean;
+    v_reservation_id uuid;
+    v_tables_info json;
 BEGIN
     -- Validar datos obligatorios
     IF p_name IS NULL OR trim(p_name) = '' THEN
@@ -812,11 +834,28 @@ BEGIN
     
     -- Verificar si la reserva se creó exitosamente
     IF (v_reservation_result->>'success')::boolean = true THEN
-        -- Devolver respuesta completa con datos del cliente
+        v_reservation_id := (v_reservation_result->>'reservation_id')::uuid;
+        
+        -- Obtener información de las mesas asignadas con sus nombres
+        SELECT json_agg(
+            json_build_object(
+                'id', t.id,
+                'name', t.name,
+                'capacity', t.capacity,
+                'zone', COALESCE(z.name, 'Sin zona')
+            )
+        )
+        INTO v_tables_info
+        FROM public.reservation_table_assignments rta
+        JOIN public.tables t ON rta.table_id = t.id
+        LEFT JOIN public.zones z ON t.zone_id = z.id
+        WHERE rta.reservation_id = v_reservation_id;
+        
+        -- Devolver respuesta completa con datos del cliente y mesas
         RETURN json_build_object(
             'success', true,
             'message', 'Reserva creada exitosamente',
-            'reservation_id', v_reservation_result->>'reservation_id',
+            'reservation_id', v_reservation_id,
             'customer', json_build_object(
                 'id', v_customer_id,
                 'name', p_name,
@@ -831,7 +870,7 @@ BEGIN
                 'duration_minutes', p_duration_minutes,
                 'special_requests', p_special_requests
             ),
-            'tables_assigned', v_reservation_result->'tables_assigned'
+            'tables_assigned', COALESCE(v_tables_info, '[]'::json)
         );
     ELSE
         -- Si falló la reserva, devolver el error

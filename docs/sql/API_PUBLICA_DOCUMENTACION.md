@@ -266,7 +266,6 @@ curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/public_create_r
     "p_date": "2025-09-24",
     "p_time": "20:00:00",
     "p_guests": 4,
-    "p_email": "cliente@email.com",
     "p_duration_minutes": 120,
     "p_special_requests": "Reserva creada por agente"
   }'
