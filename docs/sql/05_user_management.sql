@@ -42,79 +42,48 @@ CREATE OR REPLACE FUNCTION public.admin_create_user(
 RETURNS JSON AS $$
 DECLARE
     new_user_id UUID;
-    result JSON;
 BEGIN
-    -- Check if current user is admin
-    IF NOT EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND role = 'admin'
-    ) THEN
-        RETURN json_build_object('error', 'Unauthorized: Only admins can create users');
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+        RETURN json_build_object('error', 'Unauthorized');
     END IF;
 
-    -- Check if email already exists
     IF EXISTS (SELECT 1 FROM auth.users WHERE email = p_email) THEN
         RETURN json_build_object('error', 'Email already exists');
     END IF;
 
-    -- Create user in auth.users (this is a simplified version)
-    -- Note: In production, you'd use Supabase Admin API for this
+    -- CRÍTICO: Usar extensions.crypt y todos los campos como strings vacíos
     INSERT INTO auth.users (
-        instance_id,
-        id,
-        aud,
-        role,
-        email,
-        encrypted_password,
-        email_confirmed_at,
-        created_at,
-        updated_at,
-        confirmation_token,
-        recovery_token,
-        email_change_token_new,
-        email_change
+        instance_id, id, aud, role, email, encrypted_password,
+        email_confirmed_at, confirmed_at, created_at, updated_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change,
+        phone_change, phone_change_token, email_change_token_current, reauthentication_token
     ) VALUES (
-        '00000000-0000-0000-0000-000000000000',
-        gen_random_uuid(),
-        'authenticated',
-        'authenticated',
-        p_email,
-        crypt(p_password, gen_salt('bf')),
-        now(),
-        now(),
-        now(),
-        '',
-        '',
-        '',
-        ''
+        '00000000-0000-0000-0000-000000000000', gen_random_uuid(),
+        'authenticated', 'authenticated', p_email,
+        extensions.crypt(p_password, extensions.gen_salt('bf')),
+        now(), now(), now(), now(),
+        '', '', '', '',  -- IMPORTANTE: Strings vacíos, no NULL
+        '', '', '', ''   -- IMPORTANTE: Strings vacíos, no NULL
     ) RETURNING id INTO new_user_id;
 
-    -- Create profile
-    INSERT INTO public.profiles (
-        id,
-        email,
-        full_name,
-        role,
-        is_active,
-        created_by,
-        created_at,
-        updated_at
+    -- NUEVO: Crear identity (obligatorio)
+    INSERT INTO auth.identities (
+        provider_id, user_id, identity_data, provider,
+        last_sign_in_at, created_at, updated_at
     ) VALUES (
-        new_user_id,
-        p_email,
-        p_full_name,
-        p_role,
-        true,
-        auth.uid(),
-        now(),
-        now()
+        new_user_id::text, new_user_id,
+        jsonb_build_object('sub', new_user_id::text, 'email', p_email, 'email_verified', true),
+        'email', now(), now(), now()
     );
 
-    RETURN json_build_object(
-        'success', true,
-        'user_id', new_user_id,
-        'message', 'User created successfully'
+    INSERT INTO public.profiles (
+        id, email, full_name, role, is_active, created_by, created_at, updated_at
+    ) VALUES (
+        new_user_id, p_email, COALESCE(p_full_name, p_email),
+        p_role, true, auth.uid(), now(), now()
     );
+
+    RETURN json_build_object('success', true, 'user_id', new_user_id);
 
 EXCEPTION WHEN OTHERS THEN
     RETURN json_build_object('error', SQLERRM);
@@ -166,26 +135,26 @@ CREATE OR REPLACE FUNCTION public.admin_change_password(
 )
 RETURNS JSON AS $$
 BEGIN
-    -- Check if current user is admin
-    IF NOT EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE id = auth.uid() AND role = 'admin'
-    ) THEN
-        RETURN json_build_object('error', 'Unauthorized: Only admins can change passwords');
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin') THEN
+        RETURN json_build_object('error', 'Unauthorized');
     END IF;
 
-    -- Update password in auth.users
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = p_user_id) THEN
+        RETURN json_build_object('error', 'User not found');
+    END IF;
+
+    -- CRÍTICO: Usar extensions.crypt
     UPDATE auth.users 
     SET 
-        encrypted_password = crypt(p_new_password, gen_salt('bf')),
+        encrypted_password = extensions.crypt(p_new_password, extensions.gen_salt('bf')),
         updated_at = now()
     WHERE id = p_user_id;
 
     IF NOT FOUND THEN
-        RETURN json_build_object('error', 'User not found');
+        RETURN json_build_object('error', 'Failed to update password');
     END IF;
 
-    RETURN json_build_object('success', true, 'message', 'Password updated successfully');
+    RETURN json_build_object('success', true, 'message', 'Password updated');
 
 EXCEPTION WHEN OTHERS THEN
     RETURN json_build_object('error', SQLERRM);
@@ -231,31 +200,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Update RLS policies for profiles table
-DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.profiles;
+-- ELIMINAR políticas recursivas
+DROP POLICY IF EXISTS "Users can view own profile or admins can view all" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile or admins can update any" ON public.profiles;
+DROP POLICY IF EXISTS "Only admins can insert profiles" ON public.profiles;
 
--- New RLS policies
-CREATE POLICY "Users can view own profile or admins can view all" 
+-- CREAR políticas simples sin recursión
+CREATE POLICY "Users can view own profile" 
 ON public.profiles FOR SELECT 
-USING (
-    auth.uid() = id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+USING (auth.uid() = id);
 
-CREATE POLICY "Users can update own profile or admins can update any" 
+CREATE POLICY "Users can update own profile" 
 ON public.profiles FOR UPDATE 
-USING (
-    auth.uid() = id OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+USING (auth.uid() = id);
 
-CREATE POLICY "Only admins can insert profiles" 
+CREATE POLICY "Enable insert for authenticated users" 
 ON public.profiles FOR INSERT 
-WITH CHECK (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+WITH CHECK (auth.uid() = id);
+
+-- Política adicional para anon (necesaria para login)
+CREATE POLICY "Allow anon read for auth flow"
+ON public.profiles FOR SELECT
+TO anon
+USING (true);
 
 -- Create trigger for updated_at
 CREATE OR REPLACE FUNCTION update_profiles_updated_at()

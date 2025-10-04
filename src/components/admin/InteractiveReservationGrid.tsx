@@ -312,27 +312,27 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
     return (
       <div
-        className="h-full rounded px-2 py-1 cursor-pointer hover:shadow-md transition-all border-2 flex items-center justify-between"
+        className="h-full rounded px-1.5 py-0.5 cursor-pointer hover:shadow-md transition-all border-2 flex flex-col justify-center"
         style={getReservationColor(reservation)}
         onClick={handleReservationClick}
         title={`${reservation.customer_name} - ${reservation.guests} personas - ${
           reservation.customer_classification || "NEUTRO"
         }`}
       >
-        {/* Nombre del cliente */}
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[9px] font-bold text-foreground/70">{reservation.time.substring(0, 5)}</span>
+          <div className="flex items-center gap-1 text-[10px] font-medium text-foreground/80">
+            <Users className="w-3 h-3" />
+            {reservation.guests}
+          </div>
+        </div>
         <button
           onClick={handleCustomerClick}
-          className="font-semibold text-foreground text-xs leading-tight truncate hover:underline text-left flex-1 min-w-0"
+          className="font-semibold text-[11px] leading-none truncate hover:underline text-left"
           title={`Click para ver detalles de ${reservation.customer_name}`}
         >
           {reservation.customer_name.split(" ")[0]}
         </button>
-
-        {/* Número de personas */}
-        <div className="flex items-center gap-1 text-xs font-medium ml-1 flex-shrink-0">
-          <Users className="w-3 h-3" />
-          {reservation.guests}
-        </div>
       </div>
     );
   };
