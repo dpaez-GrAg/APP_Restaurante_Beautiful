@@ -75,6 +75,7 @@ const ReservationsManager = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
   const { toast } = useToast();
+  const [schedules, setSchedules] = useState<Array<{ opening_time: string; closing_time: string }>>([]);
 
   useEffect(() => {
     loadReservations();
@@ -187,6 +188,31 @@ const ReservationsManager = () => {
     }
     setFilteredReservations(filtered);
   };
+
+  const loadSchedules = async () => {
+    try {
+      const date = new Date(dateFilter + "T12:00:00");
+      const dayOfWeek = date.getDay();
+
+      const { data, error } = await supabase
+        .from("restaurant_schedules")
+        .select("opening_time, closing_time")
+        .eq("day_of_week", dayOfWeek)
+        .eq("is_active", true)
+        .order("opening_time");
+
+      if (error) throw error;
+      setSchedules(data || []);
+    } catch (error) {
+      console.error("Error loading schedules:", error);
+      setSchedules([]);
+    }
+  };
+
+  useEffect(() => {
+    loadSchedules();
+  }, [dateFilter]);
+
   const updateReservationStatus = async (id: string, newStatus: "confirmed" | "cancelled" | "arrived") => {
     try {
       const { error } = await supabase
@@ -278,6 +304,44 @@ const ReservationsManager = () => {
     }
     return dateFilteredReservations.filter((r) => r.status === status).length;
   };
+  const isSplitSchedule = () => schedules.length > 1;
+
+  const getReservationsForTimeRange = (startTime: string, endTime: string) => {
+    return reservations.filter((r) => {
+      if (r.date !== dateFilter) return false;
+      const reservationTime = r.time;
+      return reservationTime >= startTime && reservationTime < endTime;
+    });
+  };
+
+  const getMetricsForShift = (shiftIndex: number) => {
+    if (schedules.length === 0) return { reservations: 0, guests: 0, arrived: 0, cancelled: 0 };
+
+    const schedule = schedules[shiftIndex];
+    const shiftReservations = getReservationsForTimeRange(schedule.opening_time, schedule.closing_time);
+
+    return {
+      reservations: shiftReservations.length,
+      guests: shiftReservations
+        .filter((r) => r.status === "confirmed" || r.status === "arrived")
+        .reduce((sum, r) => sum + r.guests, 0),
+      arrived: shiftReservations.filter((r) => r.status === "arrived").length,
+      cancelled: shiftReservations.filter((r) => r.status === "cancelled").length,
+    };
+  };
+
+  const getTotalMetrics = () => {
+    const dateFilteredReservations = reservations.filter((r) => r.date === dateFilter);
+    return {
+      reservations: dateFilteredReservations.length,
+      guests: dateFilteredReservations
+        .filter((r) => r.status === "confirmed" || r.status === "arrived")
+        .reduce((sum, r) => sum + r.guests, 0),
+      arrived: dateFilteredReservations.filter((r) => r.status === "arrived").length,
+      cancelled: dateFilteredReservations.filter((r) => r.status === "cancelled").length,
+    };
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -320,6 +384,7 @@ const ReservationsManager = () => {
                     setDateFilter(formatDateLocal(date));
                   }
                 }}
+                weekStartsOn={1}
                 initialFocus
                 className={cn("p-3 pointer-events-auto")}
               />
@@ -339,44 +404,92 @@ const ReservationsManager = () => {
         </div>
       </div>
 
-      {/* Stats - Minimalista */}
-      <div className="grid grid-cols-4 gap-3">
-        <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-restaurant-brown">{getStatusCount("all")}</p>
-              <p className="text-xs text-muted-foreground">Total</p>
-            </div>
-          </CardContent>
-        </Card>
+      {isSplitSchedule() ? (
+        <div className="grid grid-cols-2 gap-3">
+          {/* COMIDA */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Comida</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).reservations}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).guests}</p>
+                  <p className="text-[10px] text-muted-foreground">Personas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(0).arrived}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(0).cancelled}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{getStatusCount("confirmed")}</p>
-              <p className="text-xs text-muted-foreground">Pendientes</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{getStatusCount("arrived")}</p>
-              <p className="text-xs text-muted-foreground">Recepcionadas</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardContent className="pt-4 pb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">{getStatusCount("cancelled")}</p>
-              <p className="text-xs text-muted-foreground">Canceladas</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* CENA */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Cena</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(1).reservations}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(1).guests}</p>
+                  <p className="text-[10px] text-muted-foreground">Personas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(1).arrived}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(1).cancelled}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {/* COMIDA */}
+          <Card className="shadow-sm">
+            <CardContent className="pt-3 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">Comida</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).reservations}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).guests}</p>
+                  <p className="text-[10px] text-muted-foreground">Personas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(0).arrived}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(0).cancelled}</p>
+                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Timeline Grid */}
       <div className="space-y-4">
@@ -577,6 +690,17 @@ const ReservationsManager = () => {
                         >
                           <X className="w-4 h-4 mr-1" />
                           Cancelar
+                        </Button>
+                      )}
+                      {reservation.status === "cancelled" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateReservationStatus(reservation.id, "confirmed")}
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                        >
+                          <Check className="w-4 h-4 mr-1" />
+                          Reactivar
                         </Button>
                       )}
                     </div>

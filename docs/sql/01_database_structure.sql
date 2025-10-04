@@ -221,12 +221,24 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, full_name)
+    INSERT INTO public.profiles (
+        id, email, full_name, role, is_active, created_by, created_at, updated_at
+    )
     VALUES (
         NEW.id,
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data ->> 'full_name', '')
-    );
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+        COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'user'),
+        true,
+        NEW.id,
+        now(),
+        now()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
+        updated_at = now();
+    
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
