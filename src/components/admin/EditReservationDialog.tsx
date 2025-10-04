@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Trash2, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Trash2, Wand2, ListChecks } from "lucide-react";
 
 interface EditReservation {
   id: string;
@@ -46,14 +46,28 @@ interface EditReservationDialogProps {
   onUpdate: () => void;
 }
 
-interface TableWithZone {
+interface Schedule {
+  opening_time: string;
+  closing_time: string;
+}
+
+interface Zone {
   id: string;
   name: string;
+  color: string;
+  priority_order: number;
+}
+
+interface Table {
+  table_id: string;
+  table_name: string;
   capacity: number;
+  extra_capacity: number;
+  total_capacity: number;
   zone_id: string | null;
   zone_name: string | null;
   zone_color: string | null;
-  zone_priority: number | null;
+  is_available: boolean;
 }
 
 export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
@@ -68,11 +82,20 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     guests: 2,
     special_requests: "",
     duration_minutes: 90,
+    preferred_zone_id: null as string | null,
   });
-  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
-  const [availableTables, setAvailableTables] = useState<TableWithZone[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+
+  // Modo manual
+  const [assignmentMode, setAssignmentMode] = useState<"automatic" | "manual">("manual");
+  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
+  const [loadingTables, setLoadingTables] = useState(false);
 
   useEffect(() => {
     if (reservation) {
@@ -92,6 +115,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         guests: reservation.guests,
         special_requests: reservation.special_requests || "",
         duration_minutes: duration,
+        preferred_zone_id: null,
       });
 
       const currentTableIds =
@@ -99,55 +123,170 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         reservation.table_assignments?.map((t) => t.table.id) ||
         [];
       setSelectedTableIds(currentTableIds);
-
-      loadAvailableTables();
+      setAssignmentMode(currentTableIds.length > 0 ? "manual" : "automatic");
     }
   }, [reservation]);
 
-  const loadAvailableTables = async () => {
+  useEffect(() => {
+    if (formData.date) {
+      loadSchedulesForDate(formData.date);
+    }
+  }, [formData.date]);
+
+  useEffect(() => {
+    loadZones();
+  }, []);
+
+  useEffect(() => {
+    if (assignmentMode === "manual" && formData.date && formData.time) {
+      loadAvailableTables();
+    }
+  }, [assignmentMode, formData.date, formData.time]);
+
+  const loadZones = async () => {
     try {
+      const { data, error } = await supabase.rpc("get_zones_ordered");
+      if (error) throw error;
+      setZones((data as Zone[]) || []);
+    } catch (error) {
+      console.error("Error loading zones:", error);
+    }
+  };
+
+  const loadAvailableTables = async () => {
+    setLoadingTables(true);
+    try {
+      const { data, error } = await supabase.rpc("get_available_tables_for_reservation", {
+        p_date: formData.date,
+        p_time: formData.time,
+        p_duration_minutes: formData.duration_minutes,
+      });
+
+      if (error) throw error;
+      setAvailableTables((data as Table[]) || []);
+    } catch (error) {
+      console.error("Error loading tables:", error);
+      toast.error("Error al cargar mesas disponibles");
+      setAvailableTables([]);
+    } finally {
+      setLoadingTables(false);
+    }
+  };
+
+  const loadSchedulesForDate = async (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + "T12:00:00");
+      const dayOfWeek = date.getDay();
+
       const { data, error } = await supabase
-        .from("tables")
-        .select(
-          `
-          id, 
-          name, 
-          capacity,
-          zone_id,
-          zones (
-            name,
-            color,
-            priority_order
-          )
-        `
-        )
+        .from("restaurant_schedules")
+        .select("opening_time, closing_time")
+        .eq("day_of_week", dayOfWeek)
         .eq("is_active", true)
-        .order("name");
+        .order("opening_time");
 
       if (error) throw error;
 
-      const tablesWithZone: TableWithZone[] = (data || []).map((table: any) => ({
-        id: table.id,
-        name: table.name,
-        capacity: table.capacity,
-        zone_id: table.zone_id,
-        zone_name: table.zones?.name || null,
-        zone_color: table.zones?.color || null,
-        zone_priority: table.zones?.priority_order || 999,
-      }));
-
-      // Ordenar por zona (prioridad) y luego por nombre
-      tablesWithZone.sort((a, b) => {
-        if (a.zone_priority !== b.zone_priority) {
-          return (a.zone_priority || 999) - (b.zone_priority || 999);
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      setAvailableTables(tablesWithZone);
+      setSchedules((data as Schedule[]) || []);
+      generateTimeSlots((data as Schedule[]) || []);
     } catch (error) {
-      console.error("Error loading tables:", error);
+      console.error("Error loading schedules:", error);
+      toast.error("Error al cargar horarios");
+      setSchedules([]);
+      setTimeSlots([]);
     }
+  };
+
+  const generateTimeSlots = (schedules: Schedule[]) => {
+    if (schedules.length === 0) {
+      setTimeSlots([]);
+      return;
+    }
+
+    const allSlots: string[] = [];
+
+    schedules.forEach((schedule) => {
+      const [startHour, startMin] = schedule.opening_time.split(":").map(Number);
+      const [endHour, endMin] = schedule.closing_time.split(":").map(Number);
+
+      let currentHour = startHour;
+      let currentMin = startMin;
+
+      while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+        const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
+        allSlots.push(timeString);
+
+        currentMin += 15;
+        if (currentMin >= 60) {
+          currentMin = 0;
+          currentHour++;
+        }
+      }
+    });
+
+    setTimeSlots(allSlots);
+  };
+
+  const renderTimeSlots = () => {
+    if (timeSlots.length === 0) {
+      return (
+        <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+          No hay horarios disponibles para esta fecha
+        </div>
+      );
+    }
+
+    if (schedules.length > 1) {
+      return (
+        <>
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b">🍽️ COMIDA</div>
+          {timeSlots
+            .filter((slot) => {
+              const scheduleIndex = schedules.findIndex((s) => {
+                const slotTime = slot + ":00";
+                return slotTime >= s.opening_time && slotTime <= s.closing_time;
+              });
+              return scheduleIndex === 0;
+            })
+            .map((slot) => (
+              <SelectItem key={slot} value={slot}>
+                {slot}
+              </SelectItem>
+            ))}
+
+          <div className="px-2 py-1 text-xs font-medium text-muted-foreground border-b border-t mt-1">🌙 CENA</div>
+          {timeSlots
+            .filter((slot) => {
+              const scheduleIndex = schedules.findIndex((s) => {
+                const slotTime = slot + ":00";
+                return slotTime >= s.opening_time && slotTime <= s.closing_time;
+              });
+              return scheduleIndex === 1;
+            })
+            .map((slot) => (
+              <SelectItem key={slot} value={slot}>
+                {slot}
+              </SelectItem>
+            ))}
+        </>
+      );
+    }
+
+    return timeSlots.map((slot) => (
+      <SelectItem key={slot} value={slot}>
+        {slot}
+      </SelectItem>
+    ));
+  };
+
+  const toggleTableSelection = (tableId: string) => {
+    setSelectedTableIds((prev) => (prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]));
+  };
+
+  const getSelectedCapacity = () => {
+    return availableTables
+      .filter((table) => selectedTableIds.includes(table.table_id))
+      .reduce((sum, table) => sum + table.total_capacity, 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,6 +295,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
     setIsLoading(true);
     try {
+      // Si cambió fecha/hora/duración o mesas, usar move_reservation
       const currentTableIds =
         reservation.tableAssignments?.map((t) => t.table_id) ||
         reservation.table_assignments?.map((t) => t.table.id) ||
@@ -175,7 +315,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           p_duration_minutes: formData.duration_minutes,
         };
 
-        if (tablesChanged && selectedTableIds.length > 0) {
+        if (assignmentMode === "manual" && selectedTableIds.length > 0) {
           moveParams.p_new_table_ids = selectedTableIds;
         }
 
@@ -186,6 +326,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         if (!result.success) throw new Error(result.error);
       }
 
+      // Actualizar comensales si cambió
       if (formData.guests !== reservation.guests && !tablesChanged) {
         const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc(
           "update_reservation_guests_with_reassignment",
@@ -200,11 +341,12 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         if (!guestUpdateResult.success) throw new Error(guestUpdateResult.error);
       }
 
+      // Actualizar comentarios
       const { data: updateData, error: updateError } = await supabase.rpc("update_reservation_details", {
         p_reservation_id: reservation.id,
         p_guests: tablesChanged ? formData.guests : null,
         p_special_requests: formData.special_requests,
-        p_status: null, // Ya no actualizamos el estado desde aquí
+        p_status: null,
       });
 
       if (updateError) throw updateError;
@@ -249,63 +391,98 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     }
   };
 
-  const addTable = (tableId: string) => {
-    if (!selectedTableIds.includes(tableId)) {
-      setSelectedTableIds((prev) => [...prev, tableId]);
+  const renderTablesList = () => {
+    if (loadingTables) {
+      return <div className="text-sm text-muted-foreground text-center py-4">Cargando mesas...</div>;
     }
-  };
 
-  const removeTable = (tableId: string) => {
-    setSelectedTableIds((prev) => prev.filter((id) => id !== tableId));
-  };
+    if (availableTables.length === 0) {
+      return (
+        <div className="text-sm text-muted-foreground text-center py-4">
+          No hay mesas disponibles para esta fecha y hora
+        </div>
+      );
+    }
 
-  const getSelectedTables = () => {
-    return availableTables.filter((t) => selectedTableIds.includes(t.id));
-  };
+    const groupedByZone = availableTables.reduce((acc, table) => {
+      const zoneName = table.zone_name || "Sin zona";
+      if (!acc[zoneName]) acc[zoneName] = [];
+      acc[zoneName].push(table);
+      return acc;
+    }, {} as Record<string, Table[]>);
 
-  const getAvailableTablesForSelect = () => {
-    return availableTables.filter((t) => !selectedTableIds.includes(t.id));
+    return (
+      <div className="space-y-3 max-h-60 overflow-y-auto">
+        {Object.entries(groupedByZone).map(([zoneName, tables]) => (
+          <div key={zoneName}>
+            <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
+              {tables[0].zone_color && (
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tables[0].zone_color }} />
+              )}
+              {zoneName}
+            </div>
+            <div className="space-y-1">
+              {tables.map((table) => (
+                <label
+                  key={table.table_id}
+                  className={`flex items-center gap-3 p-2 rounded border cursor-pointer hover:bg-accent transition-colors ${
+                    !table.is_available ? "opacity-50 cursor-not-allowed" : ""
+                  } ${selectedTableIds.includes(table.table_id) ? "bg-accent border-primary" : ""}`}
+                >
+                  <Checkbox
+                    checked={selectedTableIds.includes(table.table_id)}
+                    onCheckedChange={() => toggleTableSelection(table.table_id)}
+                    disabled={!table.is_available && !selectedTableIds.includes(table.table_id)}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">
+                      {table.table_name}
+                      {!table.is_available && <span className="text-xs text-destructive ml-2">(Ocupada)</span>}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Capacidad: {table.capacity}
+                      {table.extra_capacity > 0 && ` (+${table.extra_capacity})`}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {selectedTableIds.length > 0 && (
+          <div className="sticky bottom-0 bg-background pt-2 border-t">
+            <div className="text-sm font-medium">
+              {selectedTableIds.length} mesa{selectedTableIds.length > 1 ? "s" : ""} seleccionada
+              {selectedTableIds.length > 1 ? "s" : ""} • Capacidad total: {getSelectedCapacity()} personas
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!reservation) return null;
 
-  // Agrupar mesas por zona para el selector
-  const tablesByZone: Record<string, TableWithZone[]> = {};
-  getAvailableTablesForSelect().forEach((table) => {
-    const zoneName = table.zone_name || "Sin zona";
-    if (!tablesByZone[zoneName]) {
-      tablesByZone[zoneName] = [];
-    }
-    tablesByZone[zoneName].push(table);
-  });
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Reserva</DialogTitle>
-          <div className="text-sm text-muted-foreground space-y-2">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="text-sm text-muted-foreground space-y-1 bg-muted/30 p-3 rounded">
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <strong>Cliente:</strong> {reservation.customer_name || reservation.name || "Sin nombre"}
               </div>
+              {reservation.phone && (
+                <div>
+                  <strong>Teléfono:</strong> {reservation.phone}
+                </div>
+              )}
+            </div>
+            {reservation.email && (
               <div>
                 <strong>Email:</strong> {reservation.email}
-              </div>
-            </div>
-            {reservation.phone && (
-              <div>
-                <strong>Teléfono:</strong> {reservation.phone}
-              </div>
-            )}
-            {(reservation.tableAssignments?.length || reservation.table_assignments?.length) && (
-              <div>
-                <strong>Mesas actuales:</strong>{" "}
-                {(
-                  reservation.tableAssignments?.map((t) => t.table_name) ||
-                  reservation.table_assignments?.map((t) => t.table.name) ||
-                  []
-                ).join(", ")}
               </div>
             )}
           </div>
@@ -313,7 +490,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Fecha</Label>
+              <Label>Fecha *</Label>
               <Input
                 type="date"
                 value={formData.date}
@@ -322,30 +499,41 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               />
             </div>
             <div>
-              <Label>Hora</Label>
-              <Input
-                type="time"
+              <Label>Hora *</Label>
+              <Select
+                key={`time-${reservation?.id}-${formData.time}`}
                 value={formData.time}
-                onChange={(e) => setFormData((prev) => ({ ...prev, time: e.target.value }))}
-                required
-              />
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, time: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar hora" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">{renderTimeSlots()}</SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Comensales</Label>
-              <Input
-                type="number"
-                min="1"
-                max="20"
-                value={formData.guests}
-                onChange={(e) => setFormData((prev) => ({ ...prev, guests: parseInt(e.target.value) }))}
-                required
-              />
+              <Label>Comensales *</Label>
+              <Select
+                value={formData.guests.toString()}
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, guests: parseInt(value) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nº de personas" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {Array.from({ length: 98 }, (_, i) => i + 2).map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num} {num === 1 ? "persona" : "personas"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label>Duración (minutos)</Label>
+              <Label>Duración (minutos) *</Label>
               <Input
                 type="number"
                 min="30"
@@ -358,73 +546,65 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             </div>
           </div>
 
+          {/* Modo de asignación */}
           <div>
-            <Label>Mesas Asignadas</Label>
-
-            {/* Mesas seleccionadas */}
-            <div className="flex flex-wrap gap-2 mb-2 min-h-[40px] p-2 border rounded bg-muted/30">
-              {getSelectedTables().length === 0 ? (
-                <span className="text-sm text-muted-foreground">Ninguna mesa seleccionada</span>
-              ) : (
-                getSelectedTables().map((table) => (
-                  <Badge
-                    key={table.id}
-                    variant="secondary"
-                    className="flex items-center gap-1 pr-1"
-                    style={{
-                      backgroundColor: table.zone_color || "#94a3b8",
-                      color: "#fff",
-                    }}
-                  >
-                    <div className="w-2 h-2 rounded-full bg-white/30" />
-                    {table.name} ({table.capacity}p)
-                    <button
-                      type="button"
-                      onClick={() => removeTable(table.id)}
-                      className="ml-1 hover:bg-white/20 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))
-              )}
-            </div>
-
-            {/* Selector para agregar mesas */}
-            <Select onValueChange={(value) => addTable(value)} value="">
-              <SelectTrigger>
-                <SelectValue placeholder="+ Agregar mesa" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(tablesByZone).length === 0 ? (
-                  <div className="px-2 py-3 text-sm text-muted-foreground text-center">
-                    Todas las mesas están seleccionadas
-                  </div>
-                ) : (
-                  Object.entries(tablesByZone).map(([zoneName, tables]) => (
-                    <React.Fragment key={zoneName}>
-                      <div className="px-2 py-1 text-xs font-semibold text-muted-foreground border-b">{zoneName}</div>
-                      {tables.map((table) => (
-                        <SelectItem key={table.id} value={table.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded-full"
-                              style={{ backgroundColor: table.zone_color || "#94a3b8" }}
-                            />
-                            {table.name} ({table.capacity}p)
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </React.Fragment>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-
-            <div className="text-xs text-muted-foreground mt-1">
-              Capacidad total: {getSelectedTables().reduce((sum, t) => sum + t.capacity, 0)}p
+            <Label>Asignación de mesas</Label>
+            <div className="flex gap-2 mt-2">
+              <Button
+                type="button"
+                variant={assignmentMode === "automatic" ? "default" : "outline"}
+                onClick={() => setAssignmentMode("automatic")}
+                className="flex-1"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Automática
+              </Button>
+              <Button
+                type="button"
+                variant={assignmentMode === "manual" ? "default" : "outline"}
+                onClick={() => setAssignmentMode("manual")}
+                className="flex-1"
+              >
+                <ListChecks className="w-4 h-4 mr-2" />
+                Manual
+              </Button>
             </div>
           </div>
+
+          {/* Opciones según modo */}
+          {assignmentMode === "automatic" && (
+            <div>
+              <Label>Zona preferida (opcional)</Label>
+              <Select
+                value={formData.preferred_zone_id || "any"}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, preferred_zone_id: value === "any" ? null : value }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Cualquier zona" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Cualquier zona disponible</SelectItem>
+                  {zones.map((zone) => (
+                    <SelectItem key={zone.id} value={zone.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: zone.color }} />
+                        {zone.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {assignmentMode === "manual" && (
+            <div>
+              <Label>Seleccionar mesas</Label>
+              <div className="mt-2 border rounded-md p-3">{renderTablesList()}</div>
+            </div>
+          )}
 
           <div>
             <Label>Comentarios</Label>
@@ -466,7 +646,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
               </AlertDialogContent>
             </AlertDialog>
             <Button type="submit" disabled={isLoading} className="ml-auto">
-              {isLoading ? "Guardando..." : "Guardar"}
+              {isLoading ? "Guardando..." : "Guardar Cambios"}
             </Button>
           </div>
         </form>

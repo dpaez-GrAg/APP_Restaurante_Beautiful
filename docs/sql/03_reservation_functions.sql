@@ -1331,6 +1331,157 @@ $$ LANGUAGE plpgsql;
 
 
 -- ========================================
+-- FUNCIONES PARA SELECCIÓN MANUAL DE MESAS
+-- ========================================
+-- Función para obtener mesas disponibles para una reserva
+CREATE OR REPLACE FUNCTION get_available_tables_for_reservation(
+    p_date date,
+    p_time time,
+    p_duration_minutes integer DEFAULT 90
+)
+RETURNS TABLE (
+    table_id uuid,
+    table_name text,
+    capacity integer,
+    extra_capacity integer,
+    total_capacity integer,
+    zone_id uuid,
+    zone_name text,
+    zone_color text,
+    is_available boolean
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_start_at timestamptz;
+    v_end_at timestamptz;
+BEGIN
+    -- Calcular ventana de tiempo
+    v_start_at := (p_date::text || ' ' || p_time::text)::timestamp AT TIME ZONE 'Europe/Madrid';
+    v_end_at := v_start_at + (p_duration_minutes || ' minutes')::interval;
+    
+    RETURN QUERY
+    SELECT 
+        t.id as table_id,
+        t.name as table_name,
+        t.capacity,
+        COALESCE(t.extra_capacity, 0) as extra_capacity,
+        (t.capacity + COALESCE(t.extra_capacity, 0))::integer as total_capacity,
+        t.zone_id,
+        z.name as zone_name,
+        z.color as zone_color,
+        is_table_available(t.id, p_date, v_start_at, v_end_at) as is_available
+    FROM public.tables t
+    LEFT JOIN public.zones z ON t.zone_id = z.id
+    WHERE t.is_active = true
+    ORDER BY 
+        COALESCE(z.priority_order, 999) ASC,
+        t.name ASC;
+END;
+$$;
+-- Corregir función admin_create_reservation_manual_tables
+CREATE OR REPLACE FUNCTION admin_create_reservation_manual_tables(
+    p_name text,
+    p_email text,
+    p_phone text,
+    p_date date,
+    p_time time,
+    p_guests integer,
+    p_table_ids uuid[] DEFAULT NULL,
+    p_special_requests text DEFAULT '',
+    p_duration_minutes integer DEFAULT 90
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_customer_id UUID;
+    v_customer_exists BOOLEAN;
+    v_reservation_id UUID;
+    v_start_at timestamptz;
+    v_end_at timestamptz;
+    v_table_id UUID;
+    v_unavailable_tables text[];
+BEGIN
+    -- Calcular ventana de tiempo
+    v_start_at := (p_date::text || ' ' || p_time::text)::timestamp AT TIME ZONE 'Europe/Madrid';
+    v_end_at := v_start_at + (p_duration_minutes || ' minutes')::interval;
+    
+    -- Gestión de cliente (buscar o crear)
+    SELECT id INTO v_customer_id
+    FROM public.customers
+    WHERE phone = p_phone LIMIT 1;
+    
+    v_customer_exists := FOUND;
+    
+    IF v_customer_exists THEN
+        UPDATE public.customers
+        SET name = p_name,
+            email = COALESCE(NULLIF(p_email, ''), email),
+            updated_at = NOW()
+        WHERE id = v_customer_id;
+    ELSE
+        INSERT INTO public.customers (name, email, phone)
+        VALUES (p_name, NULLIF(p_email, ''), p_phone)
+        RETURNING id INTO v_customer_id;
+    END IF;
+    
+    -- Validar disponibilidad de mesas si se proporcionaron
+    IF p_table_ids IS NOT NULL AND array_length(p_table_ids, 1) > 0 THEN
+        -- Verificar que todas las mesas estén disponibles
+        SELECT array_agg(t.name::text)
+        INTO v_unavailable_tables
+        FROM unnest(p_table_ids) AS table_id
+        JOIN public.tables t ON t.id = table_id
+        WHERE NOT is_table_available(table_id, p_date, v_start_at, v_end_at);
+        
+        IF v_unavailable_tables IS NOT NULL AND array_length(v_unavailable_tables, 1) > 0 THEN
+            RETURN json_build_object(
+                'success', false,
+                'error', 'Las siguientes mesas no están disponibles: ' || array_to_string(v_unavailable_tables, ', ')
+            );
+        END IF;
+    END IF;
+    
+    -- Crear reserva
+    INSERT INTO public.reservations (
+        customer_id, date, time, guests, special_requests,
+        status, duration_minutes, start_at, end_at, created_by
+    )
+    VALUES (
+        v_customer_id, p_date, p_time, p_guests, p_special_requests,
+        'confirmed', p_duration_minutes, v_start_at, v_end_at, auth.uid()
+    )
+    RETURNING id INTO v_reservation_id;
+    
+    -- Asignar mesas si se proporcionaron
+    IF p_table_ids IS NOT NULL AND array_length(p_table_ids, 1) > 0 THEN
+        FOREACH v_table_id IN ARRAY p_table_ids
+        LOOP
+            INSERT INTO public.reservation_table_assignments (reservation_id, table_id)
+            VALUES (v_reservation_id, v_table_id);
+        END LOOP;
+    END IF;
+    
+    RETURN json_build_object(
+        'success', true,
+        'reservation_id', v_reservation_id,
+        'customer_id', v_customer_id,
+        'assigned_tables', COALESCE(array_length(p_table_ids, 1), 0)
+    );
+    
+EXCEPTION WHEN OTHERS THEN
+    RETURN json_build_object(
+        'success', false,
+        'error', 'Error al crear reserva: ' || SQLERRM
+    );
+END;
+$$;
+
+NOTIFY pgrst, 'reload schema';
+-- ========================================
 -- COMENTARIOS ACTUALIZADOS
 -- ========================================
 COMMENT ON FUNCTION create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid) 
@@ -1341,3 +1492,4 @@ IS 'Crea reserva desde admin con gestión automática de clientes. Soporta zona 
 
 
 NOTIFY pgrst, 'reload schema';
+
