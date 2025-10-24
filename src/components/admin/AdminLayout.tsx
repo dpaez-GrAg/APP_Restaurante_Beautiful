@@ -10,50 +10,19 @@ const AdminLayout = () => {
   const { signOut, profile, isLoading } = useAuth();
   const { toast } = useToast();
 
-  // Debug logging - COMENTADO PARA PRODUCCIÓN
-  // console.log("AdminLayout - isLoading:", isLoading, "profile:", profile);
-
   const handleLogout = async () => {
     try {
       await signOut();
-      toast({
-        title: "Sesión cerrada",
-        description: "Has cerrado sesión correctamente",
-      });
-      // Use window.location instead of navigate
+      toast({ title: "Sesión cerrada", description: "Has cerrado sesión correctamente" });
       window.location.href = "/";
     } catch (error) {
-      console.error("Error signing out:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo cerrar la sesión",
-        variant: "destructive",
-      });
+      console.error("Error al cerrar sesión:", error);
+      toast({ title: "Error", description: "No se pudo cerrar la sesión", variant: "destructive" });
     }
   };
 
-  const goToHome = () => {
-    // Use window.location instead of navigate
-    window.location.href = "/";
-  };
-
-  // Si no está cargando y no hay profile (usuario no autenticado), no renderizar nada
-  // Dejar que ProtectedRoute maneje la redirección
-  if (!isLoading && !profile) {
-    return null;
-  }
-
-  // Mostrar loading mientras verifica
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando panel de administración...</p>
-        </div>
-      </div>
-    );
-  }
+  // Loading o sin perfil - ProtectedRoute maneja la lógica
+  if (isLoading || !profile) return null;
 
   return (
     <SidebarProvider>
@@ -65,11 +34,11 @@ const AdminLayout = () => {
             <h1 className="text-lg font-semibold text-restaurant-brown">Panel de Administración</h1>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              onClick={goToHome}
+              onClick={() => window.location.href = "/"}
               className="text-muted-foreground hover:text-restaurant-brown"
             >
               <Home className="w-4 h-4 mr-1" />

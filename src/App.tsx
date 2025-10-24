@@ -21,8 +21,6 @@ import RestaurantSettings from "./pages/admin/RestaurantSettings";
 import RestaurantLayout from "./pages/admin/RestaurantLayout";
 import CustomersManager from "./pages/admin/CustomersManager";
 import UsersManager from "./pages/admin/UsersManager";
-// import ZonesManager from "./pages/admin/ZonesManager";
-// import AuditLogManager from "./pages/admin/AuditLogManager";
 import ReservarPage from "./pages/ReservarPage";
 import CartaPage from "./pages/CartaPage";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -99,18 +97,18 @@ function App() {
                       }
                     />
                     <Route
-                      path="layout"
-                      element={
-                        <ProtectedRoute requiredPermission="layout.view">
-                          <RestaurantLayout />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
                       path="combinations"
                       element={
                         <ProtectedRoute requiredPermission="combinations.view">
                           <CombinationsManager />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="layout"
+                      element={
+                        <ProtectedRoute requiredPermission="layout.view">
+                          <RestaurantLayout />
                         </ProtectedRoute>
                       }
                     />

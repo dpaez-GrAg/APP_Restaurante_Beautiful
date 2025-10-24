@@ -1,345 +1,83 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Calendar,
-  Clock,
-  Users,
-  Mail,
-  Phone,
-  Search,
-  Filter,
-  Check,
-  X,
-  Grid3X3,
-  CalendarIcon,
-  Plus,
-  UserCheck,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import ReservationTimeGrid from "@/components/ReservationTimeGrid";
-import InteractiveReservationGrid from "@/components/admin/InteractiveReservationGrid";
-import { CreateReservationDialog } from "@/components/admin/CreateReservationDialog";
-import { EditReservationDialog } from "@/components/admin/EditReservationDialog";
-import { Edit } from "lucide-react";
+import { Calendar, CalendarIcon } from "lucide-react";
 import { formatDateLocal } from "@/lib/dateUtils";
 import { cn } from "@/lib/utils";
-
-interface Reservation {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  date: string;
-  time: string;
-  guests: number;
-  message?: string;
-  status: "pending" | "confirmed" | "cancelled" | "arrived";
-  table_assignments?: Array<{
-    table_id: string;
-    table_name?: string;
-  }>;
-  created_at: string;
-  duration_minutes?: number;
-  start_at?: string;
-  end_at?: string;
-}
+import { Reservation as ReservationType } from "@/types/reservation";
+import { useReservations } from "@/hooks/useReservations";
+import { useSchedules } from "@/hooks/useSchedules";
+import { ReservationListItem } from "@/components/admin/reservations/ReservationListItem";
+import { ReservationMetricsCard } from "@/components/admin/reservations/ReservationMetricsCard";
+import { ReservationFilters } from "@/components/admin/reservations/ReservationFilters";
+import InteractiveReservationGrid from "@/components/admin/InteractiveReservationGrid";
+import { ReservationDialog } from "@/components/admin/ReservationDialog";
+import { 
+  filterReservations, 
+  getMetricsForShift, 
+  ReservationListItem as ReservationItemType 
+} from "@/lib/reservationsUtils";
 
 const ReservationsManager = () => {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(formatDateLocal(new Date()));
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
-  const [gridRefreshKey, setGridRefreshKey] = useState(0);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-  const [reservationToCancel, setReservationToCancel] = useState<Reservation | null>(null);
-  const { toast } = useToast();
-  const [schedules, setSchedules] = useState<Array<{ opening_time: string; closing_time: string }>>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<"create" | "edit">("create");
+  const [editingReservation, setEditingReservation] = useState<ReservationType | null>(null);
+  const [filteredReservations, setFilteredReservations] = useState<ReservationItemType[]>([]);
+
+  const {
+    reservations,
+    isLoading,
+    gridRefreshKey,
+    loadReservations,
+    updateReservationStatus,
+    confirmArrival,
+  } = useReservations();
+
+  const { schedules, isSplitSchedule } = useSchedules(dateFilter);
 
   useEffect(() => {
-    loadReservations();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel("schema-db-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reservations",
-        },
-        loadReservations
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reservation_table_assignments",
-        },
-        loadReservations
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-  useEffect(() => {
-    filterReservations();
-  }, [searchTerm, statusFilter, dateFilter, reservations]);
-  const loadReservations = async () => {
-    try {
-      setIsLoading(true);
-      const { data: reservationData, error } = await supabase
-        .from("reservations")
-        .select(
-          `
-          *,
-          customers (name, email, phone),
-          reservation_table_assignments (
-            table_id,
-            tables (name)
-          )
-        `
-        )
-        .order("date", {
-          ascending: false,
-        })
-        .order("time", {
-          ascending: false,
-        });
-      if (error) throw error;
-      const formattedReservations: Reservation[] =
-        reservationData?.map((reservation) => ({
-          id: reservation.id,
-          name: reservation.customers?.name || "Sin nombre",
-          email: reservation.customers?.email || "Sin email",
-          phone: reservation.customers?.phone || undefined,
-          date: reservation.date,
-          time: reservation.time,
-          guests: reservation.guests,
-          message: reservation.special_requests || undefined,
-          status: reservation.status as "pending" | "confirmed" | "cancelled" | "arrived",
-          table_assignments:
-            reservation.reservation_table_assignments?.map((assignment) => ({
-              table_id: assignment.table_id,
-              table_name: assignment.tables?.name,
-            })) || [],
-          created_at: reservation.created_at,
-          duration_minutes: reservation.duration_minutes,
-          start_at: reservation.start_at,
-          end_at: reservation.end_at,
-        })) || [];
-      setReservations(formattedReservations);
-    } catch (error) {
-      console.error("Error loading reservations:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las reservas.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const filterReservations = () => {
-    let filtered = [...reservations];
-
-    // Filtro por búsqueda
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (reservation) =>
-          reservation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          reservation.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          reservation.phone?.includes(searchTerm)
-      );
-    }
-
-    // Filtro por estado
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((reservation) => reservation.status === statusFilter);
-    }
-
-    // Filtro por fecha
-    if (dateFilter) {
-      filtered = filtered.filter((reservation) => reservation.date === dateFilter);
-    }
+    const filtered = filterReservations(reservations, searchTerm, statusFilter, dateFilter);
     setFilteredReservations(filtered);
-  };
+  }, [searchTerm, statusFilter, dateFilter, reservations]);
 
-  const loadSchedules = async () => {
-    try {
-      const date = new Date(dateFilter + "T12:00:00");
-      const dayOfWeek = date.getDay();
-
-      const { data, error } = await supabase
-        .from("restaurant_schedules")
-        .select("opening_time, closing_time")
-        .eq("day_of_week", dayOfWeek)
-        .eq("is_active", true)
-        .order("opening_time");
-
-      if (error) throw error;
-      setSchedules(data || []);
-    } catch (error) {
-      console.error("Error loading schedules:", error);
-      setSchedules([]);
-    }
-  };
-
-  useEffect(() => {
-    loadSchedules();
-  }, [dateFilter]);
-
-  const updateReservationStatus = async (id: string, newStatus: "confirmed" | "cancelled" | "arrived") => {
-    try {
-      const { error } = await supabase
-        .from("reservations")
-        .update({
-          status: newStatus,
-        })
-        .eq("id", id);
-      if (error) throw error;
-      setReservations((prev) =>
-        prev.map((reservation) =>
-          reservation.id === id
-            ? {
-                ...reservation,
-                status: newStatus,
-              }
-            : reservation
-        )
-      );
-      // Actualizar el grid para que se refleje el cambio inmediatamente
-      setGridRefreshKey((prev) => prev + 1);
-      toast({
-        title: "Estado actualizado",
-        description: `Reserva ${
-          newStatus === "confirmed" ? "confirmada" : newStatus === "cancelled" ? "cancelada" : "llegada"
-        } correctamente.`,
-      });
-    } catch (error) {
-      console.error("Error updating reservation:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el estado de la reserva.",
-        variant: "destructive",
-      });
-    }
-  };
-  const confirmArrival = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("reservations")
-        .update({
-          status: "arrived",
-        })
-        .eq("id", id);
-      if (error) throw error;
-      setReservations((prev) =>
-        prev.map((reservation) =>
-          reservation.id === id
-            ? {
-                ...reservation,
-                status: "arrived",
-              }
-            : reservation
-        )
-      );
-      // Actualizar el grid para que se refleje el cambio inmediatamente
-      setGridRefreshKey((prev) => prev + 1);
-      toast({
-        title: "Llegada confirmada",
-        description: `Reserva marcada como llegada correctamente.`,
-      });
-    } catch (error) {
-      console.error("Error updating reservation arrived:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la llegada de la reserva.",
-        variant: "destructive",
-      });
-    }
-  };
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Confirmada</Badge>;
-      case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendiente</Badge>;
-      case "cancelled":
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Cancelada</Badge>;
-      case "arrived":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Llegada</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-  const getStatusCount = (status: string) => {
-    const dateFilteredReservations = reservations.filter((r) => r.date === dateFilter);
-    if (status === "all") {
-      return dateFilteredReservations.length;
-    }
-    return dateFilteredReservations.filter((r) => r.status === status).length;
-  };
-  const isSplitSchedule = () => schedules.length > 1;
-
-  const getReservationsForTimeRange = (startTime: string, endTime: string) => {
-    return reservations.filter((r) => {
-      if (r.date !== dateFilter) return false;
-      const reservationTime = r.time;
-      return reservationTime >= startTime && reservationTime < endTime;
-    });
-  };
-
-  const getMetricsForShift = (shiftIndex: number) => {
-    if (schedules.length === 0) return { reservations: 0, guests: 0, arrived: 0, cancelled: 0 };
-
-    const schedule = schedules[shiftIndex];
-    const shiftReservations = getReservationsForTimeRange(schedule.opening_time, schedule.closing_time);
-
-    return {
-      reservations: shiftReservations.length,
-      guests: shiftReservations
-        .filter((r) => r.status === "confirmed" || r.status === "arrived")
-        .reduce((sum, r) => sum + r.guests, 0),
-      arrived: shiftReservations.filter((r) => r.status === "arrived").length,
-      cancelled: shiftReservations.filter((r) => r.status === "cancelled").length,
+  const handleEditReservation = (reservation: ReservationItemType) => {
+    const typedReservation: ReservationType = {
+      id: reservation.id,
+      customer_id: "",
+      customer_name: reservation.name,
+      email: reservation.email,
+      phone: reservation.phone,
+      date: reservation.date,
+      time: reservation.time,
+      guests: reservation.guests,
+      status: reservation.status,
+      duration_minutes: reservation.duration_minutes || 90,
+      special_requests: reservation.message,
+      tableAssignments: reservation.table_assignments?.map(ta => ({
+        table_id: ta.table_id,
+        table_name: ta.table_name || ""
+      })),
     };
+    setEditingReservation(typedReservation);
+    setDialogMode("edit");
+    setDialogOpen(true);
   };
 
-  const getTotalMetrics = () => {
-    const dateFilteredReservations = reservations.filter((r) => r.date === dateFilter);
-    return {
-      reservations: dateFilteredReservations.length,
-      guests: dateFilteredReservations
-        .filter((r) => r.status === "confirmed" || r.status === "arrived")
-        .reduce((sum, r) => sum + r.guests, 0),
-      arrived: dateFilteredReservations.filter((r) => r.status === "arrived").length,
-      cancelled: dateFilteredReservations.filter((r) => r.status === "cancelled").length,
-    };
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+    setDateFilter(formatDateLocal(new Date()));
+  };
+
+  const handleDateChange = (days: number) => {
+    const currentDate = new Date(dateFilter);
+    currentDate.setDate(currentDate.getDate() + days);
+    setDateFilter(formatDateLocal(currentDate));
   };
 
   return (
@@ -353,15 +91,7 @@ const ReservationsManager = () => {
 
         {/* Date Navigation */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const currentDate = new Date(dateFilter);
-              currentDate.setDate(currentDate.getDate() - 1);
-              setDateFilter(formatDateLocal(currentDate));
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={() => handleDateChange(-1)}>
             ←
           </Button>
           <Popover>
@@ -390,104 +120,30 @@ const ReservationsManager = () => {
               />
             </PopoverContent>
           </Popover>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const currentDate = new Date(dateFilter);
-              currentDate.setDate(currentDate.getDate() + 1);
-              setDateFilter(formatDateLocal(currentDate));
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={() => handleDateChange(1)}>
             →
           </Button>
         </div>
       </div>
 
+      {/* Metrics Cards */}
       {isSplitSchedule() ? (
         <div className="grid grid-cols-2 gap-3">
-          {/* COMIDA */}
-          <Card className="shadow-sm">
-            <CardContent className="pt-3 pb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Comida</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).reservations}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).guests}</p>
-                  <p className="text-[10px] text-muted-foreground">Personas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(0).arrived}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(0).cancelled}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* CENA */}
-          <Card className="shadow-sm">
-            <CardContent className="pt-3 pb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Cena</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(1).reservations}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(1).guests}</p>
-                  <p className="text-[10px] text-muted-foreground">Personas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(1).arrived}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(1).cancelled}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ReservationMetricsCard
+            title="Comida"
+            metrics={getMetricsForShift(reservations, dateFilter, schedules, 0)}
+          />
+          <ReservationMetricsCard
+            title="Cena"
+            metrics={getMetricsForShift(reservations, dateFilter, schedules, 1)}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3">
-          {/* COMIDA */}
-          <Card className="shadow-sm">
-            <CardContent className="pt-3 pb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase">Comida</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).reservations}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas reservadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-restaurant-brown">{getMetricsForShift(0).guests}</p>
-                  <p className="text-[10px] text-muted-foreground">Personas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-blue-600">{getMetricsForShift(0).arrived}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas recepcionadas</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-red-600">{getMetricsForShift(0).cancelled}</p>
-                  <p className="text-[10px] text-muted-foreground">Mesas canceladas</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ReservationMetricsCard
+            title="Comida"
+            metrics={getMetricsForShift(reservations, dateFilter, schedules, 0)}
+          />
         </div>
       )}
 
@@ -498,301 +154,68 @@ const ReservationsManager = () => {
           onRefresh={loadReservations}
           refreshTrigger={gridRefreshKey}
           onReservationClick={(gridReservation) => {
-            // Convert grid reservation to manager reservation format
-            const managerReservation: Reservation = {
-              id: gridReservation.id,
-              name: gridReservation.customer_name,
-              email: gridReservation.email,
-              phone: gridReservation.phone,
-              date: gridReservation.date,
-              time: gridReservation.time,
-              guests: gridReservation.guests,
-              status: gridReservation.status as "pending" | "confirmed" | "cancelled" | "arrived",
-              message: gridReservation.special_requests,
-              table_assignments: gridReservation.tableAssignments?.map((ta) => ({
-                table_id: ta.table_id,
-                table_name: ta.table_name,
-              })),
-              created_at: new Date().toISOString(),
-              // Fallback
-              duration_minutes: gridReservation.duration_minutes,
-              start_at: gridReservation.start_at,
-              end_at: gridReservation.end_at,
-            };
-            setEditingReservation(managerReservation);
-            setEditDialogOpen(true);
+            setEditingReservation(gridReservation);
+            setDialogMode("edit");
+            setDialogOpen(true);
           }}
-          onNewReservation={() => setCreateDialogOpen(true)}
+          onNewReservation={() => {
+            setDialogMode("create");
+            setEditingReservation(null);
+            setDialogOpen(true);
+          }}
         />
       </div>
 
-      {/* Lista de Reservas */}
-      <div className="space-y-4">
-        {/* Filters */}
-        <Card className="shadow-elegant">
-          <CardHeader>
-            <CardTitle className="text-restaurant-brown flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Buscar</label>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
-                  <Input
-                    placeholder="Nombre, email o teléfono..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+      {/* Filters */}
+      <ReservationFilters
+        searchTerm={searchTerm}
+        statusFilter={statusFilter}
+        onSearchChange={setSearchTerm}
+        onStatusChange={setStatusFilter}
+        onClearFilters={handleClearFilters}
+      />
+
+      {/* Reservations List */}
+      <Card className="shadow-elegant">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            {filteredReservations.map((reservation) => (
+              <ReservationListItem
+                key={reservation.id}
+                reservation={reservation}
+                onEdit={handleEditReservation}
+                onConfirm={(id) => updateReservationStatus(id, "confirmed")}
+                onConfirmArrival={confirmArrival}
+                onCancel={(id) => updateReservationStatus(id, "cancelled")}
+                onReactivate={(id) => updateReservationStatus(id, "confirmed")}
+              />
+            ))}
+
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="animate-spin w-8 h-8 border-4 border-restaurant-gold border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p>Cargando reservas...</p>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Estado</label>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="pending">Pendientes</SelectItem>
-                    <SelectItem value="confirmed">Confirmadas</SelectItem>
-                    <SelectItem value="cancelled">Canceladas</SelectItem>
-                    <SelectItem value="arrived">Llegadas</SelectItem>
-                  </SelectContent>
-                </Select>
+            ) : filteredReservations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No se encontraron reservas con los filtros aplicados.</p>
               </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium invisible">Acción</label>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSearchTerm("");
-                    setStatusFilter("all");
-                    setDateFilter(formatDateLocal(new Date()));
-                  }}
-                  className="w-full"
-                >
-                  Limpiar Filtros
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reservations List */}
-        <Card className="shadow-elegant">
-          <CardHeader></CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredReservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  className="p-4 rounded-lg border border-border hover:border-restaurant-gold/50 transition-colors bg-card"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-3 lg:space-y-0">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="font-semibold text-restaurant-brown">{reservation.name}</h3>
-                        {getStatusBadge(reservation.status)}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {reservation.date} • {reservation.time}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Users className="w-4 h-4" />
-                          <span>{reservation.guests} personas</span>
-                        </div>
-                        {/*                         <div className="flex items-center space-x-1">
-                          <Mail className="w-4 h-4" />
-                          <span>{reservation.email}</span>
-                        </div> */}
-                      </div>
-
-                      {reservation.phone && (
-                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                          <Phone className="w-4 h-4" />
-                          <span>{reservation.phone}</span>
-                        </div>
-                      )}
-
-                      {reservation.table_assignments && reservation.table_assignments.length > 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          <strong>Mesas asignadas:</strong>{" "}
-                          {reservation.table_assignments.map((ta) => ta.table_name).join(", ")}
-                        </div>
-                      )}
-
-                      {reservation.message && (
-                        <div className="text-sm text-muted-foreground bg-restaurant-cream/30 p-2 rounded">
-                          <strong>Mensaje:</strong> {reservation.message}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingReservation(reservation);
-                          setEditDialogOpen(true);
-                        }}
-                        className="flex items-center gap-1"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </Button>
-
-                      {reservation.status === "pending" && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => updateReservationStatus(reservation.id, "confirmed")}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          Confirmar
-                        </Button>
-                      )}
-
-                      {reservation.status === "confirmed" && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => confirmArrival(reservation.id)}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <UserCheck className="w-4 h-4 mr-1" />
-                          Confirmar llegada
-                        </Button>
-                      )}
-
-                      {reservation.status !== "cancelled" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setReservationToCancel(reservation);
-                            setCancelDialogOpen(true);
-                          }}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Cancelar
-                        </Button>
-                      )}
-                      {reservation.status === "cancelled" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateReservationStatus(reservation.id, "confirmed")}
-                          className="text-green-600 border-green-200 hover:bg-green-50"
-                        >
-                          <Check className="w-4 h-4 mr-1" />
-                          Reactivar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <div className="animate-spin w-8 h-8 border-4 border-restaurant-gold border-t-transparent rounded-full mx-auto mb-4"></div>
-                  <p>Cargando reservas...</p>
-                </div>
-              ) : filteredReservations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No se encontraron reservas con los filtros aplicados.</p>
-                </div>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <CreateReservationDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
+      <ReservationDialog
+        mode={dialogMode}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         defaultDate={dateFilter}
-        onSuccess={() => {
-          loadReservations();
-          setGridRefreshKey((prev) => prev + 1);
-        }}
+        reservation={editingReservation}
+        onSuccess={loadReservations}
       />
-
-      <EditReservationDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        reservation={
-          editingReservation
-            ? {
-                id: editingReservation.id,
-                customer_name: editingReservation.name,
-                name: editingReservation.name,
-                email: editingReservation.email,
-                phone: editingReservation.phone,
-                date: editingReservation.date,
-                time: editingReservation.time,
-                guests: editingReservation.guests,
-                status: editingReservation.status,
-                special_requests: editingReservation.message,
-                duration_minutes: editingReservation.duration_minutes,
-                start_at: editingReservation.start_at,
-                end_at: editingReservation.end_at,
-                tableAssignments: editingReservation.table_assignments?.map((ta) => ({
-                  table_id: ta.table_id,
-                  table_name: ta.table_name || "",
-                })),
-              }
-            : null
-        }
-        onUpdate={() => {
-          loadReservations();
-          setGridRefreshKey((prev) => prev + 1);
-        }}
-      />
-
-      <AlertDialog
-        open={cancelDialogOpen}
-        onOpenChange={setCancelDialogOpen}
-        onClose={() => setReservationToCancel(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
-          </AlertDialogHeader>
-          <AlertDialogDescription>
-            ¿Estás seguro de que deseas cancelar la reserva de {reservationToCancel?.name}?
-          </AlertDialogDescription>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCancelDialogOpen(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                updateReservationStatus(reservationToCancel?.id, "cancelled");
-                setCancelDialogOpen(false);
-              }}
-              variant="destructive"
-            >
-              Confirmar cancelación
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
+
 export default ReservationsManager;

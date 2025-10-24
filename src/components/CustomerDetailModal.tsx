@@ -69,12 +69,9 @@ const CustomerDetailModal = ({ customerId, isOpen, onClose, onCustomerUpdated }:
         })
         .eq("id", customerId);
 
-      // Cargar historial de clasificación
-      const { data: historyData, error: historyError } = await supabase.rpc("get_customer_classification_history", {
-        p_customer_id: customerId,
-      });
-
-      if (historyError) throw historyError;
+      // NOTA: El historial de clasificación fue eliminado porque la tabla
+      // customer_classification_history no existe en la base de datos
+      // Si se necesita en el futuro, ver docs/sql/FIX_CUSTOMER_CLASSIFICATION.sql
 
       const stats = statsData?.[0] || { total_reservations: 0, last_reservation_date: null };
 
@@ -83,7 +80,7 @@ const CustomerDetailModal = ({ customerId, isOpen, onClose, onCustomerUpdated }:
         total_reservations: stats.total_reservations,
         last_reservation_date: stats.last_reservation_date,
         reservations: customerData.reservations || [],
-        classification_history: historyData || [],
+        classification_history: [], // Siempre vacío por ahora
       };
 
       setCustomer(customerDetail);
