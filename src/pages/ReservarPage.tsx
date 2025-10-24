@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 import DateStep from "@/components/reservation/DateStep";
 import GuestsStep from "@/components/reservation/GuestsStep";
@@ -9,7 +7,9 @@ import TimeStep from "@/components/reservation/TimeStep";
 import InfoStep from "@/components/reservation/InfoStep";
 import ConfirmationStep from "@/components/reservation/ConfirmationStep";
 import { ArrowLeft } from "lucide-react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { useReservationCreation } from "@/hooks/reservations";
+import { formatDateLocal } from "@/lib/dateUtils";
 
 interface CustomerData {
   fullName: string;
@@ -25,9 +25,11 @@ const ReservarPage = () => {
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
   const [showCancelForm, setShowCancelForm] = useState(false);
-  const { toast } = useToast();
   const { config } = useRestaurantConfig();
   const [searchParams] = useSearchParams();
+  
+  // Use centralized reservation creation hook
+  const { createReservation, isLoading: isCreatingReservation } = useReservationCreation();
 
   // Verificar si debemos mostrar el formulario de cancelación
   useEffect(() => {
@@ -52,102 +54,26 @@ const ReservarPage = () => {
     setCurrentStep("info");
   };
 
-  const handleInfoComplete = (data: CustomerData) => {
+  const handleInfoComplete = async (data: CustomerData) => {
     setCustomerData(data);
-    createReservation(data);
-  };
+    
+    // Use centralized reservation creation
+    const result = await createReservation({
+      customerName: data.fullName,
+      customerPhone: data.phone,
+      date: formatDateLocal(selectedDate!),
+      time: selectedTime,
+      guests: selectedGuests,
+      special_requests: data.comments || undefined,
+      duration_minutes: 90,
+    });
 
-  const createReservation = async (customer: CustomerData) => {
-    try {
-      // Create customer with optional email using the new helper function
-      const { data: customerId, error: customerError } = await supabase.rpc("create_customer_optional_email", {
-        p_name: customer.fullName,
-        p_phone: customer.phone,
-        p_email: null, // No email provided
-      });
-
-      if (customerError) {
-        console.error("Error creating customer:", customerError);
-
-        // Mensajes de error específicos para creación de cliente
-        let errorMessage = "Error desconocido al crear el cliente";
-
-        if (customerError.code === "42883") {
-          errorMessage = "La función de creación de cliente no existe en la base de datos. Contacta al administrador.";
-        } else if (customerError.code === "23505") {
-          errorMessage = "Ya existe un cliente con estos datos. Intenta con información diferente.";
-        } else if (customerError.message.includes("permission denied")) {
-          errorMessage = "No tienes permisos para crear clientes. Contacta al administrador.";
-        } else if (customerError.message.includes("function") && customerError.message.includes("does not exist")) {
-          errorMessage = "La función de base de datos no está disponible. Contacta al administrador.";
-        } else {
-          errorMessage = `Error de base de datos al crear cliente: ${customerError.message}`;
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      if (!customerId) {
-        throw new Error("La función de creación de cliente no devolvió un ID válido. Contacta al administrador.");
-      }
-
-      const formatDateLocal = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      };
-
-      // Create reservation with table assignment using the updated RPC function
-      const { data: result, error: reservationError } = await supabase.rpc("create_reservation_with_assignment", {
-        p_customer_id: customerId,
-        p_date: formatDateLocal(selectedDate!),
-        p_time: selectedTime,
-        p_guests: selectedGuests,
-        p_special_requests: customer.comments || null,
-        p_duration_minutes: 90,
-      });
-
-      if (reservationError) {
-        console.error("Supabase reservation error:", reservationError);
-
-        // Mensajes de error específicos para creación de reserva
-        let errorMessage = "Error desconocido al crear la reserva";
-
-        if (reservationError.code === "42883") {
-          errorMessage = "La función de creación de reservas no existe en la base de datos. Contacta al administrador.";
-        } else if (reservationError.message.includes("permission denied")) {
-          errorMessage = "No tienes permisos para crear reservas. Contacta al administrador.";
-        } else if (
-          reservationError.message.includes("function") &&
-          reservationError.message.includes("does not exist")
-        ) {
-          errorMessage = "La función de reservas no está disponible. Contacta al administrador.";
-        } else {
-          errorMessage = `Error de base de datos al crear reserva: ${reservationError.message}`;
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      // Check if reservation was successful
-      if (!result || typeof result !== "object" || !("success" in result) || !result.success) {
-        console.error("Reservation creation failed:", result);
-
-        const errorMessage =
-          result && typeof result === "object" && "error" in result
-            ? `Error en la lógica de reserva: ${result.error as string}`
-            : "La reserva no se pudo procesar correctamente. Verifica disponibilidad e inténtalo de nuevo.";
-
-        throw new Error(errorMessage);
-      }
-
-      const resultObj = result as any;
+    if (result.success) {
       setConfirmedReservation({
-        id: resultObj.reservation_id,
+        id: result.reservation_id,
         customer: {
-          name: customer.fullName,
-          phone: customer.phone,
+          name: data.fullName,
+          phone: data.phone,
         },
         date: formatDateLocal(selectedDate!),
         time: selectedTime,
@@ -155,14 +81,8 @@ const ReservarPage = () => {
         status: "confirmed",
       });
       setCurrentStep("confirmation");
-    } catch (error) {
-      console.error("Error creating reservation:", error);
-      toast({
-        title: "Error al crear la reserva",
-        description: error instanceof Error ? error.message : "Error desconocido. Por favor, inténtalo de nuevo.",
-        variant: "destructive",
-      });
-      // Stay on info step on error
+    } else {
+      // Error handling is done by the hook, just stay on info step
       setCurrentStep("info");
     }
   };

@@ -28,12 +28,14 @@ export interface CustomerClassificationHistory {
   changed_at: string;
 }
 
+import { ReservationStatus } from "./reservation";
+
 export interface CustomerDetailReservation {
   id: string;
   date: string;
   time: string;
   guests: number;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
+  status: ReservationStatus;
   special_requests?: string;
   created_at: string;
 }
