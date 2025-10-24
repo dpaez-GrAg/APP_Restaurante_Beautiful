@@ -2,11 +2,11 @@ import { Calendar, Users, Clock, User, Check } from "lucide-react";
 import { useRestaurantConfig } from "@/contexts/RestaurantConfigContext";
 
 interface StepHeaderProps {
-  currentStep: 'date' | 'guests' | 'time' | 'info' | 'confirmation';
+  currentStep: "date" | "guests" | "time" | "info" | "confirmation";
   selectedDate?: Date;
   selectedGuests?: number;
   selectedTime?: string;
-  onStepClick?: (step: 'date' | 'guests' | 'time') => void;
+  onStepClick?: (step: "date" | "guests" | "time") => void;
 }
 
 const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, onStepClick }: StepHeaderProps) => {
@@ -14,39 +14,66 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
 
   const getStepLabel = (step: string) => {
     switch (step) {
-      case 'date': return 'Fecha';
-      case 'guests': return 'Personas';
-      case 'time': return 'Hora';
-      case 'info': return 'Información';
-      case 'confirmation': return 'Confirmación';
-      default: return '';
+      case "date":
+        return "Fecha";
+      case "guests":
+        return "Personas";
+      case "time":
+        return "Hora";
+      case "info":
+        return "Información";
+      case "confirmation":
+        return "Confirmación";
+      default:
+        return "";
     }
   };
 
   const isCompleted = (step: string) => {
     switch (step) {
-      case 'date': return !!selectedDate;
-      case 'guests': return selectedGuests && selectedGuests > 0;
-      case 'time': return !!selectedTime;
-      case 'info': return currentStep === 'confirmation';
-      default: return false;
+      case "date":
+        return !!selectedDate;
+      case "guests":
+        return selectedGuests && selectedGuests > 0;
+      case "time":
+        return !!selectedTime;
+      case "info":
+        return currentStep === "confirmation";
+      default:
+        return false;
     }
   };
 
   const canGoBackTo = (step: string) => {
     switch (step) {
-      case 'date': return currentStep !== 'date' && (currentStep === 'guests' || currentStep === 'time' || currentStep === 'info' || currentStep === 'confirmation');
-      case 'guests': return isCompleted('date') && currentStep !== 'guests' && (currentStep === 'time' || currentStep === 'info' || currentStep === 'confirmation');
-      case 'time': return isCompleted('guests') && currentStep !== 'time' && (currentStep === 'info' || currentStep === 'confirmation');
-      default: return false;
+      case "date":
+        return (
+          currentStep !== "date" &&
+          (currentStep === "guests" ||
+            currentStep === "time" ||
+            currentStep === "info" ||
+            currentStep === "confirmation")
+        );
+      case "guests":
+        return (
+          isCompleted("date") &&
+          currentStep !== "guests" &&
+          (currentStep === "time" || currentStep === "info" || currentStep === "confirmation")
+        );
+      case "time":
+        return (
+          isCompleted("guests") && currentStep !== "time" && (currentStep === "info" || currentStep === "confirmation")
+        );
+      default:
+        return false;
     }
   };
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
+    return date.toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
   };
 
@@ -60,7 +87,7 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
       <div className="flex items-center justify-center py-6 border-b">
         <div className="flex items-center justify-center">
           <span className="text-primary font-bold text-lg">
-            RESERVAS {config?.restaurant_name?.toUpperCase() || 'RESTAURANTE ÉLITE'}
+            RESERVAS {config?.restaurant_name?.toUpperCase() || "RESTAURANTE ÉLITE"}
           </span>
         </div>
       </div>
@@ -69,58 +96,58 @@ const StepHeader = ({ currentStep, selectedDate, selectedGuests, selectedTime, o
       <div className="flex items-center justify-center py-4">
         <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Date Step */}
-          <div 
+          <div
             className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
-              currentStep === 'date' || isCompleted('date') 
-                ? 'bg-primary text-white' 
-                : 'bg-gray-100 text-gray-500'
-            } ${canGoBackTo('date') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
-            onClick={() => canGoBackTo('date') && onStepClick?.('date')}
+              currentStep === "date" || isCompleted("date") ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
+            } ${canGoBackTo("date") ? "cursor-pointer hover:bg-primary/80" : ""}`}
+            onClick={() => canGoBackTo("date") && onStepClick?.("date")}
           >
             <Calendar size={14} className="sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">
-              {isCompleted('date') ? formatDate(selectedDate!) : getStepLabel('date')}
+              {isCompleted("date") ? formatDate(selectedDate!) : getStepLabel("date")}
             </span>
           </div>
 
           {/* Guests Step */}
-          <div 
+          <div
             className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
-              currentStep === 'guests' || isCompleted('guests')
-                ? 'bg-primary text-white' 
-                : 'bg-gray-100 text-gray-500'
-            } ${canGoBackTo('guests') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
-            onClick={() => canGoBackTo('guests') && onStepClick?.('guests')}
+              currentStep === "guests" || isCompleted("guests") ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
+            } ${canGoBackTo("guests") ? "cursor-pointer hover:bg-primary/80" : ""}`}
+            onClick={() => canGoBackTo("guests") && onStepClick?.("guests")}
           >
             <Users size={14} className="sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">
-              {isCompleted('guests') ? selectedGuests : getStepLabel('guests')}
-            </span>
+            <span className="hidden sm:inline">{isCompleted("guests") ? selectedGuests : getStepLabel("guests")}</span>
           </div>
 
           {/* Time Step */}
-          <div 
+          <div
             className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
-              currentStep === 'time' || isCompleted('time')
-                ? 'bg-primary text-white' 
-                : 'bg-gray-100 text-gray-500'
-            } ${canGoBackTo('time') ? 'cursor-pointer hover:bg-primary/80' : ''}`}
-            onClick={() => canGoBackTo('time') && onStepClick?.('time')}
+              currentStep === "time" || isCompleted("time") ? "bg-primary text-white" : "bg-gray-100 text-gray-500"
+            } ${canGoBackTo("time") ? "cursor-pointer hover:bg-primary/80" : ""}`}
+            onClick={() => canGoBackTo("time") && onStepClick?.("time")}
           >
             <Clock size={14} className="sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">
-              {isCompleted('time') ? formatTime(selectedTime!) : getStepLabel('time')}
+              {isCompleted("time") ? formatTime(selectedTime!) : getStepLabel("time")}
             </span>
           </div>
 
           {/* Info Step */}
-          <div className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
-            currentStep === 'info' || currentStep === 'confirmation'
-              ? 'bg-primary text-white' 
-              : 'bg-gray-100 text-gray-500'
-          }`}>
-            {currentStep === 'confirmation' ? <Check size={14} className="sm:w-4 sm:h-4" /> : <User size={14} className="sm:w-4 sm:h-4" />}
-            <span className="hidden sm:inline">{currentStep === 'confirmation' ? 'Confirmado' : getStepLabel('info')}</span>
+          <div
+            className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-medium ${
+              currentStep === "info" || currentStep === "confirmation"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            {currentStep === "confirmation" ? (
+              <Check size={14} className="sm:w-4 sm:h-4" />
+            ) : (
+              <User size={14} className="sm:w-4 sm:h-4" />
+            )}
+            <span className="hidden sm:inline">
+              {currentStep === "confirmation" ? "Confirmado" : getStepLabel("info")}
+            </span>
           </div>
         </div>
       </div>

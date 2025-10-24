@@ -64,51 +64,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const ADMIN_PROFILE_FALLBACK: UserProfile = {
+    id: "12345678-abcd-1234-abcd-123456789012",
+    email: "admin@admin.es",
+    full_name: "Administrador Principal",
+    role: "admin",
+    is_active: true,
+  };
+
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    // Fallback para admin conocido
+    if (userId === ADMIN_PROFILE_FALLBACK.id) {
+      return ADMIN_PROFILE_FALLBACK;
+    }
+
     try {
-      // console.log("Fetching profile for user:", userId);
-
-      // Fallback inmediato para admin conocido
-      if (userId === "12345678-abcd-1234-abcd-123456789012") {
-        // console.log("Using hardcoded admin profile for known UUID");
-        return {
-          id: userId,
-          email: "admin@admin.es",
-          full_name: "Administrador Principal",
-          role: "admin",
-          is_active: true,
-        };
-      }
-
-      // Consulta a la base de datos para otros usuarios
-      const { data: profileData, error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, email, full_name, role, is_active")
         .eq("id", userId)
         .single();
 
-      if (error) {
-        // console.error("Error fetching profile:", error);
-        return null;
-      }
-
-      // console.log("Profile fetched successfully:", profileData);
-      return profileData as UserProfile;
+      if (error) throw error;
+      return data as UserProfile;
     } catch (error) {
-      // console.error("Error fetching user profile:", error);
-
-      // Fallback final para admin conocido
-      if (userId === "12345678-abcd-1234-abcd-123456789012") {
-        // console.log("Exception caught, using hardcoded admin profile");
-        return {
-          id: userId,
-          email: "admin@admin.es",
-          full_name: "Administrador Principal",
-          role: "admin",
-          is_active: true,
-        };
-      }
-
+      console.error("Error fetching profile:", error);
       return null;
     }
   }, []);
@@ -126,9 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        // Verificar primero si hay admin local
+        // Admin local
         if (localAdmin) {
-          // console.log("Local admin detected, setting up profile");
           if (isMounted) {
             setProfile({
               id: "local-admin",
@@ -142,10 +121,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        // Get initial session
-        const {
-          data: { session: initialSession },
-        } = await supabase.auth.getSession();
+        // Obtener sesión con timeout
+        const { data } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<any>((_, reject) => 
+            setTimeout(() => reject(new Error("Timeout")), 10000)
+          )
+        ]).catch(() => ({ data: { session: null } }));
+
+        const initialSession = data?.session || null;
 
         if (isMounted) {
           setSession(initialSession);
@@ -153,41 +137,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (initialSession?.user) {
             const userProfile = await fetchUserProfile(initialSession.user.id);
-            if (isMounted) {
-              setProfile(userProfile);
-            }
+            if (isMounted) setProfile(userProfile);
           }
 
           setIsLoading(false);
         }
 
-        // Set up auth listener only if not local admin
+        // Listener de cambios de autenticación
         if (!localAdmin) {
           authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
             if (!isMounted || localAdmin) return;
-
-            // console.log("Auth state change:", event, session?.user?.id);
 
             setSession(session);
             setUser(session?.user ?? null);
 
             if (session?.user) {
               const userProfile = await fetchUserProfile(session.user.id);
-              if (isMounted) {
-                setProfile(userProfile);
-              }
+              if (isMounted) setProfile(userProfile);
             } else {
-              if (isMounted) {
-                setProfile(null);
-              }
+              if (isMounted) setProfile(null);
             }
           });
         }
       } catch (error) {
-        // console.error("Auth initialization error:", error);
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        console.error("Auth initialization error:", error);
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -202,35 +176,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [localAdmin, fetchUserProfile]);
 
   const loginLocalAdmin = useCallback(() => {
-    try {
-      setLocalAdmin(true);
-      localStorage.setItem("local_admin", "true");
-    } catch (error) {
-      // console.error("Error setting local admin:", error);
-    }
+    setLocalAdmin(true);
+    localStorage.setItem("local_admin", "true");
+    setProfile({
+      id: "local-admin",
+      email: "admin@admin.es",
+      full_name: "Local Admin",
+      role: "admin",
+      is_active: true,
+    });
   }, []);
 
   const logoutLocalAdmin = useCallback(() => {
-    try {
-      setLocalAdmin(false);
-      localStorage.removeItem("local_admin");
-      setProfile(null);
-    } catch (error) {
-      // console.error("Error removing local admin:", error);
-    }
+    setLocalAdmin(false);
+    localStorage.removeItem("local_admin");
+    setProfile(null);
   }, []);
 
   const signOut = useCallback(async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        // console.error("Error signing out:", error);
-      }
-      logoutLocalAdmin();
-      setProfile(null);
-    } catch (error) {
-      // console.error("Sign out error:", error);
-    }
+    await supabase.auth.signOut().catch(console.error);
+    logoutLocalAdmin();
+    setProfile(null);
   }, [logoutLocalAdmin]);
 
   const hasPermission = useCallback(

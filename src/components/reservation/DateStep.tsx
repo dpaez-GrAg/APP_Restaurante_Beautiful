@@ -136,63 +136,63 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
     try {
       // Normalizar el número de teléfono (eliminar espacios y otros caracteres no numéricos)
       const normalizedPhone = cancelPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
-      // console.log("Buscando reservas para el número normalizado:", normalizedPhone);
+      console.log("Buscando reservas para el número:", normalizedPhone);
 
-      // Método 1: Buscar cliente por teléfono
-      const { data: customers, error: customerError } = await supabase
-        .from("customers")
-        .select("id, name, phone")
-        .or(`phone.eq.${normalizedPhone},phone.ilike.%${normalizedPhone}%,phone.ilike.%${normalizedPhone.slice(-9)}%`);
+      // Usar la función SQL public_find_reservation que ya existe en la BD
+      // @ts-ignore - Supabase no tiene tipos generados para funciones RPC personalizadas
+      const { data, error } = await supabase.rpc("public_find_reservation", {
+        p_phone: normalizedPhone,
+      }) as { 
+        data: {
+          success: boolean;
+          message?: string;
+          reservations: Array<{
+            id: string;
+            customer_name: string;
+            customer_phone: string;
+            customer_email?: string;
+            date: string;
+            time: string;
+            guests: number;
+            status: string;
+            special_requests?: string;
+          }>;
+        } | null;
+        error: any;
+      };
 
-      if (customerError) {
-        console.error("Error al buscar clientes:", customerError);
-        throw customerError;
+      if (error) {
+        console.error("Error al buscar reservas:", error);
+        throw error;
       }
 
-      // console.log("Clientes encontrados:", customers);
+      console.log("Respuesta de public_find_reservation:", data);
 
-      // Recopilar todos los IDs de clientes que coincidan
-      const customerIds = customers?.map((c) => c.id) || [];
-
-      // Método 2: Buscar directamente todas las reservas futuras
-      const today = new Date().toISOString().split("T")[0];
-
-      // Consulta para obtener todas las reservas futuras
-      const { data: allFutureReservations, error: allReservationsError } = await supabase
-        .from("reservations")
-        .select("*, customers(id, name, phone, email)")
-        .gte("date", today)
-        .in("status", ["pending", "confirmed"]);
-
-      if (allReservationsError) {
-        console.error("Error al buscar todas las reservas:", allReservationsError);
-        throw allReservationsError;
+      // La función devuelve un objeto JSON con success, message y reservations
+      if (!data || !data.success) {
+        toast({
+          title: "No encontrado",
+          description: data?.message || "No se encontraron reservas futuras para este número de teléfono",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // console.log("Todas las reservas futuras:", allFutureReservations);
+      // Convertir el formato de la respuesta SQL al formato esperado por el componente
+      const formattedReservations = data.reservations.map((r) => ({
+        id: r.id,
+        date: r.date,
+        time: r.time,
+        guests: r.guests,
+        status: r.status,
+        customers: {
+          name: r.customer_name,
+          phone: r.customer_phone,
+          email: r.customer_email,
+        },
+      }));
 
-      // Filtrar reservas que coincidan con el número de teléfono (ya sea por ID de cliente o por teléfono en la tabla de clientes)
-      const matchingReservations = allFutureReservations?.filter((reservation) => {
-        // Si tenemos IDs de clientes que coinciden, verificar si esta reserva pertenece a alguno de ellos
-        if (customerIds.length > 0 && customerIds.includes(reservation.customer_id)) {
-          return true;
-        }
-
-        // También verificar si el teléfono del cliente asociado a la reserva coincide
-        const customerPhone = reservation.customers?.phone || "";
-        const normalizedCustomerPhone = customerPhone.replace(/\s+/g, "").replace(/[^\d]/g, "");
-
-        return (
-          normalizedCustomerPhone.includes(normalizedPhone) ||
-          normalizedPhone.includes(normalizedCustomerPhone) ||
-          normalizedCustomerPhone.includes(normalizedPhone.slice(-9)) ||
-          normalizedPhone.slice(-9).includes(normalizedCustomerPhone)
-        );
-      });
-
-      // console.log("Reservas coincidentes:", matchingReservations);
-
-      if (!matchingReservations || matchingReservations.length === 0) {
+      if (formattedReservations.length === 0) {
         toast({
           title: "No encontrado",
           description: "No se encontraron reservas futuras para este número de teléfono",
@@ -201,13 +201,17 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
         return;
       }
 
-      // Usar las reservas encontradas
-      setFoundReservations(matchingReservations);
+      setFoundReservations(formattedReservations);
+      
+      toast({
+        title: "Reservas encontradas",
+        description: `Se encontraron ${formattedReservations.length} reserva(s)`,
+      });
     } catch (error) {
       console.error("Error searching reservations:", error);
       toast({
         title: "Error",
-        description: "Error al buscar reservas. Intenta de nuevo.",
+        description: "Ocurrió un error al buscar la reserva. Intenta de nuevo.",
         variant: "destructive",
       });
     }
@@ -215,6 +219,7 @@ const DateStep = ({ onNext, onBack, initialShowCancelForm = false }: DateStepPro
 
   const handleCancelReservation = async (reservationId: string) => {
     try {
+      // @ts-ignore - Supabase tipos
       const { error } = await supabase.from("reservations").update({ status: "cancelled" }).eq("id", reservationId);
 
       if (error) throw error;

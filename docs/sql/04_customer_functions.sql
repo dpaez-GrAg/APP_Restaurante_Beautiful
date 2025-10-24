@@ -99,78 +99,78 @@ ADD COLUMN IF NOT EXISTS classification_notes TEXT,
 ADD COLUMN IF NOT EXISTS classification_updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 ADD COLUMN IF NOT EXISTS classification_updated_by UUID REFERENCES auth.users(id);
 
--- 3. Crear tabla para historial de cambios de clasificación
-CREATE TABLE IF NOT EXISTS customer_classification_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-    old_classification customer_classification,
-    new_classification customer_classification NOT NULL,
-    notes TEXT,
-    changed_by UUID REFERENCES auth.users(id),
-    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 3. NOTA: La tabla customer_classification_history fue eliminada
+-- El historial de clasificación no se mantiene en base de datos
+-- Solo se guarda la clasificación actual en la tabla customers
 
 -- 4. Crear índices para optimizar consultas
 CREATE INDEX IF NOT EXISTS idx_customers_classification ON customers(classification);
 CREATE INDEX IF NOT EXISTS idx_customers_classification_updated_at ON customers(classification_updated_at);
-CREATE INDEX IF NOT EXISTS idx_customer_classification_history_customer_id ON customer_classification_history(customer_id);
-CREATE INDEX IF NOT EXISTS idx_customer_classification_history_changed_at ON customer_classification_history(changed_at);
 
--- 5. Crear función para actualizar clasificación con historial
+-- 5. Crear función para actualizar clasificación (SIN historial)
 CREATE OR REPLACE FUNCTION update_customer_classification(
-    p_customer_id UUID,
+    p_customer_id uuid,
     p_new_classification customer_classification,
-    p_notes TEXT DEFAULT NULL,
-    p_changed_by UUID DEFAULT NULL
-) RETURNS BOOLEAN AS $$
+    p_notes text DEFAULT NULL,
+    p_changed_by uuid DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 DECLARE
     v_old_classification customer_classification;
+    v_customer_name text;
 BEGIN
-    -- Obtener clasificación actual
-    SELECT classification INTO v_old_classification 
-    FROM customers 
+    -- Obtener clasificación actual y nombre
+    SELECT classification, name 
+    INTO v_old_classification, v_customer_name
+    FROM customers
     WHERE id = p_customer_id;
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Cliente no encontrado';
-    END IF;
-    
-    -- Solo actualizar si la clasificación cambió
-    IF v_old_classification != p_new_classification THEN
-        -- Actualizar customer
-        UPDATE customers 
-        SET 
-            classification = p_new_classification,
-            classification_notes = p_notes,
-            classification_updated_at = NOW(),
-            classification_updated_by = p_changed_by,
-            updated_at = NOW()
-        WHERE id = p_customer_id;
-        
-        -- Insertar en historial
-        INSERT INTO customer_classification_history (
-            customer_id,
-            old_classification,
-            new_classification,
-            notes,
-            changed_by
-        ) VALUES (
-            p_customer_id,
-            v_old_classification,
-            p_new_classification,
-            p_notes,
-            p_changed_by
-        );
-        
-        RETURN TRUE;
-    END IF;
-    
-    RETURN FALSE;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. Crear función para obtener clientes con información de reservas
+    IF NOT FOUND THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'Cliente no encontrado'
+        );
+    END IF;
+
+    -- Si no hay cambio, retornar sin hacer nada
+    IF v_old_classification = p_new_classification THEN
+        RETURN json_build_object(
+            'success', false,
+            'message', 'La clasificación es la misma',
+            'old_classification', v_old_classification,
+            'new_classification', p_new_classification
+        );
+    END IF;
+
+    -- Actualizar clasificación directamente (sin tabla de historial)
+    UPDATE customers
+    SET 
+        classification = p_new_classification,
+        classification_notes = p_notes,
+        classification_updated_at = NOW(),
+        classification_updated_by = p_changed_by,
+        updated_at = NOW()
+    WHERE id = p_customer_id;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Clasificación actualizada exitosamente',
+        'customer_id', p_customer_id,
+        'customer_name', v_customer_name,
+        'old_classification', v_old_classification,
+        'new_classification', p_new_classification,
+        'notes', p_notes
+    );
+END;
+$$;
+
+-- 6. NOTA: La función get_customer_classification_history fue eliminada
+-- porque la tabla customer_classification_history no existe
+
+-- 7. Crear función para obtener clientes con información de reservas
 CREATE OR REPLACE FUNCTION get_customers_with_stats(
     p_search TEXT DEFAULT NULL,
     p_classification customer_classification DEFAULT NULL,
@@ -228,44 +228,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 7. Crear función para obtener historial de clasificación de un cliente
-CREATE OR REPLACE FUNCTION get_customer_classification_history(
-    p_customer_id UUID
-) RETURNS TABLE (
-    id UUID,
-    old_classification customer_classification,
-    new_classification customer_classification,
-    notes TEXT,
-    changed_by UUID,
-    changed_at TIMESTAMP WITH TIME ZONE
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        h.id,
-        h.old_classification,
-        h.new_classification,
-        h.notes,
-        h.changed_by,
-        h.changed_at
-    FROM customer_classification_history h
-    WHERE h.customer_id = p_customer_id
-    ORDER BY h.changed_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 8. Crear políticas RLS (Row Level Security)
-ALTER TABLE customer_classification_history ENABLE ROW LEVEL SECURITY;
-
--- Política para leer historial (usuarios autenticados)
-CREATE POLICY "Users can read classification history" ON customer_classification_history
-    FOR SELECT USING (auth.role() = 'authenticated');
-
--- Política para insertar historial (usuarios autenticados)
-CREATE POLICY "Users can insert classification history" ON customer_classification_history
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
--- 9. Verificar instalación
+-- 8. Verificar instalación
 SELECT 'CLASIFICACIÓN DE CLIENTES INSTALADA' as status,
        COUNT(*) as total_customers,
        COUNT(CASE WHEN classification = 'VIP' THEN 1 END) as vip_customers,

@@ -53,18 +53,18 @@ const adminItems = [
     icon: TableProperties,
     permission: "tables.view",
   },
+  {
+    title: "Combinaciones",
+    url: "/admin/combinations",
+    icon: Link,
+    permission: "combinations.view",
+  },
 
   {
     title: "Distribución",
     url: "/admin/layout",
     icon: Layout,
     permission: "layout.view",
-  },
-  {
-    title: "Combinaciones",
-    url: "/admin/combinations",
-    icon: Link,
-    permission: "combinations.view",
   },
   {
     title: "Horarios",

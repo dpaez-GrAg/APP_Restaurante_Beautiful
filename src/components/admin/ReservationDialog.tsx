@@ -1,3 +1,9 @@
+/**
+ * Unified Reservation Dialog - Handles both Create and Edit modes
+ * Consolidates CreateReservationDialog.tsx and EditReservationDialog.tsx
+ * Reduces ~1200 lines to ~600 lines
+ */
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -20,65 +26,42 @@ import {
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Trash2, Wand2, ListChecks } from "lucide-react";
+import { Reservation, Schedule } from "@/types/reservation";
+import { Zone, TableWithAvailability } from "@/types/table";
+import { useTimeSlots } from "@/hooks/reservations";
 
-interface EditReservation {
-  id: string;
-  customer_name?: string;
-  name?: string;
-  email: string;
-  phone?: string;
-  date: string;
-  time: string;
-  guests: number;
-  status: string;
-  special_requests?: string;
-  duration_minutes?: number;
-  start_at?: string;
-  end_at?: string;
-  table_assignments?: Array<{ table: { id: string; name: string } }>;
-  tableAssignments?: Array<{ table_id: string; table_name: string }>;
-}
+type DialogMode = "create" | "edit";
 
-interface EditReservationDialogProps {
+interface ReservationDialogProps {
+  mode: DialogMode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  reservation: EditReservation | null;
-  onUpdate: () => void;
+  onSuccess: () => void;
+  // Create mode props
+  defaultDate?: string;
+  defaultTime?: string;
+  // Edit mode props
+  reservation?: Reservation | null;
 }
 
-interface Schedule {
-  opening_time: string;
-  closing_time: string;
-}
-
-interface Zone {
-  id: string;
-  name: string;
-  color: string;
-  priority_order: number;
-}
-
-interface Table {
-  table_id: string;
-  table_name: string;
-  capacity: number;
-  extra_capacity: number;
-  total_capacity: number;
-  zone_id: string | null;
-  zone_name: string | null;
-  zone_color: string | null;
-  is_available: boolean;
-}
-
-export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
+export const ReservationDialog: React.FC<ReservationDialogProps> = ({
+  mode,
   open,
   onOpenChange,
+  onSuccess,
+  defaultDate = new Date().toISOString().split("T")[0],
+  defaultTime = "20:00",
   reservation,
-  onUpdate,
 }) => {
+  const isEditMode = mode === "edit";
+  const isCreateMode = mode === "create";
+
+  // Form state
   const [formData, setFormData] = useState({
-    date: "",
-    time: "",
+    customerName: "",
+    customerPhone: "",
+    date: defaultDate,
+    time: defaultTime,
     guests: 2,
     special_requests: "",
     duration_minutes: 90,
@@ -87,20 +70,26 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
 
-  // Modo manual
-  const [assignmentMode, setAssignmentMode] = useState<"automatic" | "manual">("manual");
-  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  // Table assignment state
+  const [assignmentMode, setAssignmentMode] = useState<"automatic" | "manual">(
+    isEditMode ? "manual" : "automatic"
+  );
+  const [availableTables, setAvailableTables] = useState<TableWithAvailability[]>([]);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
   const [loadingTables, setLoadingTables] = useState(false);
 
-  useEffect(() => {
-    if (reservation) {
-      let duration = 90;
+  // Use centralized time slots hook
+  const { schedules, timeSlots, loadSchedules } = useTimeSlots({
+    date: formData.date,
+    autoLoad: true,
+  });
 
+  // Initialize form data for edit mode
+  useEffect(() => {
+    if (isEditMode && reservation) {
+      let duration = 90;
       if (reservation.duration_minutes) {
         duration = reservation.duration_minutes;
       } else if (reservation.start_at && reservation.end_at) {
@@ -109,39 +98,62 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
         duration = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
       }
 
+      // Normalize time to HH:MM format (remove seconds if present)
+      const normalizedTime = reservation.time.substring(0, 5);
+
       setFormData({
+        customerName: reservation.customer_name || "",
+        customerPhone: reservation.phone || "",
         date: reservation.date,
-        time: reservation.time,
+        time: normalizedTime,
         guests: reservation.guests,
         special_requests: reservation.special_requests || "",
         duration_minutes: duration,
         preferred_zone_id: null,
       });
 
-      const currentTableIds =
-        reservation.tableAssignments?.map((t) => t.table_id) ||
-        reservation.table_assignments?.map((t) => t.table.id) ||
-        [];
+      const currentTableIds = reservation.tableAssignments?.map((t) => t.table_id) || [];
       setSelectedTableIds(currentTableIds);
       setAssignmentMode(currentTableIds.length > 0 ? "manual" : "automatic");
+    } else if (isCreateMode) {
+      // Reset for create mode
+      setFormData({
+        customerName: "",
+        customerPhone: "",
+        date: defaultDate,
+        time: defaultTime,
+        guests: 2,
+        special_requests: "",
+        duration_minutes: 90,
+        preferred_zone_id: null,
+      });
+      setSelectedTableIds([]);
+      setAssignmentMode("automatic");
     }
-  }, [reservation]);
+  }, [mode, reservation, isEditMode, isCreateMode, defaultDate, defaultTime]);
 
+  // Update form when default date/time change (create mode)
   useEffect(() => {
-    if (formData.date) {
-      loadSchedulesForDate(formData.date);
+    if (isCreateMode) {
+      setFormData((prev) => ({
+        ...prev,
+        date: defaultDate || prev.date,
+        time: defaultTime || prev.time,
+      }));
     }
-  }, [formData.date]);
+  }, [defaultDate, defaultTime, isCreateMode]);
 
+  // Load zones
   useEffect(() => {
     loadZones();
   }, []);
 
+  // Load available tables for manual mode
   useEffect(() => {
     if (assignmentMode === "manual" && formData.date && formData.time) {
       loadAvailableTables();
     }
-  }, [assignmentMode, formData.date, formData.time]);
+  }, [assignmentMode, formData.date, formData.time, formData.duration_minutes]);
 
   const loadZones = async () => {
     try {
@@ -163,7 +175,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
       });
 
       if (error) throw error;
-      setAvailableTables((data as Table[]) || []);
+      setAvailableTables((data as TableWithAvailability[]) || []);
     } catch (error) {
       console.error("Error loading tables:", error);
       toast.error("Error al cargar mesas disponibles");
@@ -173,58 +185,145 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     }
   };
 
-  const loadSchedulesForDate = async (dateStr: string) => {
+  const toggleTableSelection = (tableId: string) => {
+    setSelectedTableIds((prev) =>
+      prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]
+    );
+  };
+
+  const getSelectedCapacity = () => {
+    return availableTables
+      .filter((table) => selectedTableIds.includes(table.table_id))
+      .reduce((sum, table) => sum + table.total_capacity, 0);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
-      const date = new Date(dateStr + "T12:00:00");
-      const dayOfWeek = date.getDay();
+      if (isCreateMode) {
+        await handleCreate();
+      } else if (isEditMode && reservation) {
+        await handleUpdate();
+      }
 
-      const { data, error } = await supabase
-        .from("restaurant_schedules")
-        .select("opening_time, closing_time")
-        .eq("day_of_week", dayOfWeek)
-        .eq("is_active", true)
-        .order("opening_time");
-
-      if (error) throw error;
-
-      setSchedules((data as Schedule[]) || []);
-      generateTimeSlots((data as Schedule[]) || []);
-    } catch (error) {
-      console.error("Error loading schedules:", error);
-      toast.error("Error al cargar horarios");
-      setSchedules([]);
-      setTimeSlots([]);
+      toast.success(isCreateMode ? "Reserva creada correctamente" : "Reserva actualizada correctamente");
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error(`Error ${isCreateMode ? "creating" : "updating"} reservation:`, error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const generateTimeSlots = (schedules: Schedule[]) => {
-    if (schedules.length === 0) {
-      setTimeSlots([]);
-      return;
+  const handleCreate = async () => {
+    if (assignmentMode === "automatic") {
+      const { data, error } = await supabase.rpc("admin_create_reservation", {
+        p_name: formData.customerName,
+        p_email: null,
+        p_phone: formData.customerPhone || null,
+        p_date: formData.date,
+        p_time: formData.time,
+        p_guests: formData.guests,
+        p_special_requests: formData.special_requests || "",
+        p_duration_minutes: formData.duration_minutes,
+        p_preferred_zone_id: formData.preferred_zone_id || null,
+      });
+
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
+    } else {
+      const { data, error } = await supabase.rpc("admin_create_reservation_manual_tables", {
+        p_name: formData.customerName,
+        p_email: null,
+        p_phone: formData.customerPhone || null,
+        p_date: formData.date,
+        p_time: formData.time,
+        p_guests: formData.guests,
+        p_table_ids: selectedTableIds.length > 0 ? selectedTableIds : null,
+        p_special_requests: formData.special_requests || "",
+        p_duration_minutes: formData.duration_minutes,
+      });
+
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!reservation) return;
+
+    const currentTableIds = reservation.tableAssignments?.map((t) => t.table_id) || [];
+    const tablesChanged = JSON.stringify(selectedTableIds.sort()) !== JSON.stringify(currentTableIds.sort());
+
+    // Update date/time/duration or tables if changed
+    if (
+      formData.date !== reservation.date ||
+      formData.time !== reservation.time ||
+      formData.duration_minutes !== (reservation.duration_minutes || 90) ||
+      tablesChanged
+    ) {
+      const moveParams: any = {
+        p_reservation_id: reservation.id,
+        p_new_date: formData.date,
+        p_new_time: formData.time,
+        p_duration_minutes: formData.duration_minutes,
+      };
+
+      if (assignmentMode === "manual" && selectedTableIds.length > 0) {
+        moveParams.p_new_table_ids = selectedTableIds;
+      }
+
+      const { data, error } = await supabase.rpc("move_reservation_with_validation", moveParams);
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error);
     }
 
-    const allSlots: string[] = [];
-
-    schedules.forEach((schedule) => {
-      const [startHour, startMin] = schedule.opening_time.split(":").map(Number);
-      const [endHour, endMin] = schedule.closing_time.split(":").map(Number);
-
-      let currentHour = startHour;
-      let currentMin = startMin;
-
-      while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
-        const timeString = `${currentHour.toString().padStart(2, "0")}:${currentMin.toString().padStart(2, "0")}`;
-        allSlots.push(timeString);
-
-        currentMin += 15;
-        if (currentMin >= 60) {
-          currentMin = 0;
-          currentHour++;
-        }
-      }
+    // Update guests and/or special requests using update_reservation_details
+    // This function handles both fields
+    const { data, error } = await supabase.rpc("update_reservation_details", {
+      p_reservation_id: reservation.id,
+      p_guests: formData.guests !== reservation.guests ? formData.guests : null,
+      p_special_requests: formData.special_requests !== reservation.special_requests ? formData.special_requests : null,
+      p_status: null,
     });
 
-    setTimeSlots(allSlots);
+    if (error) throw error;
+    const result = data as { success: boolean; error?: string };
+    if (!result.success) throw new Error(result.error);
+  };
+
+  const handleDelete = async () => {
+    if (!reservation) return;
+
+    setIsDeleting(true);
+    try {
+      const { error: assignmentError } = await supabase
+        .from("reservation_table_assignments")
+        .delete()
+        .eq("reservation_id", reservation.id);
+
+      if (assignmentError) throw assignmentError;
+
+      const { error: reservationError } = await supabase.from("reservations").delete().eq("id", reservation.id);
+
+      if (reservationError) throw reservationError;
+
+      toast.success("Reserva eliminada correctamente");
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error deleting reservation:", error);
+      toast.error(`Error al eliminar: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const renderTimeSlots = () => {
@@ -279,118 +378,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     ));
   };
 
-  const toggleTableSelection = (tableId: string) => {
-    setSelectedTableIds((prev) => (prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]));
-  };
-
-  const getSelectedCapacity = () => {
-    return availableTables
-      .filter((table) => selectedTableIds.includes(table.table_id))
-      .reduce((sum, table) => sum + table.total_capacity, 0);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reservation) return;
-
-    setIsLoading(true);
-    try {
-      // Si cambió fecha/hora/duración o mesas, usar move_reservation
-      const currentTableIds =
-        reservation.tableAssignments?.map((t) => t.table_id) ||
-        reservation.table_assignments?.map((t) => t.table.id) ||
-        [];
-      const tablesChanged = JSON.stringify(selectedTableIds.sort()) !== JSON.stringify(currentTableIds.sort());
-
-      if (
-        formData.date !== reservation.date ||
-        formData.time !== reservation.time ||
-        formData.duration_minutes !== (reservation.duration_minutes || 90) ||
-        tablesChanged
-      ) {
-        const moveParams: any = {
-          p_reservation_id: reservation.id,
-          p_new_date: formData.date,
-          p_new_time: formData.time,
-          p_duration_minutes: formData.duration_minutes,
-        };
-
-        if (assignmentMode === "manual" && selectedTableIds.length > 0) {
-          moveParams.p_new_table_ids = selectedTableIds;
-        }
-
-        const { data, error } = await supabase.rpc("move_reservation_with_validation", moveParams);
-
-        if (error) throw error;
-        const result = data as { success: boolean; error?: string };
-        if (!result.success) throw new Error(result.error);
-      }
-
-      // Actualizar comensales si cambió
-      if (formData.guests !== reservation.guests && !tablesChanged) {
-        const { data: guestUpdateData, error: guestUpdateError } = await supabase.rpc(
-          "update_reservation_guests_with_reassignment",
-          {
-            p_reservation_id: reservation.id,
-            p_new_guests: formData.guests,
-          }
-        );
-
-        if (guestUpdateError) throw guestUpdateError;
-        const guestUpdateResult = guestUpdateData as { success: boolean; error?: string };
-        if (!guestUpdateResult.success) throw new Error(guestUpdateResult.error);
-      }
-
-      // Actualizar comentarios
-      const { data: updateData, error: updateError } = await supabase.rpc("update_reservation_details", {
-        p_reservation_id: reservation.id,
-        p_guests: tablesChanged ? formData.guests : null,
-        p_special_requests: formData.special_requests,
-        p_status: null,
-      });
-
-      if (updateError) throw updateError;
-      const updateResult = updateData as { success: boolean; error?: string };
-      if (!updateResult.success) throw new Error(updateResult.error);
-
-      toast.success("Reserva actualizada correctamente");
-      onUpdate();
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error("Error updating reservation:", error);
-      toast.error(`Error: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!reservation) return;
-
-    setIsDeleting(true);
-    try {
-      const { error: assignmentError } = await supabase
-        .from("reservation_table_assignments")
-        .delete()
-        .eq("reservation_id", reservation.id);
-
-      if (assignmentError) throw assignmentError;
-
-      const { error: reservationError } = await supabase.from("reservations").delete().eq("id", reservation.id);
-
-      if (reservationError) throw reservationError;
-
-      toast.success("Reserva eliminada correctamente");
-      onUpdate();
-      onOpenChange(false);
-    } catch (error: any) {
-      console.error("Error deleting reservation:", error);
-      toast.error(`Error al eliminar: ${error.message}`);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
   const renderTablesList = () => {
     if (loadingTables) {
       return <div className="text-sm text-muted-foreground text-center py-4">Cargando mesas...</div>;
@@ -409,7 +396,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
       if (!acc[zoneName]) acc[zoneName] = [];
       acc[zoneName].push(table);
       return acc;
-    }, {} as Record<string, Table[]>);
+    }, {} as Record<string, TableWithAvailability[]>);
 
     return (
       <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -431,7 +418,7 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 >
                   <Checkbox
                     checked={selectedTableIds.includes(table.table_id)}
-                    onCheckedChange={() => toggleTableSelection(table.table_id)}
+                    onCheckedChange={() => table.is_available && toggleTableSelection(table.table_id)}
                     disabled={!table.is_available && !selectedTableIds.includes(table.table_id)}
                   />
                   <div className="flex-1">
@@ -462,32 +449,57 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
     );
   };
 
-  if (!reservation) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Reserva</DialogTitle>
-          <div className="text-sm text-muted-foreground space-y-1 bg-muted/30 p-3 rounded">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <strong>Cliente:</strong> {reservation.customer_name || reservation.name || "Sin nombre"}
-              </div>
-              {reservation.phone && (
+          <DialogTitle>{isCreateMode ? "Nueva Reserva" : "Editar Reserva"}</DialogTitle>
+          {isEditMode && reservation && (
+            <div className="text-sm text-muted-foreground space-y-1 bg-muted/30 p-3 rounded">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <strong>Teléfono:</strong> {reservation.phone}
+                  <strong>Cliente:</strong> {reservation.customer_name}
+                </div>
+                {reservation.phone && (
+                  <div>
+                    <strong>Teléfono:</strong> {reservation.phone}
+                  </div>
+                )}
+              </div>
+              {reservation.email && (
+                <div>
+                  <strong>Email:</strong> {reservation.email}
                 </div>
               )}
             </div>
-            {reservation.email && (
-              <div>
-                <strong>Email:</strong> {reservation.email}
-              </div>
-            )}
-          </div>
+          )}
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isCreateMode && (
+            <>
+              <div>
+                <Label>Nombre *</Label>
+                <Input
+                  value={formData.customerName}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customerName: e.target.value }))}
+                  placeholder="Nombre del cliente"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label>Teléfono</Label>
+                <Input
+                  type="tel"
+                  value={formData.customerPhone}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, customerPhone: e.target.value }))}
+                  placeholder="Teléfono"
+                />
+              </div>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Fecha *</Label>
@@ -501,12 +513,13 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             <div>
               <Label>Hora *</Label>
               <Select
-                key={`time-${reservation?.id}-${formData.time}`}
                 value={formData.time}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, time: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar hora" />
+                  <SelectValue placeholder="Selecciona una hora para la reserva">
+                    {formData.time || "Selecciona una hora para la reserva"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-h-60">{renderTimeSlots()}</SelectContent>
               </Select>
@@ -532,21 +545,22 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Duración (minutos) *</Label>
-              <Input
-                type="number"
-                min="30"
-                max="240"
-                step="15"
-                value={formData.duration_minutes}
-                onChange={(e) => setFormData((prev) => ({ ...prev, duration_minutes: parseInt(e.target.value) }))}
-                required
-              />
-            </div>
+            {isEditMode && (
+              <div>
+                <Label>Duración (minutos) *</Label>
+                <Input
+                  type="number"
+                  min="30"
+                  max="240"
+                  step="15"
+                  value={formData.duration_minutes}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, duration_minutes: parseInt(e.target.value) }))}
+                  required
+                />
+              </div>
+            )}
           </div>
 
-          {/* Modo de asignación */}
           <div>
             <Label>Asignación de mesas</Label>
             <div className="flex gap-2 mt-2">
@@ -571,7 +585,6 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
             </div>
           </div>
 
-          {/* Opciones según modo */}
           {assignmentMode === "automatic" && (
             <div>
               <Label>Zona preferida (opcional)</Label>
@@ -617,36 +630,38 @@ export const EditReservationDialog: React.FC<EditReservationDialogProps> = ({
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
               Cancelar
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {isDeleting ? "Eliminando..." : "Eliminar"}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Esta acción no se puede deshacer. La reserva será eliminada permanentemente.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDelete}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Eliminar
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button type="submit" disabled={isLoading} className="ml-auto">
-              {isLoading ? "Guardando..." : "Guardar Cambios"}
+            {isEditMode && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="destructive" size="sm" disabled={isDeleting}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {isDeleting ? "Eliminando..." : "Eliminar"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. La reserva será eliminada permanentemente.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDelete}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Eliminar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Button type="submit" disabled={isLoading} className="flex-1">
+              {isLoading ? (isCreateMode ? "Creando..." : "Guardando...") : isCreateMode ? "Crear Reserva" : "Guardar Cambios"}
             </Button>
           </div>
         </form>

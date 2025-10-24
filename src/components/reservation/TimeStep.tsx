@@ -1,20 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
-import { formatDateLocal } from "@/lib/dateUtils";
-
 import StepHeader from "./StepHeader";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, AlertTriangle } from "lucide-react";
-
-interface TimeSlot {
-  id: string;
-  time: string;
-  available: boolean;
-  capacity: number;
-  is_normalized?: boolean;
-}
+import { Clock, AlertTriangle, MapPin } from "lucide-react";
+import { useAvailability, TimeSlotWithZone } from "@/hooks/reservations";
+import { formatTimeDisplay, isSlotInPast } from "@/lib/reservations";
 
 interface TimeStepProps {
   date: Date;
@@ -26,113 +15,92 @@ interface TimeStepProps {
   onStepClick?: (step: string) => void;
 }
 
-interface SuggestedSlot {
-  time: string;
-  capacity: number;
-}
-
-interface NormalizationError {
-  success: false;
-  error: string;
-  original_time: string;
-  normalized_time: string;
-  suggested_times: SuggestedSlot[];
-}
-
-const formatTimeDisplay = (time: string): string => {
-  // Si ya viene en formato HH:MM, devolverlo tal como está
-  if (time.includes(":") && time.length === 5) {
-    return time;
-  }
-
-  // Si viene en otro formato, convertirlo
-  const [hours, minutes] = time.split(":");
-  return `${hours.padStart(2, "0")}:${minutes?.padStart(2, "0") || "00"}`;
-};
-
 const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, onStepClick }: TimeStepProps) => {
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [normalizationInfo, setNormalizationInfo] = useState<NormalizationError | null>(null);
-  const { toast } = useToast();
+  // Use centralized availability hook with manual check
+  const { availableSlots, isLoading, checkAvailability } = useAvailability({
+    date,
+    guests,
+    durationMinutes: 90,
+    autoCheck: false, // Disable auto-check to prevent infinite loop
+  });
 
+  // Use ref to track if we've already checked for current date/guests
+  const lastCheckRef = useRef<string>("");
+  const isCheckingRef = useRef<boolean>(false);
+
+  // Convert date to stable string
+  const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  // Manual check when date or guests change
   useEffect(() => {
-    checkAvailability();
-  }, [date, guests]);
-
-  const checkAvailability = async () => {
-    setLoading(true);
-    setNormalizationInfo(null);
-
-    try {
-      if (!date || !guests) {
-        setAvailableSlots([]);
-        return;
-      }
-
-      const dateStr = formatDateLocal(date);
-
-      // Use the normalized function to get only 15-minute slots
-      const { data: rpcData, error } = await supabase.rpc("get_available_time_slots_15min", {
-        p_date: dateStr,
-        p_guests: guests,
-        p_duration_minutes: 90,
-      } as any);
-
-      if (error) {
-        console.error("RPC Error:", error);
-        throw error;
-      }
-
-      // Transform the data to match the expected format
-      const slots = Array.isArray(rpcData)
-        ? rpcData.map((slot: any) => ({
-            id: slot.id,
-            time: slot.slot_time,
-            available: true,
-            capacity: slot.capacity,
-            is_normalized: true,
-          }))
-        : [];
-
-      setAvailableSlots(slots);
-    } catch (error) {
-      console.error("Error checking availability:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo verificar la disponibilidad.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    const checkKey = `${dateKey}-${guests}`;
+    
+    // Prevent multiple simultaneous checks
+    if (isCheckingRef.current) {
+      console.log("⏭️ Skipping check - already in progress");
+      return;
     }
-  };
+    
+    // Only check if date/guests actually changed
+    if (checkKey === lastCheckRef.current) {
+      console.log("⏭️ Skipping check - same date/guests");
+      return;
+    }
+    
+    console.log("✅ Running check for:", checkKey);
+    lastCheckRef.current = checkKey;
+    isCheckingRef.current = true;
+    
+    checkAvailability().finally(() => {
+      isCheckingRef.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateKey, guests]);
 
-  const handleTimeSelection = async (selectedTime: string) => {
-    // Since we're showing normalized slots, proceed directly
+  const handleTimeSelection = (selectedTime: string) => {
     onNext(selectedTime);
   };
 
-  // Filtrar slots con hora actual
-  const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-  const isToday = date.toDateString() === now.toDateString();
+  // Group slots by time period and zone
+  const groupedSlots = useMemo(() => {
+    const lunch: Record<string, TimeSlotWithZone[]> = {};
+    const dinner: Record<string, TimeSlotWithZone[]> = {};
 
-  const lunchSlots = availableSlots.filter((slot) => {
-    const hour = parseInt(slot.time.split(":")[0]);
-    const isLunchTime = hour >= 12 && hour < 17;
-    const isAfterCurrentTime = !isToday || slot.time >= currentTime;
-    return isLunchTime && isAfterCurrentTime;
-  });
+    availableSlots.forEach((slot) => {
+      const hour = parseInt(slot.time.split(":")[0]);
+      const isLunchTime = hour >= 12 && hour < 17;
+      const isDinnerTime = hour >= 19 && hour <= 23;
+      const notInPast = !isSlotInPast(date, slot.time);
 
-  const dinnerSlots = availableSlots.filter((slot) => {
-    const hour = parseInt(slot.time.split(":")[0]);
-    const isDinnerTime = hour >= 19 && hour <= 23;
-    const isAfterCurrentTime = !isToday || slot.time >= currentTime;
-    return isDinnerTime && isAfterCurrentTime;
-  });
+      if (!notInPast) return;
 
-  if (loading) {
+      const zoneName = slot.zone_name || "Sin zona";
+
+      if (isLunchTime) {
+        if (!lunch[zoneName]) lunch[zoneName] = [];
+        lunch[zoneName].push(slot);
+      } else if (isDinnerTime) {
+        if (!dinner[zoneName]) dinner[zoneName] = [];
+        dinner[zoneName].push(slot);
+      }
+    });
+
+    // Sort zones by priority
+    const sortZones = (zones: Record<string, TimeSlotWithZone[]>) => {
+      return Object.entries(zones).sort(([, slotsA], [, slotsB]) => {
+        const priorityA = slotsA[0]?.zone_priority ?? 999;
+        const priorityB = slotsB[0]?.zone_priority ?? 999;
+        return priorityA - priorityB;
+      });
+    };
+
+    return {
+      lunch: sortZones(lunch),
+      dinner: sortZones(dinner),
+    };
+  }, [availableSlots, date]);
+
+  if (isLoading) {
     return (
       <div className="max-w-lg mx-auto">
         <StepHeader
@@ -168,49 +136,63 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
 
         <div className="space-y-6">
           {/* Comida */}
-          {lunchSlots.length > 0 && (
+          {groupedSlots.lunch.length > 0 && (
             <div>
-              <h3 className="font-medium text-sm mb-3 text-gray-700">Comida</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {lunchSlots.map((slot) => (
-                  <Button
-                    key={slot.id}
-                    variant="outline"
-                    className="h-12 hover:bg-black hover:text-white"
-                    onClick={() => handleTimeSelection(slot.time)}
-                  >
-                    <div className="text-center">
-                      <div className="font-medium">{formatTimeDisplay(slot.time)}</div>{" "}
+              <h3 className="font-bold text-base mb-4 text-gray-800">Comida</h3>
+              <div className="space-y-4">
+                {groupedSlots.lunch.map(([zoneName, slots]) => (
+                  <div key={zoneName}>
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">{zoneName}</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {slots.map((slot) => (
+                        <Button
+                          key={slot.id}
+                          variant="outline"
+                          className="h-12 hover:bg-black hover:text-white"
+                          onClick={() => handleTimeSelection(slot.time)}
+                        >
+                          <div className="text-center">
+                            <div className="font-medium">{formatTimeDisplay(slot.time)}</div>
+                          </div>
+                        </Button>
+                      ))}
                     </div>
-                  </Button>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
           {/* Cena */}
-          {dinnerSlots.length > 0 && (
+          {groupedSlots.dinner.length > 0 && (
             <div>
-              <h3 className="font-medium text-sm mb-3 text-gray-700">Cena</h3>
-              <div className="grid grid-cols-3 gap-2">
-                {dinnerSlots.map((slot) => (
-                  <Button
-                    key={slot.id}
-                    variant="outline"
-                    className="h-12 hover:bg-black hover:text-white"
-                    onClick={() => handleTimeSelection(slot.time)}
-                  >
-                    <div className="text-center">
-                      <div className="font-medium">{formatTimeDisplay(slot.time)}</div>{" "}
+              <h3 className="font-bold text-base mb-4 text-gray-800">Cena</h3>
+              <div className="space-y-4">
+                {groupedSlots.dinner.map(([zoneName, slots]) => (
+                  <div key={zoneName}>
+                    <h4 className="font-medium text-sm text-gray-700 mb-2">{zoneName}</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {slots.map((slot) => (
+                        <Button
+                          key={slot.id}
+                          variant="outline"
+                          className="h-12 hover:bg-black hover:text-white"
+                          onClick={() => handleTimeSelection(slot.time)}
+                        >
+                          <div className="text-center">
+                            <div className="font-medium">{formatTimeDisplay(slot.time)}</div>
+                          </div>
+                        </Button>
+                      ))}
                     </div>
-                  </Button>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
           {/* No slots available */}
-          {lunchSlots.length === 0 && dinnerSlots.length === 0 && (
+          {groupedSlots.lunch.length === 0 && groupedSlots.dinner.length === 0 && (
             <div className="text-center py-8">
               <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p className="text-gray-500 mb-2">No hay horarios disponibles para esta fecha</p>

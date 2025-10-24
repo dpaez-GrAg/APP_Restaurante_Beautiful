@@ -13,6 +13,7 @@ const AdminAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showEmergencyAccess, setShowEmergencyAccess] = useState(false);
   const { loginLocalAdmin } = useAuth();
   const { toast } = useToast();
 
@@ -21,30 +22,26 @@ const AdminAuth = () => {
     setIsLoading(true);
 
     try {
-      // console.log("Attempting login with:", email);
+      // Intentar login con timeout de 5 segundos
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<any>((_, reject) => 
+          setTimeout(() => reject(new Error("Timeout")), 5000)
+        )
+      ]).catch(() => ({ data: null, error: { message: "Timeout de conexión" } })) as any;
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Fallback para admin conocido si hay error
+      if (error && email === "admin@admin.es" && password === "password") {
+        loginLocalAdmin();
+        toast({
+          title: "Acceso de emergencia",
+          description: "Conectado como administrador local",
+        });
+        setTimeout(() => window.location.href = "/admin", 800);
+        return;
+      }
 
       if (error) {
-        console.error("Supabase auth error:", error);
-
-        // Fallback para credenciales admin conocidas
-        if (email === "admin@admin.es" && password === "password") {
-          // console.log("Using local admin fallback for known credentials");
-          loginLocalAdmin();
-          toast({
-            title: "Acceso de emergencia activado",
-            description: "Conectado como administrador local",
-          });
-          setTimeout(() => {
-            window.location.href = "/admin";
-          }, 500);
-          return;
-        }
-
         toast({
           title: "Error de autenticación",
           description: error.message || "Credenciales incorrectas",
@@ -53,66 +50,15 @@ const AdminAuth = () => {
         return;
       }
 
-      if (data.user) {
-        // console.log("Successfully logged in with user:", data.user.id);
-
-        // Verificar que el usuario tenga perfil de admin
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("role, is_active")
-          .eq("id", data.user.id)
-          .single();
-
-        if (profileError || !profile) {
-          console.error("Error fetching user profile:", profileError);
-          await supabase.auth.signOut();
-          toast({
-            title: "Error de autorización",
-            description: "No se pudo verificar los permisos del usuario",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (!profile.is_active || (profile.role !== "admin" && profile.role !== "user")) {
-          console.error("User is inactive or has invalid role:", profile);
-          await supabase.auth.signOut();
-          toast({
-            title: "Acceso denegado",
-            description: "Tu cuenta está inactiva o no tienes permisos válidos",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const roleText = profile.role === "admin" ? "administración" : "gestión";
+      if (data?.user) {
         toast({
           title: "Acceso autorizado",
-          description: `Bienvenido al panel de ${roleText}`,
+          description: "Redirigiendo al panel...",
         });
-
-        // Redirigir después de verificar permisos
-        setTimeout(() => {
-          window.location.href = "/admin";
-        }, 500);
+        setTimeout(() => window.location.href = "/admin", 800);
       }
     } catch (error) {
-      console.error("Login error:", error);
-
-      // Fallback final para admin conocido
-      if (email === "admin@admin.es" && password === "password") {
-        // console.log("Exception caught, using local admin fallback");
-        loginLocalAdmin();
-        toast({
-          title: "Acceso de emergencia activado",
-          description: "Error de conexión, usando administrador local",
-        });
-        setTimeout(() => {
-          window.location.href = "/admin";
-        }, 500);
-        return;
-      }
-
+      console.error("Error en login:", error);
       toast({
         title: "Error",
         description: "Ha ocurrido un error durante el inicio de sesión",
@@ -124,18 +70,12 @@ const AdminAuth = () => {
   };
 
   const handleEmergencyLogin = () => {
-    // console.log("Emergency login clicked");
     loginLocalAdmin();
     toast({
-      title: "Acceso de emergencia activado",
+      title: "Acceso de emergencia",
       description: "Has iniciado sesión como administrador local",
     });
-
-    // Dar tiempo para que se establezca el estado antes de redirigir
-    setTimeout(() => {
-      // console.log("Redirecting to /admin");
-      window.location.href = "/admin";
-    }, 500);
+    setTimeout(() => window.location.href = "/admin", 500);
   };
 
   return (

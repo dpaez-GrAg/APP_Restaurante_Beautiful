@@ -7,41 +7,12 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { Plus, Users, UserCheck } from "lucide-react";
-import { CustomerClassification, CLASSIFICATION_COLORS } from "@/types/customer";
+import { CLASSIFICATION_COLORS } from "@/types/customer";
 import CustomerClassificationBadge from "@/components/CustomerClassificationBadge";
 import CustomerDetailModal from "@/components/CustomerDetailModal";
-
-interface Reservation {
-  id: string;
-  customer_id: string;
-  customer_name: string;
-  customer_classification?: CustomerClassification;
-  date: string;
-  time: string;
-  guests: number;
-  status: "pending" | "confirmed" | "cancelled" | "arrived";
-  start_at?: string;
-  end_at?: string;
-  duration_minutes?: number;
-  email: string;
-  phone?: string;
-  special_requests?: string;
-  tableAssignments?: Array<{
-    table_id: string;
-    table_name: string;
-  }>;
-}
-
-interface ReservationDisplay extends Reservation {
-  startSlotIndex: number;
-  duration: number; // in slots (15-minute intervals)
-}
-
-interface Table {
-  id: string;
-  name: string;
-  capacity: number;
-}
+import { Reservation, ReservationDisplay, Schedule } from "@/types/reservation";
+import { Table } from "@/types/table";
+import { generateTimeSlots, generateHourHeaders, minutesToSlots, getSlotIndex } from "@/lib/reservations";
 
 interface InteractiveReservationGridProps {
   selectedDate: string;
@@ -62,37 +33,13 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
   const [tables, setTables] = useState<Table[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [specialClosedDays, setSpecialClosedDays] = useState<any[]>([]);
   const [specialScheduleDays, setSpecialScheduleDays] = useState<any[]>([]);
 
-  // Generate 15-minute time slots from 12:00 to 23:30
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 12; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === 23 && minute === 45) break;
-        const timeString = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-        slots.push(timeString);
-      }
-    }
-    return slots;
-  };
-
-  const generateHourHeaders = () => {
-    const headers = [];
-    for (let hour = 12; hour <= 23; hour++) {
-      headers.push({
-        hour: `${hour.toString().padStart(2, "0")}h`,
-        startSlotIndex: (hour - 12) * 4,
-        spanSlots: hour === 23 ? 3 : 4, // 23h tiene 3 slots: 00, 15, 30
-      });
-    }
-    return headers;
-  };
-
-  const timeSlots = generateTimeSlots();
-  const hourHeaders = generateHourHeaders();
+  // Use centralized time slot generation
+  const timeSlots = generateTimeSlots("12:00", "23:30", 15);
+  const hourHeaders = generateHourHeaders(12, 23);
 
   useEffect(() => {
     loadData();
@@ -156,7 +103,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
       if (error) throw error;
 
-      const formattedReservations: Reservation[] = (data || []).map((reservation) => ({
+      const formattedReservations: Reservation[] = (data || []).map((reservation: any) => ({
         id: reservation.id,
         customer_id: reservation.customers.id,
         customer_name: reservation.customers.name,
@@ -238,9 +185,9 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     return tableReservations
       .map((reservation) => {
         const reservationTimeStr = reservation.time.substring(0, 5);
-        const startSlotIndex = timeSlots.findIndex((slot) => slot === reservationTimeStr);
+        const startSlotIndex = getSlotIndex(reservationTimeStr, timeSlots);
 
-        // Calculate duration in 15-minute slots
+        // Calculate duration in 15-minute slots using centralized utility
         let durationMinutes = reservation.duration_minutes || 90;
         if (!reservation.duration_minutes && reservation.start_at && reservation.end_at) {
           const start = new Date(reservation.start_at);
@@ -248,15 +195,15 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
           durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
         }
 
-        const durationSlots = Math.ceil(durationMinutes / 15);
+        const durationSlots = minutesToSlots(durationMinutes);
 
         return {
           ...reservation,
-          startSlotIndex: Math.max(0, startSlotIndex), // Ensure valid index
+          startSlotIndex: Math.max(0, startSlotIndex),
           duration: durationSlots,
         };
       })
-      .filter((reservation) => reservation.startSlotIndex >= 0); // Filter out invalid reservations
+      .filter((reservation) => reservation.startSlotIndex >= 0);
   };
 
   // Check if restaurant is open at a specific time slot

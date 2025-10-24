@@ -17,124 +17,92 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole,
   fallbackPath = "/admin/auth",
 }) => {
-  const { user, profile, isLoading, hasPermission, isAdmin } = useAuth();
+  const { profile, isLoading, hasPermission } = useAuth();
   const location = useLocation();
 
-  // Debug logging - COMENTADO PARA PRODUCCIÓN
-  // console.log("ProtectedRoute - isLoading:", isLoading, "isAdmin:", isAdmin, "profile:", profile);
-
-  // Memoize permission check to avoid recalculation
+  // Verificaciones memoizadas
   const hasRequiredPermission = useMemo(() => {
     if (!requiredPermission) return true;
     return hasPermission(requiredPermission);
   }, [requiredPermission, hasPermission]);
 
-  // Memoize role check to avoid recalculation
   const hasRequiredRole = useMemo(() => {
     if (!requiredRole) return true;
     return profile?.role === requiredRole;
   }, [requiredRole, profile?.role]);
 
-  // Use window.location instead of Navigate to avoid React Router loops
-  // Para admin local, solo necesitamos profile, no user
+  // Redirección si no hay perfil
   useEffect(() => {
     if (!isLoading && !profile && location.pathname !== fallbackPath) {
-      // console.log("ProtectedRoute: No profile found, redirecting to auth");
       window.location.href = fallbackPath;
     }
   }, [isLoading, profile, location.pathname, fallbackPath]);
 
-  // Show loading state
-  if (isLoading) {
-    // console.log("ProtectedRoute: Loading...");
+  // Estados de carga y redirección
+  if (isLoading || !profile) {
+    const message = isLoading ? "Verificando permisos..." : "Redirigiendo...";
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20">
         <Card className="w-full max-w-md">
           <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-restaurant-brown"></div>
-            <span className="ml-3 text-restaurant-brown">Verificando permisos...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-restaurant-brown mr-3"></div>
+            <span className="text-restaurant-brown">{message}</span>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // If not logged in (no profile), show loading while redirecting
-  if (!profile) {
-    // console.log("ProtectedRoute: No profile, showing redirect message");
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20">
-        <Card className="w-full max-w-md">
-          <CardContent className="flex items-center justify-center p-8">
-            <div className="animate-pulse">
-              <span className="text-restaurant-brown">Redirigiendo al login...</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // console.log("ProtectedRoute: Profile found, checking permissions");
-
-  // Check if user account is active
+  // Verificaciones de acceso
   if (!profile.is_active) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
-          <CardHeader className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-restaurant-brown">Cuenta Desactivada</CardTitle>
-            <CardDescription>
-              Tu cuenta ha sido desactivada. Contacta con el administrador para más información.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+    return renderAccessDenied(
+      <AlertTriangle className="w-8 h-8 text-red-600" />,
+      "Cuenta Desactivada",
+      "Tu cuenta ha sido desactivada. Contacta con el administrador.",
+      "bg-red-100"
     );
   }
 
-  // Check role requirement
   if (requiredRole && !hasRequiredRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
-          <CardHeader className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-orange-100 rounded-full flex items-center justify-center">
-              <Lock className="w-8 h-8 text-orange-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-restaurant-brown">Acceso Restringido</CardTitle>
-            <CardDescription>
-              No tienes permisos para acceder a esta sección. Se requiere rol: {requiredRole}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+    return renderAccessDenied(
+      <Lock className="w-8 h-8 text-orange-600" />,
+      "Acceso Restringido",
+      `Se requiere rol: ${requiredRole}`,
+      "bg-orange-100"
     );
   }
 
-  // Check specific permission
   if (requiredPermission && !hasRequiredPermission) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20 p-4">
-        <Card className="w-full max-w-md shadow-2xl">
-          <CardHeader className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-orange-100 rounded-full flex items-center justify-center">
-              <Lock className="w-8 h-8 text-orange-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold text-restaurant-brown">Permisos Insuficientes</CardTitle>
-            <CardDescription>No tienes permisos para realizar esta acción.</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+    return renderAccessDenied(
+      <Lock className="w-8 h-8 text-orange-600" />,
+      "Permisos Insuficientes",
+      "No tienes permisos para acceder a esta sección.",
+      "bg-orange-100"
     );
   }
 
-  // All checks passed, render children
   return <>{children}</>;
 };
+
+// Helper para renderizar mensajes de acceso denegado
+const renderAccessDenied = (
+  icon: React.ReactNode,
+  title: string,
+  description: string,
+  iconBgColor: string
+) => (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-restaurant-cream to-restaurant-gold/20 p-4">
+    <Card className="w-full max-w-md shadow-2xl">
+      <CardHeader className="text-center space-y-4">
+        <div className={`w-16 h-16 mx-auto ${iconBgColor} rounded-full flex items-center justify-center`}>
+          {icon}
+        </div>
+        <CardTitle className="text-2xl font-bold text-restaurant-brown">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  </div>
+);
 
 // Higher-order component for easier usage
 export const withPermission = (
