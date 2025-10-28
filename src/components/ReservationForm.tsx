@@ -108,7 +108,7 @@ const ReservationForm = () => {
       };
 
       // Create reservation with table assignment using create_reservation_with_assignment
-      const { data: result, error: reservationError} = await supabase.rpc("create_reservation_with_assignment", {
+      const { data: result, error: reservationError } = await supabase.rpc("create_reservation_with_assignment", {
         p_customer_id: customerId,
         p_date: formatDateLocal(selectedDate!),
         p_time: selectedTime,
@@ -117,6 +117,8 @@ const ReservationForm = () => {
         p_duration_minutes: 90,
         p_preferred_zone_id: selectedZoneId || null,
       });
+
+      console.log("🎯 Creando reserva con zona preferida:", selectedZone, "ID:", selectedZoneId);
 
       if (reservationError) {
         console.error("Supabase reservation error:", reservationError);
@@ -160,7 +162,8 @@ const ReservationForm = () => {
       try {
         const { data: tablesData, error: tablesError } = await supabase
           .from("reservation_table_assignments")
-          .select(`
+          .select(
+            `
             table_id,
             tables (
               name,
@@ -169,13 +172,22 @@ const ReservationForm = () => {
                 name
               )
             )
-          `)
+          `
+          )
           .eq("reservation_id", reservationId);
+
+        console.log("🔍 Datos de mesas asignadas:", tablesData);
+        console.log("🔍 Error al obtener zonas:", tablesError);
 
         if (!tablesError && tablesData) {
           tableZones = tablesData
-            .map((assignment: any) => assignment.tables?.zones?.name)
+            .map((assignment: any) => {
+              console.log("📍 Mesa:", assignment.tables?.name, "Zona:", assignment.tables?.zones?.name);
+              return assignment.tables?.zones?.name;
+            })
             .filter((zoneName: string | undefined) => zoneName !== undefined);
+
+          console.log("✅ Zonas finales:", tableZones);
         }
       } catch (error) {
         console.error("Error fetching table zones:", error);

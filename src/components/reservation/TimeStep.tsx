@@ -16,7 +16,16 @@ interface TimeStepProps {
   onStepClick?: (step: string) => void;
 }
 
-const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selectedDate, selectedGuests, onStepClick }: TimeStepProps) => {
+const TimeStep = ({
+  date,
+  guests,
+  withChildren = false,
+  onNext,
+  onBack,
+  selectedDate,
+  selectedGuests,
+  onStepClick,
+}: TimeStepProps) => {
   // Use centralized availability hook with manual check
   const { availableSlots, isLoading, checkAvailability } = useAvailability({
     date,
@@ -30,28 +39,28 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
   const isCheckingRef = useRef<boolean>(false);
 
   // Convert date to stable string
-  const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
 
   // Manual check when date or guests change
   useEffect(() => {
     const checkKey = `${dateKey}-${guests}`;
-    
+
     // Prevent multiple simultaneous checks
     if (isCheckingRef.current) {
       console.log("⏭️ Skipping check - already in progress");
       return;
     }
-    
+
     // Only check if date/guests actually changed
     if (checkKey === lastCheckRef.current) {
       console.log("⏭️ Skipping check - same date/guests");
       return;
     }
-    
+
     console.log("✅ Running check for:", checkKey);
     lastCheckRef.current = checkKey;
     isCheckingRef.current = true;
-    
+
     checkAvailability().finally(() => {
       isCheckingRef.current = false;
     });
@@ -59,6 +68,7 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
   }, [dateKey, guests]);
 
   const handleTimeSelection = (selectedTime: string, zoneName?: string, zoneId?: string) => {
+    console.log("🎯 Horario seleccionado:", selectedTime, "Zona:", zoneName, "Zone ID:", zoneId);
     onNext(selectedTime, zoneName, zoneId);
   };
 
@@ -69,7 +79,16 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
 
     // Horarios permitidos para niños (aceptar formato HH:MM o HH:MM:SS)
     const childFriendlyTimes = ["13:30", "15:15"];
-    
+
+    // Debug: mostrar todos los horarios disponibles si viene con niños
+    if (withChildren && availableSlots.length > 0) {
+      console.log(
+        "🔍 Filtro de niños activo. Horarios disponibles:",
+        availableSlots.map((s) => s.time)
+      );
+      console.log("🎯 Buscando horarios:", childFriendlyTimes);
+    }
+
     // Helper para comparar horarios ignorando segundos
     const matchesChildFriendlyTime = (slotTime: string) => {
       const timeWithoutSeconds = slotTime.substring(0, 5); // Obtener solo HH:MM
