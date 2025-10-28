@@ -43,36 +43,48 @@ export const useDashboardData = (selectedDate: string) => {
     try {
       setIsLoading(true);
 
-      // Cargar reservas del día seleccionado
-      const { data: reservations, error: reservationsError } = await supabase
-        .from("reservations")
-        .select(
-          `
-          *,
-          customers (name, email)
-        `
-        )
-        .eq("date", selectedDate);
+      // Usar fetch directo
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Si hay error, usar datos mock
-      if (reservationsError) {
-        // console.log("No reservations data available, using mock data");
+      // Cargar reservas del día seleccionado
+      const reservationsResponse = await fetch(
+        `${url}/rest/v1/reservations?select=*,customers(name,email)&date=eq.${selectedDate}`,
+        {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+          },
+        }
+      );
+
+      if (!reservationsResponse.ok) {
         setStats(mockStats);
         setRecentReservations(mockReservations);
         setIsLoading(false);
         return;
       }
 
-      const confirmedReservations = reservations?.filter((r) => r.status === "confirmed") || [];
-      const cancelledReservations = reservations?.filter((r) => r.status === "cancelled") || [];
-      const completedReservations = reservations?.filter((r) => r.status === "completed") || [];
-      const totalGuests = confirmedReservations.reduce((sum, r) => sum + (r.guests || 0), 0);
+      const reservations = await reservationsResponse.json();
+
+      const confirmedReservations = reservations?.filter((r: any) => r.status === "confirmed") || [];
+      const cancelledReservations = reservations?.filter((r: any) => r.status === "cancelled") || [];
+      const completedReservations = reservations?.filter((r: any) => r.status === "completed") || [];
+      const totalGuests = confirmedReservations.reduce((sum: number, r: any) => sum + (r.guests || 0), 0);
 
       // Cargar total de mesas
-      const { data: tables, error: tablesError } = await supabase.from("tables").select("*").eq("is_active", true);
+      const tablesResponse = await fetch(
+        `${url}/rest/v1/tables?select=*&is_active=eq.true`,
+        {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+          },
+        }
+      );
 
-      // Si hay error con las mesas, usar 0
-      const totalTables = tablesError ? 0 : tables?.length || 0;
+      const tables = tablesResponse.ok ? await tablesResponse.json() : [];
+      const totalTables = tables?.length || 0;
       const occupancyRate = totalTables > 0 ? Math.round((confirmedReservations.length / totalTables) * 100) : 0;
 
       setStats({

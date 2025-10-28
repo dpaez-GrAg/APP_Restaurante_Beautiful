@@ -56,25 +56,36 @@ Verifica disponibilidad de mesas para una fecha, número de comensales y duraci�
 
 ```json
 {
-  "available": true,
+  "success": true,
   "date": "2025-09-24",
   "guests": 4,
-  "duration_minutes": 120,
   "available_slots": [
     {
-      "id": "33996f0d-37b3-41f0-91cc-b5a3954a49f3",
-      "time": "13:30:00",
-      "capacity": 4
+      "time": "13:30",
+      "zone": "Terraza"
     },
     {
-      "id": "160bc858-8abc-4709-ad4d-c16d0d356478",
-      "time": "14:00:00",
-      "capacity": 4
+      "time": "14:00",
+      "zone": "Salón Principal"
+    },
+    {
+      "time": "14:15",
+      "zone": "Terraza"
     }
-  ],
-  "total_slots": 5
+  ]
 }
 ```
+
+**Campos de respuesta:**
+
+| Campo                    | Tipo    | Descripción                                 |
+| ------------------------ | ------- | ------------------------------------------- |
+| `success`                | boolean | Indica si la consulta fue exitosa           |
+| `date`                   | string  | Fecha consultada (YYYY-MM-DD)               |
+| `guests`                 | integer | Número de comensales consultado             |
+| `available_slots`        | array   | Lista de horarios disponibles               |
+| `available_slots[].time` | string  | Hora disponible en formato HH:MM            |
+| `available_slots[].zone` | string  | Nombre de la zona donde se asignará la mesa |
 
 ---
 
@@ -122,13 +133,9 @@ Crea una reserva completa con gestión automática de clientes. Si el cliente no
 {
   "success": true,
   "message": "Reserva creada exitosamente",
-  "reservation_id": "uuid-generado",
   "customer": {
-    "id": "uuid-del-cliente",
     "name": "Juan Pérez",
-    "phone": "666777888",
-    "email": "juan@email.com",
-    "was_created": true
+    "phone": "666777888"
   },
   "reservation": {
     "date": "2025-09-24",
@@ -137,9 +144,35 @@ Crea una reserva completa con gestión automática de clientes. Si el cliente no
     "duration_minutes": 120,
     "special_requests": "Mesa junto a ventana"
   },
-  "tables_assigned": ["Mesa 1", "Mesa 2"]
+  "tables": [
+    {
+      "name": "Mesa 19",
+      "zone": "Comedor"
+    },
+    {
+      "name": "Mesa 20",
+      "zone": "Comedor"
+    }
+  ]
 }
 ```
+
+**Campos de respuesta:**
+
+| Campo                    | Tipo    | Descripción                              |
+| ------------------------ | ------- | ---------------------------------------- |
+| `success`                | boolean | Indica si la operación fue exitosa       |
+| `message`                | string  | Mensaje descriptivo                      |
+| `customer.name`          | string  | Nombre del cliente                       |
+| `customer.phone`         | string  | Teléfono del cliente                     |
+| `reservation.date`       | string  | Fecha de la reserva (YYYY-MM-DD)         |
+| `reservation.time`       | string  | Hora de la reserva (HH:MM:SS)            |
+| `reservation.guests`     | integer | Número de comensales                     |
+| `reservation.duration_minutes` | integer | Duración en minutos            |
+| `reservation.special_requests` | string | Peticiones especiales           |
+| `tables`                 | array   | Lista de mesas asignadas                 |
+| `tables[].name`          | string  | Nombre de la mesa                        |
+| `tables[].zone`          | string  | Zona donde está ubicada la mesa          |
 
 ### **Respuesta de Error**
 

@@ -60,9 +60,15 @@ const TablesManager = () => {
 
   const loadTables = async () => {
     try {
-      const { data, error } = await supabase.from("tables").select("*").order("name");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?select=*&order=name`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading tables');
+      const data = await response.json();
       setTables((data as TableData[]) || []);
     } catch (error) {
       console.error("Error loading tables:", error);
@@ -78,8 +84,17 @@ const TablesManager = () => {
 
   const loadZones = async () => {
     try {
-      const { data, error } = await supabase.rpc("get_zones_ordered");
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/rpc/get_zones_ordered`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': key, 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) throw new Error('Error loading zones');
+      const data = await response.json();
       setZones((data as Zone[]) || []);
     } catch (error) {
       console.error("Error loading zones:", error);
@@ -89,9 +104,17 @@ const TablesManager = () => {
   const handleSave = async () => {
     try {
       if (editingTable) {
-        const { error } = await supabase
-          .from("tables")
-          .update({
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${url}/rest/v1/tables?id=eq.${editingTable.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
             name: formData.name,
             capacity: formData.capacity,
             min_capacity: formData.min_capacity,
@@ -102,16 +125,25 @@ const TablesManager = () => {
             position_y: formData.position_y,
             zone_id: formData.zone_id,
           })
-          .eq("id", editingTable.id);
+        });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Error updating table');
         toast({
           title: "Mesa actualizada",
           description: "La mesa se ha actualizado correctamente",
         });
       } else {
-        const { error } = await supabase.from("tables").insert([
-          {
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${url}/rest/v1/tables`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
             name: formData.name,
             capacity: formData.capacity,
             min_capacity: formData.min_capacity,
@@ -121,10 +153,10 @@ const TablesManager = () => {
             position_x: formData.position_x,
             position_y: formData.position_y,
             zone_id: formData.zone_id,
-          },
-        ]);
+          })
+        });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Error creating table');
         toast({
           title: "Mesa creada",
           description: "La nueva mesa se ha creado correctamente",
@@ -148,9 +180,18 @@ const TablesManager = () => {
     if (!confirm("¿Estás seguro de que quieres eliminar esta mesa?")) return;
 
     try {
-      const { error } = await supabase.from("tables").delete().eq("id", id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        }
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error deleting table');
 
       await loadTables();
       toast({
@@ -169,9 +210,20 @@ const TablesManager = () => {
 
   const handleToggleActive = async (id: string, currentState: boolean) => {
     try {
-      const { error } = await supabase.from("tables").update({ is_active: !currentState }).eq("id", id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({ is_active: !currentState })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error toggling table');
 
       await loadTables();
       toast({

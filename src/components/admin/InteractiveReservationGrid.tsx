@@ -45,28 +45,8 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
     loadData();
   }, [selectedDate, refreshTrigger]);
 
-  useEffect(() => {
-    // Subscribe to real-time updates
-    const reservationsChannel = supabase
-      .channel(`reservations-changes-${selectedDate}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reservations",
-          filter: `date=eq.${selectedDate}`,
-        },
-        () => {
-          loadData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(reservationsChannel);
-    };
-  }, [selectedDate]);
+  // Realtime disabled for VPS compatibility
+  // Data refreshes on date change and manual refresh
 
   const loadData = async () => {
     setIsLoading(true);
@@ -82,26 +62,18 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   const loadReservations = async () => {
     try {
-      const { data, error } = await supabase
-        .from("reservations")
-        .select(
-          `
-          *,
-          customers!inner(
-            id,
-            name,
-            classification
-          ),
-          reservation_table_assignments(
-            table_id,
-            tables(name)
-          )
-        `
-        )
-        .eq("date", selectedDate)
-        .neq("status", "cancelled");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${url}/rest/v1/reservations?select=*,customers!inner(id,name,classification),reservation_table_assignments(table_id,tables(name))&date=eq.${selectedDate}&status=neq.cancelled`,
+        {
+          headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        }
+      );
+      
+      if (!response.ok) throw new Error('Error loading reservations');
+      const data = await response.json();
 
       const formattedReservations: Reservation[] = (data || []).map((reservation: any) => ({
         id: reservation.id,
@@ -133,9 +105,15 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   const loadTables = async () => {
     try {
-      const { data, error } = await supabase.from("tables").select("*").order("name");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?select=*&order=name`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading tables');
+      const data = await response.json();
       setTables(data || []);
     } catch (error) {
       console.error("Error loading tables:", error);
@@ -145,9 +123,15 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   const loadSchedules = async () => {
     try {
-      const { data, error } = await supabase.from("restaurant_schedules").select("*").eq("is_active", true);
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/restaurant_schedules?select=*&is_active=eq.true`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading schedules');
+      const data = await response.json();
       setSchedules(data || []);
     } catch (error) {
       console.error("Error loading schedules:", error);
@@ -157,16 +141,27 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
 
   const loadSpecialDays = async () => {
     try {
-      const [closedDaysResult, specialSchedulesResult] = await Promise.all([
-        supabase.from("special_closed_days").select("*"),
-        supabase.from("special_schedule_days").select("*").eq("is_active", true),
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const [closedDaysResponse, specialSchedulesResponse] = await Promise.all([
+        fetch(`${url}/rest/v1/special_closed_days?select=*`, {
+          headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        }),
+        fetch(`${url}/rest/v1/special_schedule_days?select=*&is_active=eq.true`, {
+          headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        }),
       ]);
 
-      if (closedDaysResult.error) throw closedDaysResult.error;
-      if (specialSchedulesResult.error) throw specialSchedulesResult.error;
+      if (!closedDaysResponse.ok || !specialSchedulesResponse.ok) {
+        throw new Error('Error loading special days');
+      }
 
-      setSpecialClosedDays(closedDaysResult.data || []);
-      setSpecialScheduleDays(specialSchedulesResult.data || []);
+      const closedDaysData = await closedDaysResponse.json();
+      const specialSchedulesData = await specialSchedulesResponse.json();
+
+      setSpecialClosedDays(closedDaysData || []);
+      setSpecialScheduleDays(specialSchedulesData || []);
     } catch (error) {
       console.error("Error loading special days:", error);
       throw error;
@@ -275,7 +270,7 @@ const InteractiveReservationGrid: React.FC<InteractiveReservationGridProps> = ({
         </div>
         <button
           onClick={handleCustomerClick}
-          className="font-semibold text-[11px] leading-none truncate hover:underline text-left"
+          className="font-semibold text-[11px] leading-none hover:underline text-left w-fit"
           title={`Click para ver detalles de ${reservation.customer_name}`}
         >
           {reservation.customer_name.split(" ")[0]}

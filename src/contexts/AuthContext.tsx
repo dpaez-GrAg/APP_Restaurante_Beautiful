@@ -73,20 +73,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    // Fallback para admin conocido
-    if (userId === ADMIN_PROFILE_FALLBACK.id) {
+    // Fallback para admin conocido o local
+    if (userId === ADMIN_PROFILE_FALLBACK.id || userId === "local-admin") {
       return ADMIN_PROFILE_FALLBACK;
     }
 
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, email, full_name, role, is_active")
-        .eq("id", userId)
-        .single();
-
-      if (error) throw error;
-      return data as UserProfile;
+      // Usar fetch directo con timeout
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const profilePromise = fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=id,email,full_name,role,is_active`, {
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+      }).then(async (response) => {
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data[0] || null;
+      });
+      
+      const timeoutPromise = new Promise<null>((resolve) => 
+        setTimeout(() => resolve(null), 5000)
+      );
+      
+      const data = await Promise.race([profilePromise, timeoutPromise]);
+      return data as UserProfile | null;
     } catch (error) {
       console.error("Error fetching profile:", error);
       return null;
