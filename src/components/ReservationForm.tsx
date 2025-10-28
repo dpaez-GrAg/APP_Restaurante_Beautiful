@@ -29,6 +29,9 @@ const ReservationForm = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedGuests, setSelectedGuests] = useState<number>(0);
   const [selectedTime, setSelectedTime] = useState<string>("");
+  const [selectedZone, setSelectedZone] = useState<string | undefined>(undefined);
+  const [selectedZoneId, setSelectedZoneId] = useState<string | undefined>(undefined);
+  const [withChildren, setWithChildren] = useState<boolean>(false);
   const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [confirmedReservation, setConfirmedReservation] = useState<any>(null);
   const { toast } = useToast();
@@ -42,13 +45,17 @@ const ReservationForm = () => {
     setCurrentStep("guests");
   };
 
-  const handleGuestsSelect = (guests: number) => {
+  const handleGuestsSelect = (guests: number, withChildren: boolean) => {
     setSelectedGuests(guests);
+    setWithChildren(withChildren);
     setCurrentStep("time");
   };
 
-  const handleTimeSelect = (time: string) => {
+  const handleTimeSelect = (time: string, zoneName?: string, zoneId?: string) => {
     setSelectedTime(time);
+    setSelectedZone(zoneName);
+    setSelectedZoneId(zoneId);
+    console.log("📍 Zona seleccionada:", zoneName, "ID:", zoneId);
     setCurrentStep("info");
   };
 
@@ -58,7 +65,7 @@ const ReservationForm = () => {
     try {
       setCurrentStep("confirmation");
 
-      // Create customer with optional email using the new helper function
+      // Create customer with optional email using the helper function
       const { data: customerId, error: customerError } = await supabase.rpc("create_customer_optional_email", {
         p_name: customer.fullName,
         p_phone: customer.phone,
@@ -97,15 +104,18 @@ const ReservationForm = () => {
         return `${year}-${month}-${day}`;
       };
 
-      // Create reservation with table assignment using the updated RPC function
-      const { data: result, error: reservationError } = await supabase.rpc("create_reservation_with_assignment", {
+      // Create reservation with table assignment using create_reservation_with_assignment
+      const { data: result, error: reservationError} = await supabase.rpc("create_reservation_with_assignment", {
         p_customer_id: customerId,
         p_date: formatDateLocal(selectedDate!),
         p_time: selectedTime,
         p_guests: selectedGuests,
         p_special_requests: customer.comments || null,
         p_duration_minutes: 90,
+        p_preferred_zone_id: selectedZoneId || null,
       });
+      
+      console.log("🎯 Creando reserva con zona preferida:", selectedZone, "ID:", selectedZoneId);
 
       if (reservationError) {
         console.error("Supabase reservation error:", reservationError);
@@ -142,8 +152,44 @@ const ReservationForm = () => {
       }
 
       const resultObj = result as any;
+      const reservationId = resultObj.reservation_id;
+
+      // Obtener información de las mesas asignadas con sus zonas
+      let tableZones: string[] = [];
+      try {
+        const { data: tablesData, error: tablesError } = await supabase
+          .from("reservation_table_assignments")
+          .select(`
+            table_id,
+            tables (
+              name,
+              zone_id,
+              zones (
+                name
+              )
+            )
+          `)
+          .eq("reservation_id", reservationId);
+
+        console.log("🔍 Datos de mesas asignadas:", tablesData);
+        console.log("🔍 Error al obtener zonas:", tablesError);
+
+        if (!tablesError && tablesData) {
+          tableZones = tablesData
+            .map((assignment: any) => {
+              console.log("📍 Mesa:", assignment.tables?.name, "Zona:", assignment.tables?.zones?.name);
+              return assignment.tables?.zones?.name;
+            })
+            .filter((zoneName: string | undefined) => zoneName !== undefined);
+          
+          console.log("✅ Zonas finales:", tableZones);
+        }
+      } catch (error) {
+        console.error("Error fetching table zones:", error);
+      }
+
       setConfirmedReservation({
-        id: resultObj.reservation_id,
+        id: reservationId,
         customer: {
           name: customer.fullName,
           phone: customer.phone,
@@ -152,6 +198,7 @@ const ReservationForm = () => {
         time: selectedTime,
         guests: selectedGuests,
         status: "confirmed",
+        zones: tableZones,
       });
       setCurrentStep("confirmation");
     } catch (error) {
@@ -171,6 +218,9 @@ const ReservationForm = () => {
     setSelectedDate(null);
     setSelectedGuests(0);
     setSelectedTime("");
+    setSelectedZone(undefined);
+    setSelectedZoneId(undefined);
+    setWithChildren(false);
     setCustomerData(null);
     setConfirmedReservation(null);
   };
@@ -241,6 +291,7 @@ const ReservationForm = () => {
           <TimeStep
             date={selectedDate!}
             guests={selectedGuests}
+            withChildren={withChildren}
             onNext={handleTimeSelect}
             onBack={handleBack}
             onStepClick={handleStepClick}
@@ -254,6 +305,7 @@ const ReservationForm = () => {
             selectedDate={selectedDate}
             selectedGuests={selectedGuests}
             selectedTime={selectedTime}
+            withChildren={withChildren}
             onStepClick={handleStepClick}
           />
         )}

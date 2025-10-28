@@ -25,6 +25,7 @@ interface ConfirmationStepProps {
       name: string;
       phone: string;
     };
+    zones?: string[];
   };
   onBack: () => void;
 }
@@ -38,6 +39,12 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
   const [isSearching, setIsSearching] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
+
+  // Debug: Log zones
+  console.log("🏷️ Zonas de la reserva:", reservation.zones);
+  console.log("🏷️ ¿Tiene terraza?:", reservation.zones?.some(zone => 
+    zone.toLowerCase().includes('terraza') || zone.toLowerCase().includes('exterior')
+  ));
 
   const handleSearchReservation = async () => {
     if (!cancelPhone) {
@@ -186,7 +193,6 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
     const [y, m, d] = dateString.split("-");
     const date = new Date(Number(y), Number(m) - 1, Number(d));
     return date.toLocaleDateString("es-ES", {
-      year: "numeric",
       month: "long",
       day: "numeric",
     });
@@ -204,12 +210,36 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
         <div className="mb-8">
           <p className="text-lg mb-4">
             <strong>{reservation.customer.name}</strong>, tu reserva para el día{" "}
-            <strong>{formatDate(reservation.date)}</strong> para{" "}
+            <strong>{formatDate(reservation.date)}</strong> a las <strong>{formatTime(reservation.time)}</strong> para{" "}
             <strong>
               {reservation.guests} {reservation.guests === 1 ? "persona" : "personas"}
             </strong>{" "}
             está confirmada.
           </p>
+        </div>
+
+        {/* Mensajes informativos */}
+        <div className="mb-6 bg-gray-100 border border-gray-300 rounded-lg p-4">
+          <div className="space-y-2 text-left">
+            {/* Mensaje obligatorio para todas las reservas */}
+            <p className="text-sm text-gray-800 font-medium">El horario de llegada es de obligado cumplimiento.</p>
+
+            {/* Mensaje para turnos de 13:30 o 13:45 */}
+            {(reservation.time === "13:30:00" ||
+              reservation.time === "13:30" ||
+              reservation.time === "13:45:00" ||
+              reservation.time === "13:45") && (
+              <p className="text-sm text-gray-800">Dispones de un turno de 90 minutos.</p>
+            )}
+
+            {/* Mensaje para reservas en terraza */}
+            {reservation.zones &&
+              reservation.zones.some(
+                (zone) => zone.toLowerCase().includes("terraza") || zone.toLowerCase().includes("exterior")
+              ) && (
+                <p className="text-sm text-gray-800">Si llueve, no podemos garantizar el cambio a una mesa interior.</p>
+              )}
+          </div>
         </div>
 
         {/* Botones principales */}

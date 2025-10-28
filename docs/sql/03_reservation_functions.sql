@@ -1,13 +1,18 @@
 -- ========================================
 -- FUNCIONES DE RESERVAS - VERSIÓN COMPLETA Y ACTUALIZADA
 -- ========================================
--- Fecha: 2025-10-28
+-- Última actualización: 2025-10-28
 -- 
 -- Este archivo consolida TODAS las funciones de reservas actualizadas:
 -- - Funciones públicas de API
 -- - Funciones de disponibilidad
 -- - Funciones de asignación de mesas
 -- - Funciones auxiliares
+--
+-- CAMBIOS RECIENTES:
+-- ✅ create_reservation_with_assignment ahora incluye p_duration_minutes (default: 90 min)
+-- ✅ Duración de reservas configurable desde el frontend
+-- ✅ Filtro de horarios para reservas con niños (13:30 y 15:15)
 --
 -- IMPORTANTE: Este archivo reemplaza a:
 -- - 03_reservation_functions.sql (versión antigua)
@@ -119,7 +124,127 @@ GRANT EXECUTE ON FUNCTION assign_tables_to_reservation(uuid, date, timestamptz, 
 COMMENT ON FUNCTION assign_tables_to_reservation IS 'Asigna mesas automáticamente: por zona, primero mesa individual, luego combinación';
 
 -- ========================================
--- FUNCIÓN 2: get_available_time_slots_with_zones
+-- FUNCIÓN 2: create_reservation_with_assignment
+-- ========================================
+-- Crea una reserva y asigna mesas automáticamente
+-- Incluye validaciones de horarios y disponibilidad
+-- ========================================
+
+DROP FUNCTION IF EXISTS create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid);
+
+CREATE OR REPLACE FUNCTION create_reservation_with_assignment(
+    p_customer_id uuid,
+    p_date date,
+    p_time time,
+    p_guests integer,
+    p_special_requests text DEFAULT NULL,
+    p_duration_minutes integer DEFAULT 90,
+    p_preferred_zone_id uuid DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_reservation_id uuid;
+    v_start_at timestamptz;
+    v_end_at timestamptz;
+    v_assigned_tables uuid[];
+    v_day_of_week integer;
+    v_special_closed boolean;
+    v_special_schedule record;
+    v_schedule_exists boolean;
+    v_diners_check json;
+BEGIN
+    v_day_of_week := EXTRACT(DOW FROM p_date);
+    
+    -- Verificar si el restaurante está cerrado ese día
+    SELECT COUNT(*) > 0 INTO v_special_closed
+    FROM public.special_closed_days scd
+    WHERE (
+        (NOT scd.is_range AND scd.date = p_date) OR
+        (scd.is_range AND p_date BETWEEN scd.range_start AND scd.range_end)
+    );
+
+    IF v_special_closed THEN
+        RETURN json_build_object('success', false, 'error', 'Restaurant is closed on selected date');
+    END IF;
+
+    -- Verificar horarios especiales
+    SELECT opening_time, closing_time INTO v_special_schedule
+    FROM public.special_schedule_days 
+    WHERE date = p_date AND is_active = true
+    LIMIT 1;
+
+    IF FOUND THEN
+        IF p_time < v_special_schedule.opening_time OR p_time > v_special_schedule.closing_time THEN
+            RETURN json_build_object('success', false, 'error', 'Restaurant is closed at selected time');
+        END IF;
+    ELSE
+        -- Verificar horarios regulares
+        SELECT COUNT(*) > 0 INTO v_schedule_exists
+        FROM public.restaurant_schedules 
+        WHERE day_of_week = v_day_of_week AND is_active = true
+          AND p_time >= opening_time AND p_time <= closing_time;
+        IF NOT v_schedule_exists THEN
+            RETURN json_build_object('success', false, 'error', 'Restaurant is closed at selected time');
+        END IF;
+    END IF;
+
+    -- Verificar límite de comensales
+    SELECT check_diners_limit(p_date, p_time, p_guests) INTO v_diners_check;
+    IF (v_diners_check->>'success')::boolean = false THEN
+        RETURN v_diners_check;
+    END IF;
+
+    -- Calcular timestamps con la duración especificada
+    v_start_at := (p_date::text || ' ' || p_time::text)::timestamp AT TIME ZONE 'Europe/Madrid';
+    v_end_at := v_start_at + (p_duration_minutes || ' minutes')::interval;
+
+    -- Crear la reserva
+    INSERT INTO public.reservations (customer_id, date, time, guests, status, special_requests, start_at, end_at, duration_minutes)
+    VALUES (p_customer_id, p_date, p_time, p_guests, 'confirmed', p_special_requests, v_start_at, v_end_at, p_duration_minutes)
+    RETURNING id INTO v_reservation_id;
+
+    -- Asignar mesas automáticamente
+    SELECT assign_tables_to_reservation(v_reservation_id, p_date, v_start_at, v_end_at, p_guests, p_preferred_zone_id)
+    INTO v_assigned_tables;
+
+    -- Verificar si se asignaron mesas
+    IF v_assigned_tables IS NULL OR cardinality(v_assigned_tables) = 0 THEN
+        DELETE FROM public.reservations WHERE id = v_reservation_id;
+        RETURN json_build_object(
+            'success', false,
+            'error', 'No hay mesas disponibles para esta capacidad en el horario solicitado'
+        );
+    END IF;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Reserva creada exitosamente',
+        'reservation_id', v_reservation_id,
+        'assigned_tables', v_assigned_tables
+    );
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        IF v_reservation_id IS NOT NULL THEN
+            DELETE FROM public.reservations WHERE id = v_reservation_id;
+        END IF;
+        RETURN json_build_object(
+            'success', false,
+            'error', 'Error al crear la reserva: ' || SQLERRM
+        );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_reservation_with_assignment(uuid, date, time, integer, text, integer, uuid) TO service_role;
+
+COMMENT ON FUNCTION create_reservation_with_assignment IS 'Crea reserva con asignación automática de mesas. Duración por defecto: 90 minutos';
+
+-- ========================================
+-- FUNCIÓN 3: get_available_time_slots_with_zones
 -- ========================================
 -- Obtiene slots disponibles con información de zona
 -- ========================================
@@ -131,7 +256,7 @@ CREATE OR REPLACE FUNCTION get_available_time_slots_with_zones(
     p_guests integer,
     p_duration_minutes integer DEFAULT 120
 )
-RETURNS TABLE(slot_time time, zone_name text)
+RETURNS TABLE(slot_time time, zone_name text, zone_id uuid)
 LANGUAGE plpgsql
 STABLE
 AS $$
@@ -178,7 +303,8 @@ BEGIN
             t.id as table_id,
             t.capacity,
             COALESCE(z.name, 'Sin zona') as zone_name,
-            COALESCE(z.priority_order, 999) as zone_priority
+            COALESCE(z.priority_order, 999) as zone_priority,
+            z.id as zone_id
         FROM slot_ranges sr
         CROSS JOIN public.tables t
         LEFT JOIN public.zones z ON t.zone_id = z.id
@@ -195,7 +321,8 @@ BEGIN
             tc.id as combination_id,
             tc.total_capacity as capacity,
             COALESCE(z.name, 'Sin zona') as zone_name,
-            COALESCE(z.priority_order, 999) as zone_priority
+            COALESCE(z.priority_order, 999) as zone_priority,
+            z.id as zone_id
         FROM slot_ranges sr
         CROSS JOIN public.table_combinations tc
         LEFT JOIN public.zones z ON tc.zone_id = z.id
@@ -212,33 +339,35 @@ BEGIN
           )
     ),
     all_options AS (
-        SELECT at.slot_time, at.capacity, at.zone_name, at.zone_priority 
+        SELECT at.slot_time, at.capacity, at.zone_name, at.zone_priority, at.zone_id 
         FROM available_tables at
         UNION ALL
-        SELECT ac.slot_time, ac.capacity, ac.zone_name, ac.zone_priority 
+        SELECT ac.slot_time, ac.capacity, ac.zone_name, ac.zone_priority, ac.zone_id 
         FROM available_combinations ac
     ),
-    best_option_per_slot AS (
-        SELECT DISTINCT ON (ao.slot_time)
+    available_zones_per_slot AS (
+        SELECT DISTINCT ON (ao.slot_time, ao.zone_name)
             ao.slot_time,
-            ao.zone_name
+            ao.zone_name,
+            ao.zone_priority,
+            ao.zone_id
         FROM all_options ao
         WHERE ao.capacity >= p_guests
-        ORDER BY ao.slot_time, ao.zone_priority ASC, ao.capacity ASC
+        ORDER BY ao.slot_time, ao.zone_name, ao.zone_priority ASC, ao.capacity ASC
     )
-    SELECT bops.slot_time, bops.zone_name
-    FROM best_option_per_slot bops
-    ORDER BY bops.slot_time;
+    SELECT azps.slot_time, azps.zone_name, azps.zone_id
+    FROM available_zones_per_slot azps
+    ORDER BY azps.slot_time, azps.zone_priority ASC;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION get_available_time_slots_with_zones(date, integer, integer) TO anon;
 GRANT EXECUTE ON FUNCTION get_available_time_slots_with_zones(date, integer, integer) TO authenticated;
 
-COMMENT ON FUNCTION get_available_time_slots_with_zones IS 'Obtiene slots disponibles con zona (incluye último slot, usa array table_ids)';
+COMMENT ON FUNCTION get_available_time_slots_with_zones IS 'Obtiene TODOS los slots disponibles con TODAS las zonas disponibles para cada horario';
 
 -- ========================================
--- FUNCIÓN 3: public_find_reservation
+-- FUNCIÓN 4: public_find_reservation
 -- ========================================
 -- Busca reservas activas/futuras por teléfono
 -- ========================================
@@ -295,7 +424,7 @@ GRANT EXECUTE ON FUNCTION public_find_reservation TO authenticated;
 COMMENT ON FUNCTION public_find_reservation IS 'API pública: Busca reservas activas/futuras por teléfono';
 
 -- ========================================
--- FUNCIÓN 4: public_cancel_reservation
+-- FUNCIÓN 5: public_cancel_reservation
 -- ========================================
 -- Cancela una reserva por teléfono y fecha
 -- ========================================
@@ -361,7 +490,7 @@ GRANT EXECUTE ON FUNCTION public_cancel_reservation TO authenticated;
 COMMENT ON FUNCTION public_cancel_reservation IS 'API pública: Cancela reserva por teléfono y fecha';
 
 -- ========================================
--- FUNCIÓN 5: public_create_reservation
+-- FUNCIÓN 6: public_create_reservation
 -- ========================================
 -- Crea una reserva desde la API pública
 -- ========================================
@@ -432,12 +561,89 @@ GRANT EXECUTE ON FUNCTION public_create_reservation TO authenticated;
 COMMENT ON FUNCTION public_create_reservation IS 'API pública: Crea reserva con gestión automática de clientes';
 
 -- ========================================
+-- FUNCIÓN 7: get_available_tables_for_reservation
+-- ========================================
+-- Obtiene mesas disponibles para el admin (con opción de excluir reserva en edición)
+-- ========================================
+
+-- Eliminar ambas versiones existentes (con y sin p_exclude_reservation_id)
+DROP FUNCTION IF EXISTS get_available_tables_for_reservation(date, time, integer);
+DROP FUNCTION IF EXISTS get_available_tables_for_reservation(date, time, integer, uuid);
+
+CREATE OR REPLACE FUNCTION get_available_tables_for_reservation(
+    p_date date,
+    p_time time,
+    p_duration_minutes integer DEFAULT 90,
+    p_exclude_reservation_id uuid DEFAULT NULL
+)
+RETURNS TABLE(
+    table_id uuid,
+    table_name text,
+    capacity integer,
+    extra_capacity integer,
+    total_capacity integer,
+    zone_id uuid,
+    zone_name text,
+    zone_color text,
+    is_available boolean
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    v_start_at timestamptz;
+    v_end_at timestamptz;
+BEGIN
+    -- Calcular timestamps
+    v_start_at := (p_date::text || ' ' || p_time::text)::timestamp AT TIME ZONE 'Europe/Madrid';
+    v_end_at := v_start_at + (p_duration_minutes || ' minutes')::interval;
+    
+    RETURN QUERY
+    WITH occupied_tables AS (
+        SELECT DISTINCT rta.table_id
+        FROM public.reservations r
+        INNER JOIN public.reservation_table_assignments rta ON r.id = rta.reservation_id
+        WHERE r.date = p_date
+          AND r.status IN ('confirmed', 'arrived')
+          AND r.start_at < v_end_at 
+          AND r.end_at > v_start_at
+          -- Excluir la reserva actual si estamos editando
+          AND (p_exclude_reservation_id IS NULL OR r.id != p_exclude_reservation_id)
+    )
+    SELECT 
+        t.id as table_id,
+        t.name as table_name,
+        t.capacity,
+        COALESCE(t.extra_capacity, 0) as extra_capacity,
+        t.capacity + COALESCE(t.extra_capacity, 0) as total_capacity,
+        z.id as zone_id,
+        COALESCE(z.name, 'Sin zona') as zone_name,
+        z.color as zone_color,
+        NOT EXISTS (
+            SELECT 1 FROM occupied_tables ot
+            WHERE ot.table_id = t.id
+        ) as is_available
+    FROM public.tables t
+    LEFT JOIN public.zones z ON t.zone_id = z.id
+    WHERE t.is_active = true
+    ORDER BY z.priority_order ASC NULLS LAST, t.name ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_available_tables_for_reservation(date, time, integer, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_available_tables_for_reservation(date, time, integer, uuid) TO service_role;
+
+COMMENT ON FUNCTION get_available_tables_for_reservation IS 'Obtiene todas las mesas con su disponibilidad para el admin (modo manual)';
+
+-- ========================================
 -- VERIFICACIÓN
 -- ========================================
 
 SELECT 'Funciones de reservas instaladas correctamente:' as status;
 SELECT '✅ assign_tables_to_reservation' as funcion;
-SELECT '✅ get_available_time_slots_with_zones' as funcion;
+SELECT '✅ create_reservation_with_assignment (duración: 90 min)' as funcion;
+SELECT '✅ get_available_time_slots_with_zones (con zone_id)' as funcion;
 SELECT '✅ public_find_reservation' as funcion;
 SELECT '✅ public_cancel_reservation' as funcion;
 SELECT '✅ public_create_reservation' as funcion;
+SELECT '✅ get_available_tables_for_reservation (admin)' as funcion;
