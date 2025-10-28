@@ -58,29 +58,48 @@ export const useAvailability = ({
     setError(null);
 
     try {
-      console.log("🔍 Checking availability:", { dateStr, guests, durationMinutes });
-
-      // Use the new function with zone information
-      // @ts-ignore - Supabase types not yet updated
-      const startTime = performance.now();
-      const { data: rpcData, error: rpcError } = await supabase.rpc("get_available_time_slots_with_zones", {
-        p_date: dateStr,
-        p_guests: guests,
-        p_duration_minutes: durationMinutes,
+      // Usar fetch directo en lugar de supabase.rpc() debido a problemas de compatibilidad
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const rpcPromise = fetch(`${url}/rest/v1/rpc/get_available_time_slots_with_zones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          p_date: dateStr,
+          p_guests: guests,
+          p_duration_minutes: durationMinutes,
+        }),
+      }).then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          return { data: null, error: { message: text } };
+        }
+        
+        const data = await response.json();
+        return { data, error: null };
       });
-      const endTime = performance.now();
-      console.log(`⏱️ RPC took ${(endTime - startTime).toFixed(0)}ms`);
+      
+      // Timeout de 30 segundos
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout: La consulta tardó más de 30 segundos")), 30000)
+      );
+      
+      const { data: rpcData, error: rpcError } = await Promise.race([
+        rpcPromise,
+        timeoutPromise
+      ]) as any;
 
       if (rpcError) {
-        console.error("❌ RPC Error:", rpcError);
         throw rpcError;
       }
 
-      console.log("✅ RPC Response:", rpcData);
-
       // Transform the data to match the expected format
       if (!rpcData) {
-        console.warn("⚠️ RPC returned null/undefined");
         setAvailableSlots([]);
         return;
       }
@@ -99,7 +118,6 @@ export const useAvailability = ({
           }))
         : [];
 
-      console.log("📋 Transformed slots:", slots.length, "slots");
       setAvailableSlots(slots);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "No se pudo verificar la disponibilidad.";

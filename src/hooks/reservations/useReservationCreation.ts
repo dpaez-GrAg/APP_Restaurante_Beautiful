@@ -25,12 +25,30 @@ export const useReservationCreation = (): UseReservationCreationReturn => {
     setError(null);
 
     try {
+      // Usar fetch directo debido a problemas con supabase.rpc()
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
       // Step 1: Create or get customer
-      const { data: customerId, error: customerError } = await supabase.rpc("create_customer_optional_email", {
-        p_name: input.customerName,
-        p_phone: input.customerPhone || null,
-        p_email: input.customerEmail || null,
+      const customerResponse = await fetch(`${url}/rest/v1/rpc/create_customer_optional_email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          p_name: input.customerName,
+          p_phone: input.customerPhone || null,
+          p_email: input.customerEmail || null,
+        }),
       });
+      
+      const customerId = customerResponse.ok ? await customerResponse.json() : null;
+      const customerError = !customerResponse.ok ? { 
+        message: await customerResponse.text(),
+        code: customerResponse.status.toString()
+      } : null;
 
       if (customerError) {
         console.error("Error creating customer:", customerError);
@@ -57,14 +75,28 @@ export const useReservationCreation = (): UseReservationCreationReturn => {
       }
 
       // Step 2: Create reservation with table assignment
-      const { data: result, error: reservationError } = await supabase.rpc("create_reservation_with_assignment", {
-        p_customer_id: customerId,
-        p_date: input.date,
-        p_time: input.time,
-        p_guests: input.guests,
-        p_special_requests: input.special_requests || null,
-        p_duration_minutes: input.duration_minutes || 90,
+      const reservationResponse = await fetch(`${url}/rest/v1/rpc/create_reservation_with_assignment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          p_customer_id: customerId,
+          p_date: input.date,
+          p_time: input.time,
+          p_guests: input.guests,
+          p_special_requests: input.special_requests || null,
+          p_duration_minutes: input.duration_minutes || 90,
+        }),
       });
+      
+      const result = reservationResponse.ok ? await reservationResponse.json() : null;
+      const reservationError = !reservationResponse.ok ? {
+        message: await reservationResponse.text(),
+        code: reservationResponse.status.toString()
+      } : null;
 
       if (reservationError) {
         console.error("Supabase reservation error:", reservationError);

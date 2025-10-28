@@ -34,16 +34,28 @@ const CustomersManager = () => {
 
         const offset = reset ? 0 : customers.length;
 
-        const { data, error } = await supabase.rpc("get_customers_with_stats", {
-          p_search: searchTerm || null,
-          p_classification: classificationFilter === "ALL" ? null : classificationFilter,
-          p_order_by: orderBy,
-          p_limit: ITEMS_PER_PAGE,
-          p_offset: offset,
+        // Usar fetch directo
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const response = await fetch(`${url}/rest/v1/rpc/get_customers_with_stats`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            p_search: searchTerm || null,
+            p_classification: classificationFilter === "ALL" ? null : classificationFilter,
+            p_order_by: orderBy,
+            p_limit: ITEMS_PER_PAGE,
+            p_offset: offset,
+          }),
         });
 
-        if (error) {
-          console.error("Error loading customers:", error);
+        if (!response.ok) {
+          console.error("Error loading customers");
           toast({
             title: "Error",
             description: "No se pudieron cargar los clientes",
@@ -52,12 +64,17 @@ const CustomersManager = () => {
           return;
         }
 
-        const newCustomers = data || [];
+        const newCustomers = await response.json() || [];
 
         if (reset) {
           setCustomers(newCustomers);
         } else {
-          setCustomers((prev) => [...prev, ...newCustomers]);
+          // Deduplicar clientes por ID antes de agregar
+          setCustomers((prev) => {
+            const existingIds = new Set(prev.map(c => c.id));
+            const uniqueNew = newCustomers.filter((c: any) => !existingIds.has(c.id));
+            return [...prev, ...uniqueNew];
+          });
         }
 
         setHasMore(newCustomers.length === ITEMS_PER_PAGE);

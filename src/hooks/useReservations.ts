@@ -12,22 +12,26 @@ export const useReservations = () => {
   const loadReservations = useCallback(async () => {
     try {
       setIsLoading(true);
-      const { data: reservationData, error } = await supabase
-        .from("reservations")
-        .select(
-          `
-          *,
-          customers (name, email, phone),
-          reservation_table_assignments (
-            table_id,
-            tables (name)
-          )
-        `
-        )
-        .order("date", { ascending: false })
-        .order("time", { ascending: false });
-
-      if (error) throw error;
+      
+      // Usar fetch directo debido a problemas con supabase.from()
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(
+        `${url}/rest/v1/reservations?select=*,customers(name,email,phone),reservation_table_assignments(table_id,tables(name))&order=date.desc,time.desc`,
+        {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar reservas');
+      }
+      
+      const reservationData = await response.json();
 
       const formattedReservations: ReservationListItem[] =
         reservationData?.map((reservation) => ({
@@ -64,35 +68,9 @@ export const useReservations = () => {
     }
   }, [toast]);
 
-  // Set up realtime subscription
+  // Load reservations on mount (realtime disabled for VPS compatibility)
   useEffect(() => {
     loadReservations();
-
-    const channel = supabase
-      .channel("schema-db-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reservations",
-        },
-        loadReservations
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reservation_table_assignments",
-        },
-        loadReservations
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [loadReservations]);
 
   const updateReservationStatus = async (
@@ -100,12 +78,21 @@ export const useReservations = () => {
     newStatus: "confirmed" | "cancelled" | "arrived"
   ): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from("reservations")
-        .update({ status: newStatus })
-        .eq("id", id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      if (error) throw error;
+      const response = await fetch(`${url}/rest/v1/reservations?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) throw new Error('Error updating reservation status');
 
       setReservations((prev) =>
         prev.map((reservation) =>
