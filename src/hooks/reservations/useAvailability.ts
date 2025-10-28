@@ -61,13 +61,13 @@ export const useAvailability = ({
       // Usar fetch directo en lugar de supabase.rpc() debido a problemas de compatibilidad
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const rpcPromise = fetch(`${url}/rest/v1/rpc/get_available_time_slots_with_zones`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'apikey': key,
-          'Authorization': `Bearer ${key}`,
+          "Content-Type": "application/json",
+          apikey: key,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           p_date: dateStr,
@@ -79,20 +79,17 @@ export const useAvailability = ({
           const text = await response.text();
           return { data: null, error: { message: text } };
         }
-        
+
         const data = await response.json();
         return { data, error: null };
       });
-      
+
       // Timeout de 30 segundos
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Timeout: La consulta tardó más de 30 segundos")), 30000)
       );
-      
-      const { data: rpcData, error: rpcError } = await Promise.race([
-        rpcPromise,
-        timeoutPromise
-      ]) as any;
+
+      const { data: rpcData, error: rpcError } = (await Promise.race([rpcPromise, timeoutPromise])) as any;
 
       if (rpcError) {
         throw rpcError;
@@ -123,7 +120,7 @@ export const useAvailability = ({
       const errorMessage = err instanceof Error ? err.message : "No se pudo verificar la disponibilidad.";
       setError(errorMessage);
       console.error("❌ Error checking availability:", err);
-      
+
       toast({
         title: "Error",
         description: errorMessage,

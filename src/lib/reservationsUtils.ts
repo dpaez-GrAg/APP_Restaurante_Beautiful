@@ -1,5 +1,25 @@
 // Utility functions for reservations management
 
+/**
+ * Calcula las métricas de reservas para un conjunto de datos
+ * Esta función centraliza la lógica de cálculo para evitar duplicación
+ */
+export const calculateReservationMetrics = (reservations: any[]) => {
+  const activeReservations = reservations.filter((r) => r.status !== "cancelled");
+  const confirmedReservations = reservations.filter((r) => r.status === "confirmed");
+  const arrivedReservations = reservations.filter((r) => r.status === "arrived");
+  const cancelledReservations = reservations.filter((r) => r.status === "cancelled");
+  
+  return {
+    total: reservations.length,
+    active: activeReservations.length,
+    confirmed: confirmedReservations.length,
+    arrived: arrivedReservations.length,
+    cancelled: cancelledReservations.length,
+    totalGuests: activeReservations.reduce((sum, r) => sum + (r.guests || 0), 0),
+  };
+};
+
 export interface ReservationListItem {
   id: string;
   name: string;
@@ -52,7 +72,8 @@ export const getReservationsForTimeRange = (
   return reservations.filter((r) => {
     if (r.date !== dateFilter) return false;
     const reservationTime = r.time;
-    return reservationTime >= startTime && reservationTime < endTime;
+    // Usar <= para incluir reservas exactamente a la hora de cierre
+    return reservationTime >= startTime && reservationTime <= endTime;
   });
 };
 
@@ -69,7 +90,9 @@ export const getMetricsForShift = (
   schedules: Array<{ opening_time: string; closing_time: string }>,
   shiftIndex: number
 ): ShiftMetrics => {
-  if (schedules.length === 0) return { reservations: 0, guests: 0, arrived: 0, cancelled: 0 };
+  if (schedules.length === 0 || !schedules[shiftIndex]) {
+    return { reservations: 0, guests: 0, arrived: 0, cancelled: 0 };
+  }
 
   const schedule = schedules[shiftIndex];
   const shiftReservations = getReservationsForTimeRange(
@@ -79,13 +102,14 @@ export const getMetricsForShift = (
     schedule.closing_time
   );
 
+  // Usar función centralizada para calcular métricas
+  const metrics = calculateReservationMetrics(shiftReservations);
+
   return {
-    reservations: shiftReservations.length,
-    guests: shiftReservations
-      .filter((r) => r.status === "confirmed" || r.status === "arrived")
-      .reduce((sum, r) => sum + r.guests, 0),
-    arrived: shiftReservations.filter((r) => r.status === "arrived").length,
-    cancelled: shiftReservations.filter((r) => r.status === "cancelled").length,
+    reservations: metrics.active,
+    guests: metrics.totalGuests,
+    arrived: metrics.arrived,
+    cancelled: metrics.cancelled,
   };
 };
 
@@ -94,13 +118,15 @@ export const getTotalMetrics = (
   dateFilter: string
 ): ShiftMetrics => {
   const dateFilteredReservations = reservations.filter((r) => r.date === dateFilter);
+  
+  // Usar función centralizada para calcular métricas
+  const metrics = calculateReservationMetrics(dateFilteredReservations);
+  
   return {
-    reservations: dateFilteredReservations.length,
-    guests: dateFilteredReservations
-      .filter((r) => r.status === "confirmed" || r.status === "arrived")
-      .reduce((sum, r) => sum + r.guests, 0),
-    arrived: dateFilteredReservations.filter((r) => r.status === "arrived").length,
-    cancelled: dateFilteredReservations.filter((r) => r.status === "cancelled").length,
+    reservations: metrics.active,
+    guests: metrics.totalGuests,
+    arrived: metrics.arrived,
+    cancelled: metrics.cancelled,
   };
 };
 
