@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { calculateReservationMetrics } from "@/lib/reservationsUtils";
 
 interface DashboardStats {
   todayReservations: number;
@@ -67,10 +68,8 @@ export const useDashboardData = (selectedDate: string) => {
 
       const reservations = await reservationsResponse.json();
 
-      const confirmedReservations = reservations?.filter((r: any) => r.status === "confirmed") || [];
-      const cancelledReservations = reservations?.filter((r: any) => r.status === "cancelled") || [];
-      const completedReservations = reservations?.filter((r: any) => r.status === "completed") || [];
-      const totalGuests = confirmedReservations.reduce((sum: number, r: any) => sum + (r.guests || 0), 0);
+      // Usar función centralizada para calcular métricas
+      const metrics = calculateReservationMetrics(reservations || []);
 
       // Cargar total de mesas
       const tablesResponse = await fetch(
@@ -85,16 +84,16 @@ export const useDashboardData = (selectedDate: string) => {
 
       const tables = tablesResponse.ok ? await tablesResponse.json() : [];
       const totalTables = tables?.length || 0;
-      const occupancyRate = totalTables > 0 ? Math.round((confirmedReservations.length / totalTables) * 100) : 0;
+      const occupancyRate = totalTables > 0 ? Math.round((metrics.active / totalTables) * 100) : 0;
 
       setStats({
-        todayReservations: reservations?.length || 0,
-        confirmedReservations: confirmedReservations.length,
-        cancelledReservations: cancelledReservations.length,
-        completedReservations: completedReservations.length,
+        todayReservations: metrics.total,
+        confirmedReservations: metrics.confirmed,
+        cancelledReservations: metrics.cancelled,
+        completedReservations: 0, // No se usa en el cálculo actual
         totalTables,
         occupancyRate,
-        totalGuests,
+        totalGuests: metrics.totalGuests,
       });
 
       // Mostrar las últimas 5 reservas
