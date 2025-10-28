@@ -8,14 +8,24 @@ import { formatTimeDisplay, isSlotInPast } from "@/lib/reservations";
 interface TimeStepProps {
   date: Date;
   guests: number;
-  onNext: (time: string) => void;
+  withChildren?: boolean;
+  onNext: (time: string, zoneName?: string, zoneId?: string) => void;
   onBack: () => void;
   selectedDate?: Date;
   selectedGuests?: number;
   onStepClick?: (step: string) => void;
 }
 
-const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, onStepClick }: TimeStepProps) => {
+const TimeStep = ({
+  date,
+  guests,
+  withChildren = false,
+  onNext,
+  onBack,
+  selectedDate,
+  selectedGuests,
+  onStepClick,
+}: TimeStepProps) => {
   // Use centralized availability hook with manual check
   const { availableSlots, isLoading, checkAvailability } = useAvailability({
     date,
@@ -29,42 +39,61 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
   const isCheckingRef = useRef<boolean>(false);
 
   // Convert date to stable string
-  const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
 
   // Manual check when date or guests change
   useEffect(() => {
     const checkKey = `${dateKey}-${guests}`;
-    
+
     // Prevent multiple simultaneous checks
     if (isCheckingRef.current) {
       console.log("⏭️ Skipping check - already in progress");
       return;
     }
-    
+
     // Only check if date/guests actually changed
     if (checkKey === lastCheckRef.current) {
       console.log("⏭️ Skipping check - same date/guests");
       return;
     }
-    
+
     console.log("✅ Running check for:", checkKey);
     lastCheckRef.current = checkKey;
     isCheckingRef.current = true;
-    
+
     checkAvailability().finally(() => {
       isCheckingRef.current = false;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateKey, guests]);
 
-  const handleTimeSelection = (selectedTime: string) => {
-    onNext(selectedTime);
+  const handleTimeSelection = (selectedTime: string, zoneName?: string, zoneId?: string) => {
+    console.log("🎯 Horario seleccionado:", selectedTime, "Zona:", zoneName, "Zone ID:", zoneId);
+    onNext(selectedTime, zoneName, zoneId);
   };
 
   // Group slots by time period and zone
   const groupedSlots = useMemo(() => {
     const lunch: Record<string, TimeSlotWithZone[]> = {};
     const dinner: Record<string, TimeSlotWithZone[]> = {};
+
+    // Horarios permitidos para niños (aceptar formato HH:MM o HH:MM:SS)
+    const childFriendlyTimes = ["13:30", "15:15"];
+
+    // Debug: mostrar todos los horarios disponibles si viene con niños
+    if (withChildren && availableSlots.length > 0) {
+      console.log(
+        "🔍 Filtro de niños activo. Horarios disponibles:",
+        availableSlots.map((s) => s.time)
+      );
+      console.log("🎯 Buscando horarios:", childFriendlyTimes);
+    }
+
+    // Helper para comparar horarios ignorando segundos
+    const matchesChildFriendlyTime = (slotTime: string) => {
+      const timeWithoutSeconds = slotTime.substring(0, 5); // Obtener solo HH:MM
+      return childFriendlyTimes.includes(timeWithoutSeconds);
+    };
 
     availableSlots.forEach((slot) => {
       const hour = parseInt(slot.time.split(":")[0]);
@@ -73,6 +102,14 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       const notInPast = !isSlotInPast(date, slot.time);
 
       if (!notInPast) return;
+
+      // Si viene con niños, solo mostrar horarios 13:30 y 15:15
+      if (withChildren) {
+        if (!matchesChildFriendlyTime(slot.time)) {
+          return;
+        }
+        console.log("✅ Horario apto para niños encontrado:", slot.time);
+      }
 
       const zoneName = slot.zone_name || "Sin zona";
 
@@ -98,7 +135,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
       lunch: sortZones(lunch),
       dinner: sortZones(dinner),
     };
-  }, [availableSlots, date]);
+  }, [availableSlots, date, withChildren]);
 
   if (isLoading) {
     return (
@@ -149,7 +186,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
                           key={slot.id}
                           variant="outline"
                           className="h-12 hover:bg-black hover:text-white"
-                          onClick={() => handleTimeSelection(slot.time)}
+                          onClick={() => handleTimeSelection(slot.time, zoneName, slot.zone_id || undefined)}
                         >
                           <div className="text-center">
                             <div className="font-medium">{formatTimeDisplay(slot.time)}</div>
@@ -177,7 +214,7 @@ const TimeStep = ({ date, guests, onNext, onBack, selectedDate, selectedGuests, 
                           key={slot.id}
                           variant="outline"
                           className="h-12 hover:bg-black hover:text-white"
-                          onClick={() => handleTimeSelection(slot.time)}
+                          onClick={() => handleTimeSelection(slot.time, zoneName, slot.zone_id || undefined)}
                         >
                           <div className="text-center">
                             <div className="font-medium">{formatTimeDisplay(slot.time)}</div>
