@@ -59,7 +59,6 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
   }, [dateKey, guests]);
 
   const handleTimeSelection = (selectedTime: string, zoneName?: string, zoneId?: string) => {
-    console.log("🎯 Horario seleccionado:", selectedTime, "Zona:", zoneName, "Zone ID:", zoneId);
     onNext(selectedTime, zoneName, zoneId);
   };
 
@@ -70,12 +69,6 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
 
     // Horarios permitidos para niños (aceptar formato HH:MM o HH:MM:SS)
     const childFriendlyTimes = ["13:30", "15:15"];
-    
-    // Debug: mostrar todos los horarios disponibles si viene con niños
-    if (withChildren && availableSlots.length > 0) {
-      console.log("🔍 Filtro de niños activo. Horarios disponibles:", availableSlots.map(s => s.time));
-      console.log("🎯 Buscando horarios:", childFriendlyTimes);
-    }
     
     // Helper para comparar horarios ignorando segundos
     const matchesChildFriendlyTime = (slotTime: string) => {
@@ -96,7 +89,6 @@ const TimeStep = ({ date, guests, withChildren = false, onNext, onBack, selected
         if (!matchesChildFriendlyTime(slot.time)) {
           return;
         }
-        console.log("✅ Horario apto para niños encontrado:", slot.time);
       }
 
       const zoneName = slot.zone_name || "Sin zona";

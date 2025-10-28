@@ -40,12 +40,6 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
   const [isCancelling, setIsCancelling] = useState(false);
   const { toast } = useToast();
 
-  // Debug: Log zones
-  console.log("🏷️ Zonas de la reserva:", reservation.zones);
-  console.log("🏷️ ¿Tiene terraza?:", reservation.zones?.some(zone => 
-    zone.toLowerCase().includes('terraza') || zone.toLowerCase().includes('exterior')
-  ));
-
   const handleSearchReservation = async () => {
     if (!cancelPhone) {
       toast({

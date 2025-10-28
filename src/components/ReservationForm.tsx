@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
@@ -45,17 +45,20 @@ const ReservationForm = () => {
     setCurrentStep("guests");
   };
 
-  const handleGuestsSelect = (guests: number, withChildren: boolean) => {
+  const handleGuestsSelect = (guests: number, withChildrenParam: boolean) => {
     setSelectedGuests(guests);
-    setWithChildren(withChildren);
-    setCurrentStep("time");
+    setWithChildren(withChildrenParam);
+    
+    // Usar setTimeout para asegurar que el estado se actualice antes de cambiar de paso
+    setTimeout(() => {
+      setCurrentStep("time");
+    }, 0);
   };
 
   const handleTimeSelect = (time: string, zoneName?: string, zoneId?: string) => {
     setSelectedTime(time);
     setSelectedZone(zoneName);
     setSelectedZoneId(zoneId);
-    console.log("📍 Zona seleccionada:", zoneName, "ID:", zoneId);
     setCurrentStep("info");
   };
 
@@ -114,8 +117,6 @@ const ReservationForm = () => {
         p_duration_minutes: 90,
         p_preferred_zone_id: selectedZoneId || null,
       });
-      
-      console.log("🎯 Creando reserva con zona preferida:", selectedZone, "ID:", selectedZoneId);
 
       if (reservationError) {
         console.error("Supabase reservation error:", reservationError);
@@ -171,18 +172,10 @@ const ReservationForm = () => {
           `)
           .eq("reservation_id", reservationId);
 
-        console.log("🔍 Datos de mesas asignadas:", tablesData);
-        console.log("🔍 Error al obtener zonas:", tablesError);
-
         if (!tablesError && tablesData) {
           tableZones = tablesData
-            .map((assignment: any) => {
-              console.log("📍 Mesa:", assignment.tables?.name, "Zona:", assignment.tables?.zones?.name);
-              return assignment.tables?.zones?.name;
-            })
+            .map((assignment: any) => assignment.tables?.zones?.name)
             .filter((zoneName: string | undefined) => zoneName !== undefined);
-          
-          console.log("✅ Zonas finales:", tableZones);
         }
       } catch (error) {
         console.error("Error fetching table zones:", error);
