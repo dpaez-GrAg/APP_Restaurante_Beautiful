@@ -36,9 +36,15 @@ const RestaurantLayout = () => {
 
   const loadTables = async () => {
     try {
-      const { data, error } = await supabase.from("tables").select("*").order("name");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?select=*&order=name`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading tables');
+      const data = await response.json();
       setTables((data as TableData[]) || []);
     } catch (error) {
       console.error("Error loading tables:", error);
@@ -87,9 +93,20 @@ const RestaurantLayout = () => {
         position_y: Math.max(0, Math.min(95, y)),
       };
 
-      const { error } = await supabase.from("tables").update(updateData).eq("id", draggedTable);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/tables?id=eq.${draggedTable}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify(updateData)
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error updating table position');
 
       await loadTables();
       toast({

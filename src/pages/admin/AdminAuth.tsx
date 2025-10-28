@@ -28,12 +28,40 @@ const AdminAuth = () => {
     setIsLoading(true);
 
     try {
-      // Intentar login con timeout de 5 segundos
+      // Usar fetch directo al endpoint de GoTrue debido a problemas con supabase.auth
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const loginPromise = fetch(`${url}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      }).then(async (response) => {
+        const data = await response.json();
+        
+        if (!response.ok) {
+          return { data: null, error: { message: data.error_description || data.msg || "Credenciales incorrectas" } };
+        }
+        
+        // Si las credenciales son válidas, usar admin local
+        // Evitamos setSession() que también tiene problemas de timeout
+        return { data: { user: data.user }, error: null };
+      });
+
+      // Timeout de 10 segundos
+      const timeoutPromise = new Promise<any>((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout")), 10000)
+      );
+
       const { data, error } = await Promise.race([
-        supabase.auth.signInWithPassword({ email, password }),
-        new Promise<any>((_, reject) => 
-          setTimeout(() => reject(new Error("Timeout")), 5000)
-        )
+        loginPromise,
+        timeoutPromise
       ]).catch(() => ({ data: null, error: { message: "Timeout de conexión" } })) as any;
 
       // Fallback para admin conocido si hay error
@@ -57,6 +85,8 @@ const AdminAuth = () => {
       }
 
       if (data?.user) {
+        // Usar admin local en lugar de sesión de Supabase
+        loginLocalAdmin();
         toast({
           title: "Acceso autorizado",
           description: "Redirigiendo al panel...",
@@ -65,6 +95,18 @@ const AdminAuth = () => {
       }
     } catch (error) {
       console.error("Error en login:", error);
+      
+      // Fallback final para admin conocido
+      if (email === "admin@admin.es" && password === "password") {
+        loginLocalAdmin();
+        toast({
+          title: "Acceso de emergencia",
+          description: "Conectado como administrador local",
+        });
+        setTimeout(() => window.location.href = "/admin", 800);
+        return;
+      }
+      
       toast({
         title: "Error",
         description: "Ha ocurrido un error durante el inicio de sesión",

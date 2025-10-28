@@ -15,14 +15,22 @@ export const useSchedules = (dateFilter: string) => {
         const date = new Date(dateFilter + "T12:00:00");
         const dayOfWeek = date.getDay();
 
-        const { data, error } = await supabase
-          .from("restaurant_schedules")
-          .select("opening_time, closing_time")
-          .eq("day_of_week", dayOfWeek)
-          .eq("is_active", true)
-          .order("opening_time");
+        // Usar fetch directo
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (error) throw error;
+        const response = await fetch(
+          `${url}/rest/v1/restaurant_schedules?select=opening_time,closing_time&day_of_week=eq.${dayOfWeek}&is_active=eq.true&order=opening_time`,
+          {
+            headers: {
+              'apikey': key,
+              'Authorization': `Bearer ${key}`,
+            },
+          }
+        );
+
+        if (!response.ok) throw new Error('Error loading schedules');
+        const data = await response.json();
         setSchedules(data || []);
       } catch (error) {
         console.error("Error loading schedules:", error);

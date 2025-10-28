@@ -36,9 +36,16 @@ const ReservationsManager = () => {
     loadReservations,
     updateReservationStatus,
     confirmArrival,
+    refreshGrid,
   } = useReservations();
 
   const { schedules, isSplitSchedule } = useSchedules(dateFilter);
+
+  // Función para refrescar tanto la lista como el grid
+  const handleReservationSuccess = () => {
+    loadReservations();
+    refreshGrid();
+  };
 
   useEffect(() => {
     const filtered = filterReservations(reservations, searchTerm, statusFilter, dateFilter);
@@ -151,7 +158,7 @@ const ReservationsManager = () => {
       <div className="space-y-4">
         <InteractiveReservationGrid
           selectedDate={dateFilter}
-          onRefresh={loadReservations}
+          onRefresh={handleReservationSuccess}
           refreshTrigger={gridRefreshKey}
           onReservationClick={(gridReservation) => {
             setEditingReservation(gridReservation);
@@ -212,7 +219,7 @@ const ReservationsManager = () => {
         onOpenChange={setDialogOpen}
         defaultDate={dateFilter}
         reservation={editingReservation}
-        onSuccess={loadReservations}
+        onSuccess={handleReservationSuccess}
       />
     </div>
   );

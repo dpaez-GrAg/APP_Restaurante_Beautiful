@@ -73,9 +73,7 @@ export const ReservationDialog: React.FC<ReservationDialogProps> = ({
   const [zones, setZones] = useState<Zone[]>([]);
 
   // Table assignment state
-  const [assignmentMode, setAssignmentMode] = useState<"automatic" | "manual">(
-    isEditMode ? "manual" : "automatic"
-  );
+  const [assignmentMode, setAssignmentMode] = useState<"automatic" | "manual">(isEditMode ? "manual" : "automatic");
   const [availableTables, setAvailableTables] = useState<TableWithAvailability[]>([]);
   const [selectedTableIds, setSelectedTableIds] = useState<string[]>([]);
   const [loadingTables, setLoadingTables] = useState(false);
@@ -168,11 +166,18 @@ export const ReservationDialog: React.FC<ReservationDialogProps> = ({
   const loadAvailableTables = async () => {
     setLoadingTables(true);
     try {
-      const { data, error } = await supabase.rpc("get_available_tables_for_reservation", {
+      const params: any = {
         p_date: formData.date,
         p_time: formData.time,
         p_duration_minutes: formData.duration_minutes,
-      });
+      };
+
+      // En modo edición, excluir la reserva actual para que sus mesas aparezcan como disponibles
+      if (isEditMode && reservation?.id) {
+        params.p_exclude_reservation_id = reservation.id;
+      }
+
+      const { data, error } = await supabase.rpc("get_available_tables_for_reservation", params);
 
       if (error) throw error;
       setAvailableTables((data as TableWithAvailability[]) || []);
@@ -186,9 +191,7 @@ export const ReservationDialog: React.FC<ReservationDialogProps> = ({
   };
 
   const toggleTableSelection = (tableId: string) => {
-    setSelectedTableIds((prev) =>
-      prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]
-    );
+    setSelectedTableIds((prev) => (prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]));
   };
 
   const getSelectedCapacity = () => {
@@ -661,7 +664,13 @@ export const ReservationDialog: React.FC<ReservationDialogProps> = ({
               </AlertDialog>
             )}
             <Button type="submit" disabled={isLoading} className="flex-1">
-              {isLoading ? (isCreateMode ? "Creando..." : "Guardando...") : isCreateMode ? "Crear Reserva" : "Guardar Cambios"}
+              {isLoading
+                ? isCreateMode
+                  ? "Creando..."
+                  : "Guardando..."
+                : isCreateMode
+                ? "Crear Reserva"
+                : "Guardar Cambios"}
             </Button>
           </div>
         </form>

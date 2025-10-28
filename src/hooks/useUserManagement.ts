@@ -48,18 +48,32 @@ export function useUserManagement() {
 
       console.log("✅ Email disponible, usando RPC directamente...");
 
-      // ⭐ USAR SOLO RPC (sin Admin SDK)
-      const { data, error: rpcError } = await supabase.rpc("admin_create_user", {
-        p_email: userData.email,
-        p_password: userData.password,
-        p_full_name: userData.full_name,
-        p_role: userData.role,
+      // Usar fetch directo
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/rpc/admin_create_user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          p_email: userData.email,
+          p_password: userData.password,
+          p_full_name: userData.full_name,
+          p_role: userData.role,
+        }),
       });
 
-      if (rpcError) {
-        console.error("❌ RPC Error:", rpcError);
-        throw rpcError;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ RPC Error:", errorText);
+        throw new Error(errorText);
       }
+      
+      const data = await response.json();
 
       const result = data as { success: boolean; error?: string; user_id?: string };
       console.log("📊 RPC Result:", result);
@@ -104,8 +118,21 @@ export function useUserManagement() {
 
   const getUsers = async () => {
     try {
-      const { data, error } = await supabase.rpc("admin_get_users");
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/rpc/admin_get_users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({}),
+      });
+      
+      if (!response.ok) throw new Error('Error fetching users');
+      const data = await response.json();
       return { success: true, data };
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -115,15 +142,27 @@ export function useUserManagement() {
 
   const updateUser = async (userId: string, userData: UpdateUserData) => {
     try {
-      const { data, error } = await supabase.rpc("admin_update_user", {
-        p_user_id: userId,
-        p_email: null, // No cambiamos email por ahora
-        p_full_name: userData.full_name,
-        p_role: userData.role,
-        p_is_active: userData.is_active,
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/rpc/admin_update_user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          p_user_id: userId,
+          p_email: null,
+          p_full_name: userData.full_name,
+          p_role: userData.role,
+          p_is_active: userData.is_active,
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error updating user');
+      const data = await response.json();
 
       const result = data as { success: boolean; error?: string };
 
@@ -151,12 +190,24 @@ export function useUserManagement() {
     } catch (error) {
       // Fallback a RPC function
       try {
-        const { data, error: rpcError } = await supabase.rpc("admin_change_password", {
-          p_user_id: userId,
-          p_new_password: newPassword,
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${url}/rest/v1/rpc/admin_change_password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            p_user_id: userId,
+            p_new_password: newPassword,
+          }),
         });
 
-        if (rpcError) throw rpcError;
+        if (!response.ok) throw new Error('Error changing password');
+        const data = await response.json();
 
         const result = data as { success: boolean; error?: string };
 

@@ -107,9 +107,15 @@ const ScheduleManager = () => {
 
   const loadSchedules = async () => {
     try {
-      const { data, error } = await supabase.from("restaurant_schedules").select("*").order("day_of_week");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/restaurant_schedules?select=*&order=day_of_week`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading schedules');
+      const data = await response.json();
 
       const initialSchedules = initializeDaySchedules();
 
@@ -164,8 +170,14 @@ const ScheduleManager = () => {
 
   const saveSchedules = async () => {
     try {
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       // Delete all existing schedules
-      await supabase.from("restaurant_schedules").delete().neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+      await fetch(`${url}/rest/v1/restaurant_schedules?id=neq.00000000-0000-0000-0000-000000000000`, {
+        method: 'DELETE',
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
 
       // Insert new schedules
       const schedulesToInsert = [];
@@ -203,9 +215,18 @@ const ScheduleManager = () => {
       });
 
       if (schedulesToInsert.length > 0) {
-        const { error } = await supabase.from("restaurant_schedules").insert(schedulesToInsert);
+        const response = await fetch(`${url}/rest/v1/restaurant_schedules`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(schedulesToInsert)
+        });
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Error saving schedules');
       }
 
       toast({
@@ -226,9 +247,15 @@ const ScheduleManager = () => {
 
   const loadSpecialDays = async () => {
     try {
-      const { data, error } = await supabase.from("special_closed_days").select("*").order("date");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_closed_days?select=*&order=date`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading special days');
+      const data = await response.json();
 
       const formattedDays =
         data?.map((day) => ({
@@ -285,9 +312,20 @@ const ScheduleManager = () => {
         range_end: isRange ? formatDateLocal(selectedEndDate!) : null,
       };
 
-      const { error } = await supabase.from("special_closed_days").insert(newDay);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_closed_days`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify(newDay)
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error adding special day');
 
       toast({
         title: "Día especial añadido",
@@ -312,9 +350,15 @@ const ScheduleManager = () => {
 
   const deleteSpecialDay = async (id: string) => {
     try {
-      const { error } = await supabase.from("special_closed_days").delete().eq("id", id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_closed_days?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error deleting special day');
 
       toast({
         title: "Día especial eliminado",
@@ -334,9 +378,15 @@ const ScheduleManager = () => {
 
   const loadSpecialSchedules = async () => {
     try {
-      const { data, error } = await supabase.from("special_schedule_days").select("*").order("date");
-
-      if (error) throw error;
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_schedule_days?select=*&order=date`, {
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
+      
+      if (!response.ok) throw new Error('Error loading special schedules');
+      const data = await response.json();
 
       const formattedSchedules =
         data?.map((schedule) => ({
@@ -384,9 +434,20 @@ const ScheduleManager = () => {
         is_active: true,
       };
 
-      const { error } = await supabase.from("special_schedule_days").insert(newSchedule);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_schedule_days`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify(newSchedule)
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error adding special schedule');
 
       toast({
         title: "Horario especial añadido",
@@ -410,9 +471,15 @@ const ScheduleManager = () => {
 
   const deleteSpecialSchedule = async (id: string) => {
     try {
-      const { error } = await supabase.from("special_schedule_days").delete().eq("id", id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/special_schedule_days?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error deleting special schedule');
 
       toast({
         title: "Horario especial eliminado",

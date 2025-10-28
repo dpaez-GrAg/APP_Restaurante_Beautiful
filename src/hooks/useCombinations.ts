@@ -19,19 +19,37 @@ export const useCombinations = () => {
 
   const loadData = useCallback(async () => {
     try {
-      const [tablesResult, combinationsResult, zonesResult] = await Promise.all([
-        supabase.from('tables').select('*').eq('is_active', true).order('name'),
-        supabase.from('table_combinations').select('*').order('name'),
-        supabase.rpc('get_zones_ordered')
+      // Usar fetch directo
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const [tablesResponse, combinationsResponse, zonesResponse] = await Promise.all([
+        fetch(`${url}/rest/v1/tables?select=*&is_active=eq.true&order=name`, {
+          headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        }),
+        fetch(`${url}/rest/v1/table_combinations?select=*&order=name`, {
+          headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
+        }),
+        fetch(`${url}/rest/v1/rpc/get_zones_ordered`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': key, 'Authorization': `Bearer ${key}` },
+          body: JSON.stringify({})
+        })
       ]);
       
-      if (tablesResult.error) throw tablesResult.error;
-      if (combinationsResult.error) throw combinationsResult.error;
-      if (zonesResult.error) throw zonesResult.error;
+      if (!tablesResponse.ok || !combinationsResponse.ok || !zonesResponse.ok) {
+        throw new Error('Error loading data');
+      }
       
-      setTables(tablesResult.data || []);
-      setCombinations(combinationsResult.data || []);
-      setZones((zonesResult.data as Zone[]) || []);
+      const [tablesData, combinationsData, zonesData] = await Promise.all([
+        tablesResponse.json(),
+        combinationsResponse.json(),
+        zonesResponse.json()
+      ]);
+      
+      setTables(tablesData || []);
+      setCombinations(combinationsData || []);
+      setZones((zonesData as Zone[]) || []);
     } catch (error) {
       console.error('Error loading data:', error);
       toast({
@@ -65,10 +83,18 @@ export const useCombinations = () => {
       const totalCapacity = calculateTotalCapacity(formData.table_ids, tables);
       
       if (editingCombination) {
-        // @ts-ignore - zone_id column exists but types not yet generated
-        const { error } = await supabase
-          .from('table_combinations')
-          .update({
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${url}/rest/v1/table_combinations?id=eq.${editingCombination.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
             name: formData.name,
             table_ids: formData.table_ids,
             total_capacity: totalCapacity,
@@ -77,18 +103,26 @@ export const useCombinations = () => {
             extra_capacity: formData.extra_capacity,
             zone_id: formData.zone_id
           })
-          .eq('id', editingCombination.id);
+        });
         
-        if (error) throw error;
+        if (!response.ok) throw new Error('Error updating combination');
         toast({
           title: "Combinación actualizada",
           description: "La combinación se ha actualizado correctamente"
         });
       } else {
-        // @ts-ignore - zone_id column exists but types not yet generated
-        const { error } = await supabase
-          .from('table_combinations')
-          .insert([{
+        const url = import.meta.env.VITE_SUPABASE_URL;
+        const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${url}/rest/v1/table_combinations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': key,
+            'Authorization': `Bearer ${key}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
             name: formData.name,
             table_ids: formData.table_ids,
             total_capacity: totalCapacity,
@@ -96,9 +130,10 @@ export const useCombinations = () => {
             max_capacity: formData.max_capacity,
             extra_capacity: formData.extra_capacity,
             zone_id: formData.zone_id
-          }]);
+          })
+        });
         
-        if (error) throw error;
+        if (!response.ok) throw new Error('Error creating combination');
         toast({
           title: "Combinación creada",
           description: "La nueva combinación se ha creado correctamente"
@@ -120,12 +155,18 @@ export const useCombinations = () => {
 
   const deleteCombination = async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase
-        .from('table_combinations')
-        .delete()
-        .eq('id', id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (error) throw error;
+      const response = await fetch(`${url}/rest/v1/table_combinations?id=eq.${id}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Error deleting combination');
       
       await loadData();
       toast({
@@ -146,12 +187,20 @@ export const useCombinations = () => {
 
   const toggleActive = async (id: string, currentStatus: boolean): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from('table_combinations')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${url}/rest/v1/table_combinations?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        },
+        body: JSON.stringify({ is_active: !currentStatus })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Error toggling combination');
 
       toast({
         title: "Éxito",
