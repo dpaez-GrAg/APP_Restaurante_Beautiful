@@ -258,6 +258,21 @@ const ConfirmationStep = ({ reservation, onBack }: ConfirmationStepProps) => {
             Hacer nueva reserva
           </Button>
         </div>
+        
+        {/* Developer Credit */}
+        <div className="mt-8 text-center" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          <span className="text-xs text-muted-foreground/60">
+            Desarrollado por{" "}
+          </span>
+          <a 
+            href="https://www.gridded.agency" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-xs text-black hover:underline"
+          >
+            GriddedAgency
+          </a>
+        </div>
       </div>
 
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

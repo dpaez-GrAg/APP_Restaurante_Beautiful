@@ -1,24 +1,27 @@
 -- ========================================
 -- FUNCIONES DE RESERVAS - VERSIÓN COMPLETA Y ACTUALIZADA
 -- ========================================
--- Última actualización: 2025-10-28
+-- Última actualización: 2025-11-01
 -- 
--- Este archivo consolida TODAS las funciones de reservas actualizadas:
--- - Funciones públicas de API
--- - Funciones de disponibilidad
--- - Funciones de asignación de mesas
--- - Funciones auxiliares
+-- ESTRUCTURA DEL ARCHIVO:
+-- 
+-- PARTE 1: FUNCIONES INTERNAS DEL SISTEMA
+--   1. assign_tables_to_reservation - Asignación automática de mesas
+--   2. create_reservation_with_assignment - Crear reserva con asignación
+--   3. get_available_time_slots_with_zones - Obtener slots disponibles
+--   4. get_available_tables_for_reservation - Mesas disponibles para admin
+--
+-- PARTE 2: FUNCIONES DE API PÚBLICA (para agentes externos)
+--   5. public_find_reservation - Buscar reservas por teléfono
+--   6. public_cancel_reservation - Cancelar reserva
+--   7. public_create_reservation - Crear reserva con zona preferida opcional
 --
 -- CAMBIOS RECIENTES:
--- ✅ create_reservation_with_assignment ahora incluye p_duration_minutes (default: 90 min)
--- ✅ Duración de reservas configurable desde el frontend
--- ✅ Filtro de horarios para reservas con niños (13:30 y 15:15)
+-- ✅ public_create_reservation ahora incluye p_preferred_zone_id (opcional)
+-- ✅ Validaciones de campos obligatorios mejoradas
+-- ✅ Normalización con trim() de todos los campos text
+-- ✅ Funciones de API reorganizadas al final del archivo
 --
--- IMPORTANTE: Este archivo reemplaza a:
--- - 03_reservation_functions.sql (versión antigua)
--- - 03_reservation_functions_CLEAN.sql (versión parcial)
--- - ADD_SLOTS_WITH_ZONES_FUNCTION.sql
--- - CREATE_ASSIGN_TABLES_FUNCTION.sql
 -- ========================================
 
 -- ========================================
@@ -371,204 +374,7 @@ COMMENT ON FUNCTION get_available_time_slots_with_zones IS 'Obtiene TODOS los sl
 
 
 -- ========================================
--- FUNCIÓN 4: public_find_reservation
--- ========================================
--- Busca reservas activas/futuras por teléfono
--- ========================================
-
-DROP FUNCTION IF EXISTS public_find_reservation(text);
-
-CREATE OR REPLACE FUNCTION public_find_reservation(p_phone text)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_result json;
-BEGIN
-    WITH reservations_data AS (
-        SELECT 
-            r.id,
-            r.date,
-            r.time,
-            r.guests,
-            r.status,
-            c.name as customer_name
-        FROM public.reservations r
-        JOIN public.customers c ON r.customer_id = c.id
-        WHERE c.phone = p_phone
-          AND r.status IN ('confirmed', 'arrived')
-          -- ✅ Mostrar solo reservas que aún no han terminado
-          AND r.end_at > NOW()
-        ORDER BY r.date, r.time
-    )
-    SELECT json_build_object(
-        'success', true,
-        'reservations', json_agg(
-            json_build_object(
-                'id', rd.id,
-                'date', rd.date,
-                'time', rd.time,
-                'guests', rd.guests,
-                'status', rd.status,
-                'customer_name', rd.customer_name
-            )
-        )
-    )
-    INTO v_result
-    FROM reservations_data rd;
-
-    RETURN COALESCE(v_result, json_build_object('success', true, 'reservations', '[]'::json));
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public_find_reservation TO anon;
-GRANT EXECUTE ON FUNCTION public_find_reservation TO authenticated;
-
-COMMENT ON FUNCTION public_find_reservation IS 'API pública: Busca reservas activas/futuras por teléfono';
-
--- ========================================
--- FUNCIÓN 5: public_cancel_reservation
--- ========================================
--- Cancela una reserva por teléfono y fecha
--- ========================================
-
-DROP FUNCTION IF EXISTS public_cancel_reservation(text, date, time, text);
-
-CREATE OR REPLACE FUNCTION public_cancel_reservation(
-    p_phone text,
-    p_date date,
-    p_time time DEFAULT NULL,
-    p_reason text DEFAULT 'Cancelada por el cliente'
-)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_reservation_id uuid;
-    v_customer_id uuid;
-BEGIN
-    -- Buscar la reserva
-    SELECT r.id, r.customer_id INTO v_reservation_id, v_customer_id
-    FROM public.reservations r
-    JOIN public.customers c ON r.customer_id = c.id
-    WHERE c.phone = p_phone
-      AND r.date = p_date
-      AND (p_time IS NULL OR r.time = p_time)
-      AND r.status IN ('confirmed', 'arrived')
-    ORDER BY r.time
-    LIMIT 1;
-
-    IF v_reservation_id IS NULL THEN
-        RETURN json_build_object(
-            'success', false,
-            'error', 'No se encontró una reserva activa para este teléfono y fecha'
-        );
-    END IF;
-
-    -- Cancelar la reserva
-    UPDATE public.reservations
-    SET status = 'cancelled',
-        updated_at = NOW()
-    WHERE id = v_reservation_id;
-
-    RETURN json_build_object(
-        'success', true,
-        'message', 'Reserva cancelada exitosamente',
-        'reservation_id', v_reservation_id
-    );
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'error', 'Error al cancelar la reserva: ' || SQLERRM
-        );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public_cancel_reservation TO anon;
-GRANT EXECUTE ON FUNCTION public_cancel_reservation TO authenticated;
-
-COMMENT ON FUNCTION public_cancel_reservation IS 'API pública: Cancela reserva por teléfono y fecha';
-
--- ========================================
--- FUNCIÓN 6: public_create_reservation
--- ========================================
--- Crea una reserva desde la API pública
--- ========================================
-
-DROP FUNCTION IF EXISTS public_create_reservation(text, text, date, time, integer, text, integer, text);
-
-CREATE OR REPLACE FUNCTION public_create_reservation(
-    p_name text,
-    p_phone text,
-    p_date date,
-    p_time time,
-    p_guests integer,
-    p_email text DEFAULT NULL,
-    p_duration_minutes integer DEFAULT 90,
-    p_special_requests text DEFAULT NULL
-)
-RETURNS json
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_customer_id uuid;
-    v_result json;
-BEGIN
-    -- Buscar o crear cliente
-    SELECT id INTO v_customer_id
-    FROM public.customers
-    WHERE phone = p_phone;
-
-    IF v_customer_id IS NULL THEN
-        INSERT INTO public.customers (name, phone, email)
-        VALUES (p_name, p_phone, p_email)
-        RETURNING id INTO v_customer_id;
-    ELSE
-        -- Actualizar datos si han cambiado
-        UPDATE public.customers
-        SET name = p_name,
-            email = COALESCE(p_email, email),
-            updated_at = NOW()
-        WHERE id = v_customer_id;
-    END IF;
-
-    -- Crear la reserva usando la función interna
-    SELECT create_reservation_with_assignment(
-        v_customer_id,
-        p_date,
-        p_time,
-        p_guests,
-        p_special_requests,
-        p_duration_minutes,
-        NULL  -- sin zona preferida
-    ) INTO v_result;
-
-    RETURN v_result;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN json_build_object(
-            'success', false,
-            'error', 'Error al crear la reserva: ' || SQLERRM
-        );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public_create_reservation TO anon;
-GRANT EXECUTE ON FUNCTION public_create_reservation TO authenticated;
-
-COMMENT ON FUNCTION public_create_reservation IS 'API pública: Crea reserva con gestión automática de clientes';
-
-
-
-
--- ========================================
--- FUNCIÓN 7: get_available_tables_for_reservation
+-- FUNCIÓN 4: get_available_tables_for_reservation
 -- ========================================
 -- Obtiene mesas disponibles para el admin (con opción de excluir reserva en edición)
 -- ========================================
@@ -641,6 +447,230 @@ GRANT EXECUTE ON FUNCTION get_available_tables_for_reservation(date, time, integ
 GRANT EXECUTE ON FUNCTION get_available_tables_for_reservation(date, time, integer, uuid) TO service_role;
 
 COMMENT ON FUNCTION get_available_tables_for_reservation IS 'Obtiene todas las mesas con su disponibilidad para el admin (modo manual)';
+
+
+-- ========================================
+-- ========================================
+-- PARTE 2: FUNCIONES DE API PÚBLICA
+-- ========================================
+-- ========================================
+-- Las siguientes funciones están diseñadas para ser consumidas
+-- por agentes externos (chatbots, asistentes de IA, etc.)
+-- ========================================
+
+
+-- ========================================
+-- FUNCIÓN 5: public_find_reservation
+-- ========================================
+-- Busca reservas activas/futuras por teléfono
+-- ========================================
+
+DROP FUNCTION IF EXISTS public_find_reservation(text);
+
+CREATE OR REPLACE FUNCTION public_find_reservation(p_phone text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_result json;
+BEGIN
+    WITH reservations_data AS (
+        SELECT 
+            r.id,
+            r.date,
+            r.time,
+            r.guests,
+            r.status,
+            c.name as customer_name
+        FROM public.reservations r
+        JOIN public.customers c ON r.customer_id = c.id
+        WHERE c.phone = p_phone
+          AND r.status IN ('confirmed', 'arrived')
+          -- ✅ Mostrar solo reservas que aún no han terminado
+          AND r.end_at > NOW()
+        ORDER BY r.date, r.time
+    )
+    SELECT json_build_object(
+        'success', true,
+        'reservations', json_agg(
+            json_build_object(
+                'id', rd.id,
+                'date', rd.date,
+                'time', rd.time,
+                'guests', rd.guests,
+                'status', rd.status,
+                'customer_name', rd.customer_name
+            )
+        )
+    )
+    INTO v_result
+    FROM reservations_data rd;
+
+    RETURN COALESCE(v_result, json_build_object('success', true, 'reservations', '[]'::json));
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public_find_reservation TO anon;
+GRANT EXECUTE ON FUNCTION public_find_reservation TO authenticated;
+
+COMMENT ON FUNCTION public_find_reservation IS 'API pública: Busca reservas activas/futuras por teléfono';
+
+
+-- ========================================
+-- FUNCIÓN 6: public_cancel_reservation
+-- ========================================
+-- Cancela una reserva por teléfono y fecha
+-- ========================================
+
+DROP FUNCTION IF EXISTS public_cancel_reservation(text, date, time, text);
+
+CREATE OR REPLACE FUNCTION public_cancel_reservation(
+    p_phone text,
+    p_date date,
+    p_time time DEFAULT NULL,
+    p_reason text DEFAULT 'Cancelada por el cliente'
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_reservation_id uuid;
+    v_customer_id uuid;
+BEGIN
+    -- Buscar la reserva
+    SELECT r.id, r.customer_id INTO v_reservation_id, v_customer_id
+    FROM public.reservations r
+    JOIN public.customers c ON r.customer_id = c.id
+    WHERE c.phone = p_phone
+      AND r.date = p_date
+      AND (p_time IS NULL OR r.time = p_time)
+      AND r.status IN ('confirmed', 'arrived')
+    ORDER BY r.time
+    LIMIT 1;
+
+    IF v_reservation_id IS NULL THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'No se encontró una reserva activa para este teléfono y fecha'
+        );
+    END IF;
+
+    -- Cancelar la reserva
+    UPDATE public.reservations
+    SET status = 'cancelled',
+        updated_at = NOW()
+    WHERE id = v_reservation_id;
+
+    RETURN json_build_object(
+        'success', true,
+        'message', 'Reserva cancelada exitosamente',
+        'reservation_id', v_reservation_id
+    );
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'Error al cancelar la reserva: ' || SQLERRM
+        );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public_cancel_reservation TO anon;
+GRANT EXECUTE ON FUNCTION public_cancel_reservation TO authenticated;
+
+COMMENT ON FUNCTION public_cancel_reservation IS 'API pública: Cancela reserva por teléfono y fecha';
+
+
+-- ========================================
+-- FUNCIÓN 7: public_create_reservation
+-- ========================================
+-- Crea una reserva desde la API pública con zona preferida opcional
+-- ========================================
+
+DROP FUNCTION IF EXISTS public_create_reservation(text, text, date, time, integer, text, integer, text, uuid);
+
+CREATE OR REPLACE FUNCTION public_create_reservation(
+    p_name text,
+    p_phone text,
+    p_date date,
+    p_time time,
+    p_guests integer,
+    p_email text DEFAULT NULL,
+    p_duration_minutes integer DEFAULT 90,
+    p_special_requests text DEFAULT NULL,
+    p_preferred_zone_id uuid DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_customer_id uuid;
+    v_result json;
+BEGIN
+    -- Validar datos obligatorios
+    IF p_name IS NULL OR trim(p_name) = '' THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'El nombre del cliente es obligatorio'
+        );
+    END IF;
+    
+    IF p_phone IS NULL OR trim(p_phone) = '' THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'El teléfono del cliente es obligatorio'
+        );
+    END IF;
+    
+    -- Buscar o crear cliente
+    SELECT id INTO v_customer_id
+    FROM public.customers
+    WHERE phone = trim(p_phone);
+
+    IF v_customer_id IS NULL THEN
+        INSERT INTO public.customers (name, phone, email)
+        VALUES (trim(p_name), trim(p_phone), NULLIF(trim(p_email), ''))
+        RETURNING id INTO v_customer_id;
+    ELSE
+        -- Actualizar datos si han cambiado
+        UPDATE public.customers
+        SET name = CASE WHEN trim(p_name) != '' THEN trim(p_name) ELSE name END,
+            email = CASE WHEN p_email IS NOT NULL AND trim(p_email) != '' THEN trim(p_email) ELSE email END,
+            updated_at = NOW()
+        WHERE id = v_customer_id;
+    END IF;
+
+    -- Crear la reserva usando la función interna
+    SELECT create_reservation_with_assignment(
+        v_customer_id,
+        p_date,
+        p_time,
+        p_guests,
+        p_special_requests,
+        p_duration_minutes,
+        p_preferred_zone_id  -- zona preferida (NULL si no se especifica)
+    ) INTO v_result;
+
+    RETURN v_result;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN json_build_object(
+            'success', false,
+            'error', 'Error al crear la reserva: ' || SQLERRM
+        );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public_create_reservation TO anon;
+GRANT EXECUTE ON FUNCTION public_create_reservation TO authenticated;
+
+COMMENT ON FUNCTION public_create_reservation IS 'API pública: Crea reserva con gestión automática de clientes y zona preferida opcional';
+
 
 -- ========================================
 -- FUNCIÓN 7: get_available_tables_for_reservation
@@ -725,8 +755,8 @@ SELECT 'Funciones de reservas instaladas correctamente:' as status;
 SELECT '✅ assign_tables_to_reservation' as funcion;
 SELECT '✅ create_reservation_with_assignment (duración: 90 min)' as funcion;
 SELECT '✅ get_available_time_slots_with_zones (con zone_id)' as funcion;
-SELECT '✅ public_find_reservation' as funcion;
-SELECT '✅ public_cancel_reservation' as funcion;
-SELECT '✅ public_create_reservation' as funcion;
 SELECT '✅ get_available_tables_for_reservation (admin)' as funcion;
+SELECT '✅ public_find_reservation (API)' as funcion;
+SELECT '✅ public_cancel_reservation (API)' as funcion;
+SELECT '✅ public_create_reservation (API con zona preferida)' as funcion;
 
