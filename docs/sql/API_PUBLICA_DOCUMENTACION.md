@@ -34,7 +34,7 @@ POST /api_check_availability
 
 ### **Descripción**
 
-Verifica disponibilidad de mesas para una fecha, número de comensales y duración específica.
+Verifica disponibilidad de mesas para una fecha, número de comensales y duración específica. **Agrupa automáticamente los horarios en comida y cena** según los horarios del restaurante.
 
 ### **Parámetros**
 
@@ -46,46 +46,152 @@ Verifica disponibilidad de mesas para una fecha, número de comensales y duraci�
 }
 ```
 
-| Parámetro            | Tipo    | Obligatorio | Descripción                      |
-| -------------------- | ------- | ----------- | -------------------------------- |
-| `p_date`             | date    | ✅          | Fecha de la reserva (YYYY-MM-DD) |
-| `p_guests`           | integer | ✅          | Número de comensales             |
-| `p_duration_minutes` | integer | ✅          | Duración en minutos              |
+| Parámetro            | Tipo    | Obligatorio | Default | Descripción                      |
+| -------------------- | ------- | ----------- | ------- | -------------------------------- |
+| `p_date`             | date    | ✅          | -       | Fecha de la reserva (YYYY-MM-DD) |
+| `p_guests`           | integer | ✅          | -       | Número de comensales             |
+| `p_duration_minutes` | integer | ❌          | 120     | Duración en minutos              |
 
-### **Respuesta**
+### **Respuestas Posibles**
+
+#### **Caso 1: Hay disponibilidad en ambos servicios**
 
 ```json
 {
   "success": true,
   "date": "2025-09-24",
   "guests": 4,
-  "available_slots": [
-    {
-      "time": "13:30",
-      "zone": "Terraza"
-    },
-    {
-      "time": "14:00",
-      "zone": "Salón Principal"
-    },
-    {
-      "time": "14:15",
-      "zone": "Terraza"
-    }
-  ]
+  "lunch": {
+    "open": true,
+    "message": null,
+    "slots": [
+      { "time": "13:00", "zone": "Terraza" },
+      { "time": "13:30", "zone": "Salón Principal" },
+      { "time": "14:00", "zone": "Terraza" }
+    ]
+  },
+  "dinner": {
+    "open": true,
+    "message": null,
+    "slots": [
+      { "time": "20:00", "zone": "Terraza" },
+      { "time": "20:30", "zone": "Comedor" },
+      { "time": "21:00", "zone": "Terraza" }
+    ]
+  }
+}
+```
+
+#### **Caso 2: Disponibilidad solo en cena (comida sin disponibilidad)**
+
+```json
+{
+  "success": true,
+  "date": "2025-10-31",
+  "guests": 7,
+  "lunch": {
+    "open": true,
+    "message": "No hay disponibilidad",
+    "slots": []
+  },
+  "dinner": {
+    "open": true,
+    "message": null,
+    "slots": [
+      { "time": "20:30", "zone": "Comedor" },
+      { "time": "21:00", "zone": "Terraza" }
+    ]
+  }
+}
+```
+
+#### **Caso 3: No hay disponibilidad en ningún servicio**
+
+```json
+{
+  "success": true,
+  "date": "2025-09-24",
+  "guests": 8,
+  "message": "No hay disponibilidad para 8 personas en esta fecha",
+  "lunch": {
+    "open": true,
+    "message": "No hay disponibilidad",
+    "slots": []
+  },
+  "dinner": {
+    "open": true,
+    "message": "No hay disponibilidad",
+    "slots": []
+  }
+}
+```
+
+#### **Caso 4: Restaurante cerrado**
+
+```json
+{
+  "success": true,
+  "date": "2025-12-25",
+  "guests": 4,
+  "message": "El restaurante está cerrado en esta fecha",
+  "lunch": {
+    "open": false,
+    "message": "El restaurante está cerrado en este horario",
+    "slots": []
+  },
+  "dinner": {
+    "open": false,
+    "message": "El restaurante está cerrado en este horario",
+    "slots": []
+  }
+}
+```
+
+#### **Caso 5: Solo abre para cena (comida cerrada)**
+
+```json
+{
+  "success": true,
+  "date": "2025-11-15",
+  "guests": 4,
+  "lunch": {
+    "open": false,
+    "message": "El restaurante está cerrado en este horario",
+    "slots": []
+  },
+  "dinner": {
+    "open": true,
+    "message": null,
+    "slots": [
+      { "time": "20:00", "zone": "Terraza" },
+      { "time": "21:00", "zone": "Comedor" }
+    ]
+  }
 }
 ```
 
 **Campos de respuesta:**
 
-| Campo                    | Tipo    | Descripción                                 |
-| ------------------------ | ------- | ------------------------------------------- |
-| `success`                | boolean | Indica si la consulta fue exitosa           |
-| `date`                   | string  | Fecha consultada (YYYY-MM-DD)               |
-| `guests`                 | integer | Número de comensales consultado             |
-| `available_slots`        | array   | Lista de horarios disponibles               |
-| `available_slots[].time` | string  | Hora disponible en formato HH:MM            |
-| `available_slots[].zone` | string  | Nombre de la zona donde se asignará la mesa |
+| Campo                    | Tipo        | Descripción                                                                                     |
+| ------------------------ | ----------- | ----------------------------------------------------------------------------------------------- |
+| `success`                | boolean     | Indica si la consulta fue exitosa                                                               |
+| `date`                   | string      | Fecha consultada (YYYY-MM-DD)                                                                   |
+| `guests`                 | integer     | Número de comensales consultado                                                                 |
+| `message`                | string      | Mensaje descriptivo (solo si no hay disponibilidad o está cerrado)                              |
+| `lunch`                  | object      | Información de disponibilidad para comida                                                       |
+| `lunch.open`             | boolean     | Si el servicio de comida está abierto                                                           |
+| `lunch.message`          | string/null | Motivo si no hay slots: "No hay disponibilidad" o "El restaurante está cerrado en este horario" |
+| `lunch.slots`            | array       | Horarios disponibles para comida                                                                |
+| `lunch.slots[].time`     | string      | Hora disponible en formato HH:MM                                                                |
+| `lunch.slots[].zone`     | string      | Nombre de la zona donde se asignará la mesa                                                     |
+| `lunch.slots[].zone_id`  | uuid        | ID de la zona (usar en `p_preferred_zone_id` al crear reserva)                                  |
+| `dinner`                 | object      | Información de disponibilidad para cena                                                         |
+| `dinner.open`            | boolean     | Si el servicio de cena está abierto                                                             |
+| `dinner.message`         | string/null | Motivo si no hay slots: "No hay disponibilidad" o "El restaurante está cerrado en este horario" |
+| `dinner.slots`           | array       | Horarios disponibles para cena                                                                  |
+| `dinner.slots[].time`    | string      | Hora disponible en formato HH:MM                                                                |
+| `dinner.slots[].zone`    | string      | Nombre de la zona donde se asignará la mesa                                                     |
+| `dinner.slots[].zone_id` | uuid        | ID de la zona (usar en `p_preferred_zone_id` al crear reserva)                                  |
 
 ---
 
@@ -108,24 +214,26 @@ Crea una reserva completa con gestión automática de clientes. Si el cliente no
   "p_name": "Juan Pérez",
   "p_phone": "666777888",
   "p_date": "2025-09-24",
-  "p_time": "20:00:00",
+  "p_time": "20:00",
   "p_guests": 4,
   "p_email": "juan@email.com",
   "p_duration_minutes": 120,
-  "p_special_requests": "Mesa junto a ventana"
+  "p_special_requests": "Mesa junto a ventana",
+  "p_preferred_zone_id": "uuid-de-la-zona"
 }
 ```
 
-| Parámetro            | Tipo    | Obligatorio | Default | Descripción                 |
-| -------------------- | ------- | ----------- | ------- | --------------------------- |
-| `p_name`             | text    | ✅          | -       | Nombre completo del cliente |
-| `p_phone`            | text    | ✅          | -       | Teléfono del cliente        |
-| `p_date`             | date    | ✅          | -       | Fecha de la reserva         |
-| `p_time`             | time    | ✅          | -       | Hora de la reserva          |
-| `p_guests`           | integer | ✅          | -       | Número de comensales        |
-| `p_email`            | text    | ❌          | NULL    | Email del cliente           |
-| `p_duration_minutes` | integer | ❌          | 90      | Duración en minutos         |
-| `p_special_requests` | text    | ❌          | NULL    | Peticiones especiales       |
+| Parámetro             | Tipo    | Obligatorio | Default | Descripción                                                       |
+| --------------------- | ------- | ----------- | ------- | ----------------------------------------------------------------- |
+| `p_name`              | text    | ✅          | -       | Nombre completo del cliente                                       |
+| `p_phone`             | text    | ✅          | -       | Teléfono del cliente                                              |
+| `p_date`              | date    | ✅          | -       | Fecha de la reserva (YYYY-MM-DD)                                  |
+| `p_time`              | time    | ✅          | -       | Hora de la reserva (HH:MM o HH:MM:SS)                             |
+| `p_guests`            | integer | ✅          | -       | Número de comensales                                              |
+| `p_email`             | text    | ❌          | NULL    | Email del cliente                                                 |
+| `p_duration_minutes`  | integer | ❌          | 90      | Duración en minutos                                               |
+| `p_special_requests`  | text    | ❌          | NULL    | Peticiones especiales                                             |
+| `p_preferred_zone_id` | uuid    | ❌          | NULL    | ID de zona preferida (si no se especifica, asignación automática) |
 
 ### **Respuesta Exitosa**
 
@@ -159,20 +267,20 @@ Crea una reserva completa con gestión automática de clientes. Si el cliente no
 
 **Campos de respuesta:**
 
-| Campo                    | Tipo    | Descripción                              |
-| ------------------------ | ------- | ---------------------------------------- |
-| `success`                | boolean | Indica si la operación fue exitosa       |
-| `message`                | string  | Mensaje descriptivo                      |
-| `customer.name`          | string  | Nombre del cliente                       |
-| `customer.phone`         | string  | Teléfono del cliente                     |
-| `reservation.date`       | string  | Fecha de la reserva (YYYY-MM-DD)         |
-| `reservation.time`       | string  | Hora de la reserva (HH:MM:SS)            |
-| `reservation.guests`     | integer | Número de comensales                     |
-| `reservation.duration_minutes` | integer | Duración en minutos            |
-| `reservation.special_requests` | string | Peticiones especiales           |
-| `tables`                 | array   | Lista de mesas asignadas                 |
-| `tables[].name`          | string  | Nombre de la mesa                        |
-| `tables[].zone`          | string  | Zona donde está ubicada la mesa          |
+| Campo                          | Tipo    | Descripción                        |
+| ------------------------------ | ------- | ---------------------------------- |
+| `success`                      | boolean | Indica si la operación fue exitosa |
+| `message`                      | string  | Mensaje descriptivo                |
+| `customer.name`                | string  | Nombre del cliente                 |
+| `customer.phone`               | string  | Teléfono del cliente               |
+| `reservation.date`             | string  | Fecha de la reserva (YYYY-MM-DD)   |
+| `reservation.time`             | string  | Hora de la reserva (HH:MM:SS)      |
+| `reservation.guests`           | integer | Número de comensales               |
+| `reservation.duration_minutes` | integer | Duración en minutos                |
+| `reservation.special_requests` | string  | Peticiones especiales              |
+| `tables`                       | array   | Lista de mesas asignadas           |
+| `tables[].name`                | string  | Nombre de la mesa                  |
+| `tables[].zone`                | string  | Zona donde está ubicada la mesa    |
 
 ### **Respuesta de Error**
 
@@ -288,7 +396,7 @@ curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/api_check_avail
   }'
 ```
 
-### **2. Crear Reserva**
+### **2. Crear Reserva (sin zona preferida)**
 
 ```bash
 curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/public_create_reservation \
@@ -297,12 +405,31 @@ curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/public_create_r
     "p_name": "Cliente Agente IA",
     "p_phone": "666777888",
     "p_date": "2025-09-24",
-    "p_time": "20:00:00",
+    "p_time": "20:00",
     "p_guests": 4,
     "p_duration_minutes": 120,
     "p_special_requests": "Reserva creada por agente"
   }'
 ```
+
+### **2b. Crear Reserva con Zona Preferida**
+
+```bash
+curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/public_create_reservation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "p_name": "Cliente Agente IA",
+    "p_phone": "666777888",
+    "p_date": "2025-09-24",
+    "p_time": "20:00",
+    "p_guests": 4,
+    "p_duration_minutes": 120,
+    "p_special_requests": "Reserva creada por agente",
+    "p_preferred_zone_id": "uuid-de-la-zona-terraza"
+  }'
+```
+
+**Nota:** El `p_preferred_zone_id` se obtiene de la respuesta de `api_check_availability`, donde cada slot incluye información de zona.
 
 ### **3. Buscar Reservas**
 
@@ -352,9 +479,7 @@ curl -X POST https://api.restaurante1.gridded.agency/rest/v1/rpc/public_cancel_r
 
 ## 📊 **LÍMITES Y RESTRICCIONES**
 
-- **Duración mínima**: 30 minutos
-- **Duración máxima**: 240 minutos (4 horas)
-- **Comensales máximos**: Según capacidad del restaurante
+- **Comensales máximos**: 8
 - **Reservas por teléfono**: Sin límite
 - **Cancelación**: Solo reservas con estado 'confirmed' o 'pending'
 
@@ -368,11 +493,3 @@ Para implementar esta API en tu base de datos, ejecuta:
 -- Ejecutar en orden:
 \i PUBLIC_API_NORMALIZED_FIXED.sql
 ```
-
----
-
-## 📞 **SOPORTE**
-
-Para soporte técnico o consultas sobre la API, contacta al equipo de desarrollo.
-
-**¡API lista para integración con agentes externos!** 🚀
