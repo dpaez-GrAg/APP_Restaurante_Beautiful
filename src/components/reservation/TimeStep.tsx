@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import StepHeader from "./StepHeader";
-import { Clock, AlertTriangle, MapPin } from "lucide-react";
+import { Clock, AlertTriangle, MapPin, Phone } from "lucide-react";
 import { useAvailability, TimeSlotWithZone } from "@/hooks/reservations";
 import { formatTimeDisplay, isSlotInPast } from "@/lib/reservations";
 
@@ -15,6 +15,12 @@ interface TimeStepProps {
   selectedGuests?: number;
   onStepClick?: (step: string) => void;
 }
+
+// Helper function to detect weekend reservation days (Friday, Saturday, Sunday)
+const isWeekendReservationDay = (date: Date): boolean => {
+  const day = date.getDay();
+  return day === 0 || day === 5 || day === 6; // Sunday=0, Friday=5, Saturday=6
+};
 
 const TimeStep = ({
   date,
@@ -231,8 +237,26 @@ const TimeStep = ({
           {/* No slots available */}
           {groupedSlots.lunch.length === 0 && groupedSlots.dinner.length === 0 && (
             <div className="text-center py-8">
-              <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-500 mb-2">No hay horarios disponibles para esta fecha</p>
+              {isWeekendReservationDay(date) ? (
+                <>
+                  <Phone className="w-12 h-12 mx-auto mb-4 text-primary" />
+                  <p className="text-gray-700 font-medium mb-4">
+                    Las reservas de viernes, sábados y domingos se realizan por teléfono.
+                  </p>
+                  <a
+                    href="tel:+34881888949"
+                    className="inline-flex items-center gap-2 text-lg font-medium text-primary hover:text-primary/80 underline transition-colors"
+                  >
+                    <Phone className="w-5 h-5" />
+                    +34 881 88 89 49
+                  </a>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                  <p className="text-gray-500 mb-2">No hay horarios disponibles para esta fecha</p>
+                </>
+              )}
             </div>
           )}
         </div>
