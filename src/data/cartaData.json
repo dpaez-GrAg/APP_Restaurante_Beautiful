@@ -1,7 +1,7 @@
 {
   "cartaPrincipal": {
     "entrantes": [
-      { "name": "Croquetas", "price": "9,80", "description": "" },
+      { "name": "Croquetas", "price": "10,00", "description": "" },
       { "name": "Provolone", "price": "9,80", "description": "" },
       { "name": "Provolone caprese", "price": "11,90", "description": "" },
       { "name": "Vieira del Pacífico", "price": "18,00", "description": "" },
@@ -17,26 +17,26 @@
       { "name": "Tomate a la brasa", "price": "4,00", "price2": "5,50", "description": "" },
       { "name": "Patatas fritas", "price": "4,00", "price2": "6,00", "description": "" },
       { "name": "Patatas rustic", "price": "7,00", "description": "" },
-      { "name": "Pimiento a la brasa", "price": "5,90", "description": "" },
+      { "name": "Pimiento a la brasa", "price": "6,00", "description": "" },
       {
         "name": "Parrillada de verduras",
-        "price": "12,50",
+        "price": "12,90",
         "description": "Calabacín, zanahoria, boniato, tomate, pimiento italiano y cebolla morada"
       }
     ],
     "carnes": [
-      { "name": "Criollo", "price": "3,30", "description": "" },
+      { "name": "Criollo", "price": "3,50", "description": "" },
       { "name": "Morcilla", "price": "3,50", "description": "" },
-      { "name": "Chorizo rojo", "price": "3,30", "description": "" },
-      { "name": "Mollejas", "price": "10,50", "price2": "15,90", "description": "" },
+      { "name": "Chorizo rojo", "price": "3,50", "description": "" },
+      { "name": "Mollejas", "price": "10,50", "price2": "16,00", "description": "" },
       { "name": "Secreto 'Duroc'", "price": "16,90", "description": "" },
-      { "name": "Asado de tira", "price": "12,50", "price2": "18,50", "description": "" },
-      { "name": "Entraña", "price": "22,50", "description": "" },
+      { "name": "Asado de tira", "price": "13,00", "price2": "19,50", "description": "" },
+      { "name": "Entraña", "price": "22,90", "description": "" },
       { "name": "Picaña", "price": "22,50", "description": "" },
       { "name": "Bife (Ojo de bife)", "price": "26,00", "description": "" },
       { "name": "Bife de chorizo", "price": "24,50", "description": "" },
       { "name": "Brocheta de pollo (Contramuslo deshuesado)", "price": "14,50", "description": "" },
-      { "name": "Chuletón de Vaca Frisona de Lugo", "price": "65,00/Kg", "description": "" }
+      { "name": "Chuletón de Vaca Frisona de Lugo", "price": "66,00/Kg", "description": "" }
     ],
     "ensaladas": [
       { "name": "Classic", "price": "5,00", "price2": "8,00", "description": "Tomate, lechuga y cebolla" },
@@ -73,28 +73,29 @@
   "bodega": {
     "rioja": [
       { "name": "Cuatro Varietales", "price": "30,00", "description": "" },
-      { "name": "Dinastía Vivanco [Crianza]", "price": "21,00", "description": "" },
-      { "name": "Dinastía Vivanco [Reserva]", "price": "25,00", "description": "" },
+      { "name": "Dinastía Vivanco [Crianza]", "price": "22,00", "description": "" },
+      { "name": "Dinastía Vivanco [Reserva]", "price": "28,00", "description": "" },
       { "name": "Muga [Crianza]", "price": "32,00", "description": "" },
       { "name": "Carlos Serres [Crianza]", "price": "20,00", "description": "" },
       { "name": "Cosme Palacio [Crianza]", "price": "26,00", "description": "" },
       { "name": "Ramón Bilbao Edición Limitada", "price": "25,00", "description": "" },
       { "name": "Luis Cañas", "price": "25,00", "description": "" },
-      { "name": "1008", "price": "20,00", "description": "" }
+      { "name": "1008", "price": "21,00", "description": "" },
+      { "name": "Marqués de Riscal", "price": "30,00", "description": "" }
     ],
     "riberaDelDuero": [
       { "name": "Canta Muda [Parcela]", "price": "26,00", "description": "" },
       { "name": "Emilio Moro", "price": "29,50", "description": "" },
       { "name": "Carmelo rodero (9meses)", "price": "27,00", "description": "" },
-      { "name": "Canta Muda [Roble]", "price": "21,00", "description": "" },
-      { "name": "Carramimbre", "price": "20,00", "description": "" },
+      { "name": "Canta Muda [Roble]", "price": "22,00", "description": "" },
+      { "name": "Carramimbre", "price": "21,00", "description": "" },
       { "name": "Finca Resalso", "price": "22,00", "description": "" },
       { "name": "Malleolus", "price": "48,00", "description": "" },
       { "name": "Cillar de Silos", "price": "28,00", "description": "" },
       { "name": "Pago de Carrovejas", "price": "48,00", "description": "" },
       { "name": "La Veguilla", "price": "21,00", "description": "" },
       { "name": "Corimbo", "price": "28,00", "description": "" },
-      { "name": "Bosque de Matasnos", "price": "46,00", "description": "" }
+      { "name": "Bosque de Matasnos", "price": "44,00", "description": "" }
     ],
     "valdeorras": [
       { "name": "Jose Aristegui [Mencía]", "price": "22,00", "description": "" },
@@ -102,8 +103,8 @@
     ],
     "monterrei": [
       { "name": "Crego de Monaguillo [Mencía]", "price": "20,00", "description": "" },
-      { "name": "Crego de Monaguillo [Godello]", "price": "21,00", "description": "" },
-      { "name": "Terra do Gargalo [Mencía]", "price": "24,00", "description": "" }
+      { "name": "Crego de Monaguillo [Godello]", "price": "22,00", "description": "" },
+      { "name": "Terra do Gargalo [Mencía]", "price": "22,00", "description": "" }
     ],
     "malbecArgentina": [
       { "name": "Catena (Catena Zapata)", "price": "25,00", "description": "" },
@@ -116,7 +117,7 @@
     ],
     "castillaYLeon": [{ "name": "Abadía Retuerta (Tierras de Castilla)", "price": "42,00", "description": "" }],
     "ribeiro": [
-      { "name": "Gran Cruceiro", "price": "15,00", "description": "" },
+      { "name": "Gran Cruceiro", "price": "16,00", "description": "" },
       { "name": "Casal de Armán", "price": "25,00", "description": "" },
       { "name": "Beade (tinto)", "price": "25,00", "description": "" }
     ],

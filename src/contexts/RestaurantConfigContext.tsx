@@ -33,14 +33,14 @@ export const useRestaurantConfig = () => {
 // Configuración por defecto optimizada
 const DEFAULT_CONFIG = {
   id: "default",
-  restaurant_name: "Mi Restaurante",
-  hero_title: "Bienvenido a una experiencia gastronómica única",
+  restaurant_name: "Restaurante Beautiful",
+  hero_title: "Carnes",
   hero_subtitle: "Disfruta de los mejores sabores en un ambiente elegante y sofisticado",
   hero_image_url: "/src/assets/restaurant-hero.jpg",
   logo_url: "",
-  contact_phone: "+34 123 456 789",
-  contact_email: "info@mi-restaurante.com",
-  contact_address: "Calle Principal 123, Madrid",
+  contact_phone: "+34 881 88 89 49",
+  contact_email: "beautifulcoruna@gmail.com",
+  contact_address: "Rosalía de Castro, 13, 15004 A Coruña",
 };
 
 // Clave para localStorage
